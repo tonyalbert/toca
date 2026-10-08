@@ -1,0 +1,34 @@
+appId: br.com.rabbitapps.toca
+productName: Toca
+copyright: Copyright © 2026 tonyalbert
+
+directories:
+  buildResources: build
+  output: dist
+
+# Só o código já compilado pelo electron-vite vai para o instalador
+files:
+  - out/**/*
+  - package.json
+
+win:
+  target: nsis
+  icon: build/icon.png
+  executableName: Toca
+
+nsis:
+  oneClick: true
+  perMachine: false
+  artifactName: Toca-Setup-${version}.${ext}
+  shortcutName: Toca
+  uninstallDisplayName: Toca
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+
+# Usado para gerar o app-update.yml (de onde o app busca atualizações).
+# O envio para o GitHub é feito por scripts/publish-github.mjs, não pelo electron-builder.
+publish:
+  provider: github
+  owner: tonyalbert
+  repo: toca-releases

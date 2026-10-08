@@ -1,0 +1,41 @@
+{
+  "name": "toca-desktop",
+  "productName": "Toca",
+  "version": "1.0.1",
+  "private": true,
+  "description": "Toca - chamadas de voz em grupo",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "dist": "electron-vite build && electron-builder --win --publish never",
+    "release": "npm run dist && node scripts/publish-github.mjs",
+    "publish:github": "node scripts/publish-github.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "livekit-client": "^2.22.3",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.7"
+  },
+  "allowScripts": {
+    "electron@44.7.0": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "electron-winstaller": false
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "author": "tonyalbert"
+}
