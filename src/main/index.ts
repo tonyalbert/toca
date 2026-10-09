@@ -1,5 +1,6 @@
 import { app, BrowserWindow, session, shell } from "electron";
 import { join } from "node:path";
+import { appIcon, hideOnClose, setupTray, showWindow } from "./tray";
 import { setupUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
@@ -13,6 +14,7 @@ function createWindow(): void {
     title: "Toca",
     backgroundColor: "#1e1f22",
     autoHideMenuBar: true,
+    icon: appIcon,
     show: false,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
@@ -21,11 +23,14 @@ function createWindow(): void {
       sandbox: true,
       // Áudio dos outros participantes toca sem precisar de clique
       autoplayPolicy: "no-user-gesture-required",
+      // Continua a chamada a todo vapor mesmo com a janela escondida na bandeja
+      backgroundThrottling: false,
     },
   });
   mainWindow = win;
 
   win.once("ready-to-show", () => win.show());
+  hideOnClose(win);
   win.on("closed", () => {
     if (mainWindow === win) mainWindow = null;
   });
@@ -44,13 +49,12 @@ function createWindow(): void {
 }
 
 // Uma instância só: abrir o atalho de novo traz a janela existente para frente
+// (inclusive quando ela está escondida na bandeja)
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
+    if (mainWindow) showWindow(mainWindow);
   });
 
   app.whenReady().then(() => {
@@ -63,6 +67,7 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     setupUpdater();
+    setupTray(() => mainWindow);
     createWindow();
 
     app.on("activate", () => {
