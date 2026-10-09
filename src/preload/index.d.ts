@@ -10,6 +10,10 @@ declare global {
       /** Retorna a função que cancela a inscrição */
       onUpdateState(callback: (state: UpdateState) => void): () => void;
       installUpdate(): Promise<void>;
+      /** Refresh token salvo (criptografado pelo Windows), ou null */
+      loadSession(): Promise<string | null>;
+      /** null apaga a sessão salva */
+      saveSession(refreshToken: string | null): Promise<void>;
       getScreenSources(): Promise<ScreenSource[]>;
       /** Registra a escolha do seletor; vale para o próximo getDisplayMedia */
       selectScreenSource(sourceId: string): Promise<void>;

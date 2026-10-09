@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld("toca", {
     };
   },
   installUpdate: (): Promise<void> => ipcRenderer.invoke("update:install"),
+  loadSession: (): Promise<string | null> => ipcRenderer.invoke("session:load"),
+  saveSession: (refreshToken: string | null): Promise<void> => ipcRenderer.invoke("session:save", refreshToken),
   getScreenSources: (): Promise<ScreenSource[]> => ipcRenderer.invoke("screen:sources"),
   selectScreenSource: (sourceId: string): Promise<void> => ipcRenderer.invoke("screen:select", sourceId),
   startScreenAudio: (): Promise<ScreenAudioStartResult> => ipcRenderer.invoke("screen:audio-start"),

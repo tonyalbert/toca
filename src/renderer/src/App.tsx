@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { ConnectionState } from "livekit-client";
-import { fetchRooms, type RoomInfo } from "./api";
+import { logout, onSessionLost, restoreSession, type RoomInfo, type User } from "./api";
+import type { RealtimeEvent } from "./realtime";
 import type { UpdateState } from "../../shared/update";
 import { useVoiceRoom, type VoiceParticipant } from "./useVoiceRoom";
+import { useTocaData } from "./useTocaData";
 import { useAppUpdate } from "./useAppUpdate";
 import { useMicLevel } from "./useMicLevel";
 import {
@@ -12,58 +14,85 @@ import {
   HangUpIcon,
   MicIcon,
   MicOffIcon,
+  PlusIcon,
   ScreenShareIcon,
   ScreenShareOffIcon,
   SpeakerIcon,
+  UsersIcon,
 } from "./icons";
+import { AuthScreen } from "./AuthScreen";
 import { Avatar } from "./Avatar";
+import { FriendsPage } from "./FriendsPage";
+import { CreateRoomModal, RoomSettingsModal } from "./RoomModals";
 import { ScreenSharePicker } from "./ScreenSharePicker";
 import { Stage } from "./Stage";
 import { VoiceSettings } from "./VoiceSettings";
 
-const NAME_KEY = "toca.name";
-const ROOMS_POLL_MS = 5000;
+const RESTORE_RETRY_MS = 5000;
 
-function loadName(): string {
-  try {
-    return localStorage.getItem(NAME_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function saveName(name: string): void {
-  try {
-    if (name) localStorage.setItem(NAME_KEY, name);
-    else localStorage.removeItem(NAME_KEY);
-  } catch {
-    // sem armazenamento: o nome só vale nesta sessão
-  }
-}
+type Auth =
+  | { status: "loading" }
+  | { status: "offline"; message: string }
+  | { status: "signedOut"; notice?: string }
+  | { status: "signedIn"; user: User };
 
 export default function App() {
-  const [name, setName] = useState(loadName);
+  const [auth, setAuth] = useState<Auth>({ status: "loading" });
   const { version, update, install } = useAppUpdate();
+
+  // Retoma a sessão salva; sem internet, tenta de novo sozinho
+  useEffect(() => {
+    if (auth.status !== "loading" && auth.status !== "offline") return;
+    let cancelled = false;
+    const attempt = async () => {
+      try {
+        const user = await restoreSession();
+        if (!cancelled) setAuth(user ? { status: "signedIn", user } : { status: "signedOut" });
+      } catch (err) {
+        if (cancelled) return;
+        setAuth({ status: "offline", message: (err as Error).message });
+      }
+    };
+    const id = setTimeout(attempt, auth.status === "offline" ? RESTORE_RETRY_MS : 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [auth]);
+
+  useEffect(() => {
+    onSessionLost(() => setAuth({ status: "signedOut", notice: "Sua sessão expirou. Entre de novo." }));
+  }, []);
 
   return (
     <>
-      {name ? (
-        <VoiceApp
-          name={name}
+      {auth.status === "signedIn" ? (
+        <MainApp
+          key={auth.user.id}
+          me={auth.user}
           version={version}
-          onChangeName={() => {
-            saveName("");
-            setName("");
-          }}
+          onLogout={() => setAuth({ status: "signedOut" })}
+        />
+      ) : auth.status === "signedOut" ? (
+        <AuthScreen
+          version={version}
+          notice={auth.notice}
+          onAuthenticated={(user) => setAuth({ status: "signedIn", user })}
         />
       ) : (
-        <NameScreen
-          version={version}
-          onSubmit={(n) => {
-            saveName(n);
-            setName(n);
-          }}
-        />
+        <div className="name-screen">
+          <div className="name-card">
+            <h1>Toca</h1>
+            {auth.status === "offline" ? (
+              <>
+                <p>Sem conexão com o servidor.</p>
+                <div className="muted-text">Tentando de novo… ({auth.message})</div>
+              </>
+            ) : (
+              <p>Carregando…</p>
+            )}
+          </div>
+        </div>
       )}
       <UpdateBanner update={update} onInstall={install} />
     </>
@@ -93,77 +122,79 @@ function UpdateBanner({ update, onInstall }: { update: UpdateState; onInstall: (
   return null;
 }
 
-function NameScreen({ version, onSubmit }: { version: string | null; onSubmit: (name: string) => void }) {
-  const [value, setValue] = useState(loadName);
-  const trimmed = value.trim();
-
-  return (
-    <div className="name-screen">
-      <form
-        className="name-card"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (trimmed) onSubmit(trimmed);
-        }}
-      >
-        <h1>Toca</h1>
-        <p>Como você quer ser chamado?</p>
-        <input
-          autoFocus
-          maxLength={32}
-          placeholder="Seu nome"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-        />
-        <button type="submit" className="primary" disabled={!trimmed}>
-          Entrar
-        </button>
-        {version && <div className="version">v{version}</div>}
-      </form>
-    </div>
-  );
+/** Notificação do Windows, só quando o Toca não está em foco */
+function notify(title: string, body: string) {
+  if (document.hasFocus()) return;
+  try {
+    new Notification(title, { body });
+  } catch {
+    // notificações indisponíveis
+  }
 }
 
-function VoiceApp({
-  name,
-  version,
-  onChangeName,
-}: {
-  name: string;
-  version: string | null;
-  onChangeName: () => void;
-}) {
+function MainApp({ me, version, onLogout }: { me: User; version: string | null; onLogout: () => void }) {
   const voice = useVoiceRoom();
-  const [rooms, setRooms] = useState<RoomInfo[]>([]);
-  const [roomsError, setRoomsError] = useState<string | null>(null);
+  const [view, setView] = useState<"friends" | "voice">("friends");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [roomSettingsId, setRoomSettingsId] = useState<string | null>(null);
 
-  const refreshRooms = useCallback(async () => {
-    try {
-      setRooms(await fetchRooms());
-      setRoomsError(null);
-    } catch (err) {
-      setRoomsError((err as Error).message);
-    }
-  }, []);
+  const { leave, showError } = voice;
+  const currentRoomId = voice.room;
 
+  const handleEvent = useCallback(
+    (event: RealtimeEvent) => {
+      switch (event.type) {
+        case "friend_request_received":
+          notify("Pedido de amizade", `${event.request.user.displayName} quer ser seu amigo`);
+          break;
+        case "friend_request_accepted":
+          notify("Novo amigo", `Você e ${event.friend.displayName} agora são amigos`);
+          break;
+        case "room_added":
+          if (event.room.role === "member") notify("Nova sala", `Você foi adicionado à sala ${event.room.name}`);
+          break;
+        case "room_removed":
+        case "room_deleted":
+          // Removido da sala em que está: sai da call (o LiveKit também derruba)
+          if (event.roomId === currentRoomId) {
+            void leave().then(() =>
+              showError(event.type === "room_deleted" ? "A sala foi excluída." : "Você foi removido da sala."),
+            );
+          }
+          break;
+      }
+    },
+    [currentRoomId, leave, showError],
+  );
+
+  const data = useTocaData(handleEvent);
+  const { reloadRooms, reloadFriends } = data;
+
+  // Atualiza quem está nas salas logo após entrar/sair, e de novo um pouco
+  // depois, quando o LiveKit já processou a saída
   useEffect(() => {
-    void refreshRooms();
-    const id = setInterval(refreshRooms, ROOMS_POLL_MS);
-    return () => clearInterval(id);
-  }, [refreshRooms]);
-
-  // Atualiza a lista logo após entrar/sair, sem esperar o próximo ciclo,
-  // e de novo um pouco depois, quando o LiveKit já processou a saída.
-  useEffect(() => {
-    void refreshRooms();
-    const id = setTimeout(refreshRooms, 1500);
+    void reloadRooms();
+    const id = setTimeout(reloadRooms, 1500);
     return () => clearTimeout(id);
-  }, [voice.room, voice.connection, refreshRooms]);
+  }, [voice.room, voice.connection, reloadRooms]);
 
   const connected = voice.connection === ConnectionState.Connected;
-  const currentRoom = rooms.find((r) => r.slug === voice.room);
+  const currentRoom = data.rooms.find((r) => r.id === voice.room);
+  const settingsRoom = data.rooms.find((r) => r.id === roomSettingsId);
+  const showVoice = view === "voice" && voice.room;
+
+  const joinRoom = (room: RoomInfo) => {
+    setView("voice");
+    if (room.id !== voice.room) void voice.join(room.id);
+  };
+
+  const signOut = async () => {
+    await voice.leave();
+    await logout();
+    onLogout();
+  };
 
   return (
     <div className="layout">
@@ -174,33 +205,56 @@ function VoiceApp({
         </header>
 
         <nav className="room-list">
-          <div className="section-title">Salas de voz</div>
-          {roomsError && rooms.length === 0 && (
-            <div className="muted-text">Não foi possível carregar as salas.</div>
+          <button
+            className={`nav-button ${!showVoice ? "active" : ""}`}
+            onClick={() => setView("friends")}
+          >
+            <UsersIcon />
+            <span>Amigos</span>
+            {data.incoming.length > 0 && <span className="badge">{data.incoming.length}</span>}
+          </button>
+
+          <div className="section-title with-action">
+            <span>Salas de voz</span>
+            <button className="mini-button" title="Criar sala" onClick={() => setCreateOpen(true)}>
+              <PlusIcon />
+            </button>
+          </div>
+          {data.roomsLoaded && data.rooms.length === 0 && (
+            <div className="muted-text hint">Crie uma sala no + ou peça para um amigo te adicionar.</div>
           )}
-          {rooms.map((room) => {
-            const isCurrent = room.slug === voice.room;
+          {data.rooms.map((room) => {
+            const isCurrent = room.id === voice.room;
             return (
-              <div key={room.slug} className="room">
-                <button
-                  className={`room-button ${isCurrent ? "active" : ""}`}
-                  onClick={() => !isCurrent && void voice.join(name, room.slug)}
-                  title={isCurrent ? "Você está nesta sala" : `Entrar em ${room.name}`}
-                >
-                  <SpeakerIcon />
-                  <span>{room.name}</span>
-                </button>
+              <div key={room.id} className="room">
+                <div className={`room-button ${isCurrent ? "active" : ""}`}>
+                  <button
+                    className="room-join"
+                    onClick={() => joinRoom(room)}
+                    title={isCurrent ? "Você está nesta sala" : `Entrar em ${room.name}`}
+                  >
+                    <SpeakerIcon />
+                    <span>{room.name}</span>
+                  </button>
+                  <button
+                    className="room-gear"
+                    title={room.role === "owner" ? "Configurações da sala" : "Membros da sala"}
+                    onClick={() => setRoomSettingsId(room.id)}
+                  >
+                    <GearIcon />
+                  </button>
+                </div>
                 <ul className="room-members">
                   {isCurrent && connected
                     ? voice.participants.map((p) => <MemberRow key={p.identity} p={p} />)
                     : room.participants
-                        .filter((p) => !voice.isOwnIdentity(p.identity))
+                        .filter((p) => p.id !== me.id)
                         .map((p) => (
-                        <li key={p.identity} className="member">
-                          <Avatar name={p.name} size={22} />
-                          <span className="member-name">{p.name}</span>
-                        </li>
-                      ))}
+                          <li key={p.id} className="member">
+                            <Avatar name={p.name} size={22} />
+                            <span className="member-name">{p.name}</span>
+                          </li>
+                        ))}
                 </ul>
               </div>
             );
@@ -208,14 +262,15 @@ function VoiceApp({
         </nav>
 
         <footer className="user-panel">
+          {!data.online && <div className="offline-line">Conectando ao servidor…</div>}
           {voice.room && (
             <div className="voice-status">
-              <div>
+              <button className="voice-status-info" onClick={() => setView("voice")} title="Ver a sala">
                 <div className={`status-line ${connected ? "ok" : "pending"}`}>
                   {connected ? "Voz conectada" : connectionLabel(voice.connection)}
                 </div>
-                <div className="muted-text">{currentRoom?.name ?? voice.room}</div>
-              </div>
+                <div className="muted-text">{currentRoom?.name ?? "…"}</div>
+              </button>
               <div className="voice-actions">
                 <button
                   className={`icon-button ${voice.cameraOn ? "active" : ""}`}
@@ -240,12 +295,15 @@ function VoiceApp({
             </div>
           )}
           <div className="user-row">
-            <Avatar name={name} size={32} />
+            <Avatar name={me.displayName} size={32} />
             <div className="user-info">
-              <div className="user-name">{name}</div>
-              <button className="link-button" onClick={() => void voice.leave().then(onChangeName)}>
-                trocar nome
-              </button>
+              <div className="user-name">{me.displayName}</div>
+              <div className="muted-text user-handle">
+                @{me.username} ·{" "}
+                <button className="link-button" onClick={() => void signOut()}>
+                  sair
+                </button>
+              </div>
             </div>
             <MicButton
               track={voice.micMediaTrack}
@@ -261,11 +319,11 @@ function VoiceApp({
       </aside>
 
       <main className="stage">
-        {voice.room ? (
+        {showVoice ? (
           <>
             <header className="stage-header">
               <SpeakerIcon />
-              <span>{currentRoom?.name ?? voice.room}</span>
+              <span>{currentRoom?.name ?? "…"}</span>
               {voice.screenSharing && (
                 <button className="stop-share" onClick={() => void voice.stopScreenShare()}>
                   <ScreenShareOffIcon />
@@ -280,7 +338,12 @@ function VoiceApp({
             )}
           </>
         ) : (
-          <div className="empty">Escolha uma sala na lista para entrar.</div>
+          <FriendsPage
+            friends={data.friends}
+            incoming={data.incoming}
+            outgoing={data.outgoing}
+            onChanged={reloadFriends}
+          />
         )}
 
         {pickerOpen && (
@@ -300,6 +363,32 @@ function VoiceApp({
             onChangeMic={(id) => void voice.setMicDevice(id)}
             onChangeCamera={(id) => void voice.setCameraDevice(id)}
             onClose={() => setSettingsOpen(false)}
+          />
+        )}
+
+        {createOpen && (
+          <CreateRoomModal
+            onClose={() => setCreateOpen(false)}
+            onCreated={async (room) => {
+              setCreateOpen(false);
+              await reloadRooms();
+              // Já abre as configurações para adicionar amigos
+              setRoomSettingsId(room.id);
+            }}
+          />
+        )}
+
+        {settingsRoom && (
+          <RoomSettingsModal
+            room={settingsRoom}
+            me={me}
+            friends={data.friends}
+            onChanged={reloadRooms}
+            onLeft={() => {
+              setRoomSettingsId(null);
+              if (settingsRoom.id === voice.room) void voice.leave();
+            }}
+            onClose={() => setRoomSettingsId(null)}
           />
         )}
 

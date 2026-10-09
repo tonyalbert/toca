@@ -2,6 +2,7 @@ import { app, BrowserWindow, session, shell } from "electron";
 import { join } from "node:path";
 import { appIcon, hideOnClose, setupTray, showWindow } from "./tray";
 import { setupScreenShare } from "./screenShare";
+import { setupSession } from "./session";
 import { setupUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
@@ -74,6 +75,7 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     setupScreenShare();
+    setupSession();
 
     setupUpdater();
     setupTray(() => mainWindow);

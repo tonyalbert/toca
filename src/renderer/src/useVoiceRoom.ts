@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConnectionState,
+  DisconnectReason,
   LocalAudioTrack,
   Participant,
   RemoteTrack,
@@ -12,7 +13,7 @@ import {
   VideoPresets,
   type VideoTrack,
 } from "livekit-client";
-import { fetchToken } from "./api";
+import { fetchRoomToken } from "./api";
 import { startScreenAudio, type ScreenAudio } from "./screenAudio";
 import {
   DEFAULT_DEVICE,
@@ -77,6 +78,19 @@ function videoTrackOf(p: Participant, source: Track.Source): VideoTrack | null {
   return pub.videoTrack ?? null;
 }
 
+function disconnectMessage(reason?: DisconnectReason): string {
+  switch (reason) {
+    case DisconnectReason.PARTICIPANT_REMOVED:
+      return "Você foi removido da sala.";
+    case DisconnectReason.ROOM_DELETED:
+      return "A sala foi encerrada.";
+    case DisconnectReason.DUPLICATE_IDENTITY:
+      return "Você entrou nesta sala em outro computador.";
+    default:
+      return "Você foi desconectado da sala.";
+  }
+}
+
 function localMicTrack(room: Room): MediaStreamTrack | null {
   const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
   return track instanceof LocalAudioTrack ? track.mediaStreamTrack : null;
@@ -110,10 +124,6 @@ export function useVoiceRoom() {
     }
     audio.stop();
   };
-  // Identidades que este app já usou nesta sessão. A API pode demorar alguns
-  // segundos para refletir uma saída, então isso permite esconder "ecos" nossos
-  // em salas de onde já saímos.
-  const ownIdentities = useRef(new Set<string>());
   // Elementos <audio> dos participantes remotos
   const audioContainer = useRef<HTMLDivElement | null>(null);
 
@@ -134,10 +144,10 @@ export function useVoiceRoom() {
   }, []);
 
   const join = useCallback(
-    async (name: string, slug: string) => {
+    async (roomId: string) => {
       if (roomRef.current) await leave();
 
-      setState({ ...initialState, room: slug, connection: ConnectionState.Connecting });
+      setState({ ...initialState, room: roomId, connection: ConnectionState.Connecting });
 
       const room = new Room({
         // Recebe o vídeo dos outros na resolução do quadro em que ele aparece
@@ -194,17 +204,17 @@ export function useVoiceRoom() {
         })
         .on(RoomEvent.ConnectionStateChanged, sync)
         .on(RoomEvent.ActiveDeviceChanged, sync)
-        .on(RoomEvent.Disconnected, () => {
+        .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
           // Desconexão iniciada pelo servidor ou queda de rede definitiva
           if (roomRef.current === room) {
             roomRef.current = null;
-            setState({ ...initialState, error: "Você foi desconectado da sala." });
+            void stopScreenAudio(null);
+            setState({ ...initialState, error: disconnectMessage(reason) });
           }
         });
 
       try {
-        const { token, url, identity } = await fetchToken(name, slug);
-        ownIdentities.current.add(identity);
+        const { token, url } = await fetchRoomToken(roomId);
         if (roomRef.current !== room) return; // usuário saiu/trocou de sala no meio
         await room.connect(url, token);
       } catch (err) {
@@ -359,6 +369,7 @@ export function useVoiceRoom() {
   }, []);
 
   const clearError = useCallback(() => setState((s) => ({ ...s, error: null })), []);
+  const showError = useCallback((error: string) => setState((s) => ({ ...s, error })), []);
 
   // Sai da sala ao fechar a janela
   useEffect(() => {
@@ -369,8 +380,6 @@ export function useVoiceRoom() {
       void roomRef.current?.disconnect();
     };
   }, []);
-
-  const isOwnIdentity = useCallback((identity: string) => ownIdentities.current.has(identity), []);
 
   return {
     ...state,
@@ -385,6 +394,6 @@ export function useVoiceRoom() {
     setMicDevice,
     setCameraDevice,
     clearError,
-    isOwnIdentity,
+    showError,
   };
 }
