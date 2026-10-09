@@ -7,9 +7,18 @@ import {
   Room,
   RoomEvent,
   Track,
+  VideoPresets,
+  type VideoTrack,
 } from "livekit-client";
 import { fetchToken } from "./api";
-import { availableMicDeviceId, loadMicDeviceId, saveMicDeviceId } from "./devices";
+import {
+  DEFAULT_DEVICE,
+  availableDeviceId,
+  captureDeviceId,
+  listDevices,
+  loadDeviceId,
+  saveDeviceId,
+} from "./devices";
 
 export interface VoiceParticipant {
   identity: string;
@@ -17,6 +26,8 @@ export interface VoiceParticipant {
   isLocal: boolean;
   isSpeaking: boolean;
   isMuted: boolean;
+  /** Vídeo da câmera, se estiver ligada (e, para os outros, já recebida) */
+  cameraTrack: VideoTrack | null;
 }
 
 export interface VoiceState {
@@ -25,6 +36,7 @@ export interface VoiceState {
   connection: ConnectionState;
   participants: VoiceParticipant[];
   muted: boolean;
+  cameraOn: boolean;
   /** Áudio do nosso microfone, para medir o volume localmente. Muda ao trocar de microfone. */
   micMediaTrack: MediaStreamTrack | null;
   error: string | null;
@@ -35,6 +47,7 @@ const initialState: VoiceState = {
   connection: ConnectionState.Disconnected,
   participants: [],
   muted: false,
+  cameraOn: false,
   micMediaTrack: null,
   error: null,
 };
@@ -46,7 +59,14 @@ function toVoiceParticipant(p: Participant, isLocal: boolean): VoiceParticipant 
     isLocal,
     isSpeaking: p.isSpeaking,
     isMuted: !p.isMicrophoneEnabled,
+    cameraTrack: cameraTrackOf(p),
   };
+}
+
+function cameraTrackOf(p: Participant): VideoTrack | null {
+  const pub = p.getTrackPublication(Track.Source.Camera);
+  if (!pub || pub.isMuted) return null;
+  return pub.videoTrack ?? null;
 }
 
 function localMicTrack(room: Room): MediaStreamTrack | null {
@@ -65,8 +85,10 @@ function snapshot(room: Room): VoiceParticipant[] {
 
 export function useVoiceRoom() {
   const [state, setState] = useState<VoiceState>(initialState);
-  const [micDeviceId, setMicDeviceIdState] = useState(loadMicDeviceId);
+  const [micDeviceId, setMicDeviceIdState] = useState(() => loadDeviceId("audioinput"));
   const micDeviceRef = useRef(micDeviceId);
+  const [cameraDeviceId, setCameraDeviceIdState] = useState(() => loadDeviceId("videoinput"));
+  const cameraDeviceRef = useRef(cameraDeviceId);
   const roomRef = useRef<Room | null>(null);
   // Identidades que este app já usou nesta sessão. A API pode demorar alguns
   // segundos para refletir uma saída, então isso permite esconder "ecos" nossos
@@ -97,8 +119,13 @@ export function useVoiceRoom() {
       setState({ ...initialState, room: slug, connection: ConnectionState.Connecting });
 
       const room = new Room({
+        // Recebe o vídeo dos outros na resolução do quadro em que ele aparece
+        adaptiveStream: true,
+        // Para de enviar camadas de vídeo que ninguém está assistindo
+        dynacast: true,
+        videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
         audioCaptureDefaults: {
-          deviceId: await availableMicDeviceId(micDeviceRef.current),
+          deviceId: captureDeviceId(await availableDeviceId("audioinput", micDeviceRef.current)),
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
@@ -113,6 +140,7 @@ export function useVoiceRoom() {
           connection: room.state,
           participants: snapshot(room),
           muted: !room.localParticipant.isMicrophoneEnabled,
+          cameraOn: room.localParticipant.isCameraEnabled,
           micMediaTrack: localMicTrack(room),
         }));
       };
@@ -191,11 +219,34 @@ export function useVoiceRoom() {
     }));
   }, []);
 
+  const toggleCamera = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room || room.state !== ConnectionState.Connected) return;
+    const lp = room.localParticipant;
+    try {
+      await lp.setCameraEnabled(
+        !lp.isCameraEnabled,
+        // Ao ligar, usa a câmera escolhida nas configurações
+        lp.isCameraEnabled
+          ? undefined
+          : {
+              deviceId: captureDeviceId(await availableDeviceId("videoinput", cameraDeviceRef.current)),
+              resolution: VideoPresets.h720.resolution,
+            },
+      );
+    } catch (err) {
+      const e = err as Error;
+      const hint = e.name === "NotReadableError" ? " (outro programa pode estar usando a câmera)" : "";
+      setState((s) => ({ ...s, error: `Câmera indisponível: ${e.message}${hint}` }));
+    }
+    setState((s) => ({ ...s, cameraOn: lp.isCameraEnabled, participants: snapshot(room) }));
+  }, []);
+
   /** Troca o microfone; se estiver numa sala, a troca acontece na hora */
   const setMicDevice = useCallback(async (deviceId: string) => {
     micDeviceRef.current = deviceId;
     setMicDeviceIdState(deviceId);
-    saveMicDeviceId(deviceId);
+    saveDeviceId("audioinput", deviceId);
 
     const room = roomRef.current;
     if (!room || room.state !== ConnectionState.Connected) return;
@@ -205,6 +256,27 @@ export function useVoiceRoom() {
       setState((s) => ({ ...s, error: `Não foi possível trocar o microfone: ${(err as Error).message}` }));
     }
     setState((s) => ({ ...s, micMediaTrack: localMicTrack(room) }));
+  }, []);
+
+  /** Troca a câmera; se ela estiver ligada numa sala, a troca acontece na hora */
+  const setCameraDevice = useCallback(async (deviceId: string) => {
+    cameraDeviceRef.current = deviceId;
+    setCameraDeviceIdState(deviceId);
+    saveDeviceId("videoinput", deviceId);
+
+    const room = roomRef.current;
+    if (!room || room.state !== ConnectionState.Connected || !room.localParticipant.isCameraEnabled) return;
+    try {
+      // "Automática" não é um dispositivo real: usa a primeira câmera da lista
+      const target =
+        deviceId === DEFAULT_DEVICE
+          ? (await listDevices("videoinput")).find((d) => d.deviceId !== DEFAULT_DEVICE)?.deviceId
+          : deviceId;
+      if (target) await room.switchActiveDevice("videoinput", target);
+    } catch (err) {
+      setState((s) => ({ ...s, error: `Não foi possível trocar a câmera: ${(err as Error).message}` }));
+    }
+    setState((s) => ({ ...s, participants: snapshot(room) }));
   }, []);
 
   const clearError = useCallback(() => setState((s) => ({ ...s, error: null })), []);
@@ -221,5 +293,17 @@ export function useVoiceRoom() {
 
   const isOwnIdentity = useCallback((identity: string) => ownIdentities.current.has(identity), []);
 
-  return { ...state, micDeviceId, join, leave, toggleMute, setMicDevice, clearError, isOwnIdentity };
+  return {
+    ...state,
+    micDeviceId,
+    cameraDeviceId,
+    join,
+    leave,
+    toggleMute,
+    toggleCamera,
+    setMicDevice,
+    setCameraDevice,
+    clearError,
+    isOwnIdentity,
+  };
 }

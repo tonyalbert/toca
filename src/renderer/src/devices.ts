@@ -1,51 +1,64 @@
-const MIC_KEY = "toca.micDeviceId";
+export type DeviceKind = "audioinput" | "videoinput";
 
-/** "default" = segue o microfone padrão do Windows */
+const STORAGE_KEY: Record<DeviceKind, string> = {
+  audioinput: "toca.micDeviceId",
+  videoinput: "toca.cameraDeviceId",
+};
+
+/** "default" = deixa o Windows escolher (microfone padrão / primeira câmera) */
 export const DEFAULT_DEVICE = "default";
 
-export function loadMicDeviceId(): string {
+export function loadDeviceId(kind: DeviceKind): string {
   try {
-    return localStorage.getItem(MIC_KEY) ?? DEFAULT_DEVICE;
+    return localStorage.getItem(STORAGE_KEY[kind]) ?? DEFAULT_DEVICE;
   } catch {
     return DEFAULT_DEVICE;
   }
 }
 
-export function saveMicDeviceId(deviceId: string): void {
+export function saveDeviceId(kind: DeviceKind, deviceId: string): void {
   try {
-    localStorage.setItem(MIC_KEY, deviceId);
+    localStorage.setItem(STORAGE_KEY[kind], deviceId);
   } catch {
     // sem armazenamento: a escolha só vale nesta sessão
   }
 }
 
-export interface MicOption {
+export interface DeviceOption {
   deviceId: string;
   label: string;
 }
 
 /**
- * Microfones disponíveis. Os nomes só aparecem depois que o app já usou o
- * microfone uma vez (permissão concedida).
+ * Microfones ou câmeras disponíveis. Os nomes só aparecem depois que o app já
+ * usou o dispositivo uma vez (permissão concedida).
  */
-export async function listMicrophones(): Promise<MicOption[]> {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  return (
-    devices
-      // "communications" é um apelido do Windows que só confunde a lista
-      .filter((d) => d.kind === "audioinput" && d.deviceId !== "communications")
-      .map((d, i) => ({
-        deviceId: d.deviceId,
-        label:
-          d.deviceId === DEFAULT_DEVICE
-            ? `Padrão do Windows (${d.label.replace(/^Default - /, "") || "microfone"})`
-            : d.label || `Microfone ${i + 1}`,
-      }))
+export async function listDevices(kind: DeviceKind): Promise<DeviceOption[]> {
+  const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+    // "communications" é um apelido do Windows que só confunde a lista
+    (d) => d.kind === kind && d.deviceId !== "communications",
   );
+  const options = devices.map((d, i) => ({
+    deviceId: d.deviceId,
+    label:
+      d.deviceId === DEFAULT_DEVICE
+        ? `Padrão do Windows (${d.label.replace(/^Default - /, "") || "microfone"})`
+        : d.label || `${kind === "audioinput" ? "Microfone" : "Câmera"} ${i + 1}`,
+  }));
+  // Para câmeras o Chromium não tem um item "padrão"; criamos um
+  if (kind === "videoinput") {
+    options.unshift({ deviceId: DEFAULT_DEVICE, label: "Automática (primeira câmera)" });
+  }
+  return options;
 }
 
-/** O microfone salvo, se ele ainda estiver conectado; senão o padrão do Windows */
-export async function availableMicDeviceId(deviceId: string): Promise<string> {
-  const mics = await listMicrophones();
-  return mics.some((m) => m.deviceId === deviceId) ? deviceId : DEFAULT_DEVICE;
+/** O dispositivo salvo, se ele ainda estiver conectado; senão o padrão */
+export async function availableDeviceId(kind: DeviceKind, deviceId: string): Promise<string> {
+  const devices = await listDevices(kind);
+  return devices.some((d) => d.deviceId === deviceId) ? deviceId : DEFAULT_DEVICE;
+}
+
+/** deviceId para a captura: undefined deixa o sistema escolher */
+export function captureDeviceId(deviceId: string): string | undefined {
+  return deviceId === DEFAULT_DEVICE ? undefined : deviceId;
 }
