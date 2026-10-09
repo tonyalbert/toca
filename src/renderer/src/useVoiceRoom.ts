@@ -9,6 +9,7 @@ import {
   Track,
 } from "livekit-client";
 import { fetchToken } from "./api";
+import { availableMicDeviceId, loadMicDeviceId, saveMicDeviceId } from "./devices";
 
 export interface VoiceParticipant {
   identity: string;
@@ -24,8 +25,8 @@ export interface VoiceState {
   connection: ConnectionState;
   participants: VoiceParticipant[];
   muted: boolean;
-  /** Track do nosso microfone, para medir o volume localmente */
-  micTrack: LocalAudioTrack | null;
+  /** Áudio do nosso microfone, para medir o volume localmente. Muda ao trocar de microfone. */
+  micMediaTrack: MediaStreamTrack | null;
   error: string | null;
 }
 
@@ -34,7 +35,7 @@ const initialState: VoiceState = {
   connection: ConnectionState.Disconnected,
   participants: [],
   muted: false,
-  micTrack: null,
+  micMediaTrack: null,
   error: null,
 };
 
@@ -48,9 +49,9 @@ function toVoiceParticipant(p: Participant, isLocal: boolean): VoiceParticipant 
   };
 }
 
-function localMicTrack(room: Room): LocalAudioTrack | null {
+function localMicTrack(room: Room): MediaStreamTrack | null {
   const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
-  return track instanceof LocalAudioTrack ? track : null;
+  return track instanceof LocalAudioTrack ? track.mediaStreamTrack : null;
 }
 
 function snapshot(room: Room): VoiceParticipant[] {
@@ -64,6 +65,8 @@ function snapshot(room: Room): VoiceParticipant[] {
 
 export function useVoiceRoom() {
   const [state, setState] = useState<VoiceState>(initialState);
+  const [micDeviceId, setMicDeviceIdState] = useState(loadMicDeviceId);
+  const micDeviceRef = useRef(micDeviceId);
   const roomRef = useRef<Room | null>(null);
   // Identidades que este app já usou nesta sessão. A API pode demorar alguns
   // segundos para refletir uma saída, então isso permite esconder "ecos" nossos
@@ -95,6 +98,7 @@ export function useVoiceRoom() {
 
       const room = new Room({
         audioCaptureDefaults: {
+          deviceId: await availableMicDeviceId(micDeviceRef.current),
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
@@ -109,7 +113,7 @@ export function useVoiceRoom() {
           connection: room.state,
           participants: snapshot(room),
           muted: !room.localParticipant.isMicrophoneEnabled,
-          micTrack: localMicTrack(room),
+          micMediaTrack: localMicTrack(room),
         }));
       };
 
@@ -135,6 +139,7 @@ export function useVoiceRoom() {
         .on(RoomEvent.LocalTrackPublished, sync)
         .on(RoomEvent.LocalTrackUnpublished, sync)
         .on(RoomEvent.ConnectionStateChanged, sync)
+        .on(RoomEvent.ActiveDeviceChanged, sync)
         .on(RoomEvent.Disconnected, () => {
           // Desconexão iniciada pelo servidor ou queda de rede definitiva
           if (roomRef.current === room) {
@@ -182,8 +187,24 @@ export function useVoiceRoom() {
       ...s,
       muted: !lp.isMicrophoneEnabled,
       participants: snapshot(room),
-      micTrack: localMicTrack(room),
+      micMediaTrack: localMicTrack(room),
     }));
+  }, []);
+
+  /** Troca o microfone; se estiver numa sala, a troca acontece na hora */
+  const setMicDevice = useCallback(async (deviceId: string) => {
+    micDeviceRef.current = deviceId;
+    setMicDeviceIdState(deviceId);
+    saveMicDeviceId(deviceId);
+
+    const room = roomRef.current;
+    if (!room || room.state !== ConnectionState.Connected) return;
+    try {
+      await room.switchActiveDevice("audioinput", deviceId);
+    } catch (err) {
+      setState((s) => ({ ...s, error: `Não foi possível trocar o microfone: ${(err as Error).message}` }));
+    }
+    setState((s) => ({ ...s, micMediaTrack: localMicTrack(room) }));
   }, []);
 
   const clearError = useCallback(() => setState((s) => ({ ...s, error: null })), []);
@@ -200,5 +221,5 @@ export function useVoiceRoom() {
 
   const isOwnIdentity = useCallback((identity: string) => ownIdentities.current.has(identity), []);
 
-  return { ...state, join, leave, toggleMute, clearError, isOwnIdentity };
+  return { ...state, micDeviceId, join, leave, toggleMute, setMicDevice, clearError, isOwnIdentity };
 }

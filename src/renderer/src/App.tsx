@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { ConnectionState, type LocalAudioTrack } from "livekit-client";
+import { ConnectionState } from "livekit-client";
 import { fetchRooms, type RoomInfo } from "./api";
 import type { UpdateState } from "../../shared/update";
 import { useVoiceRoom, type VoiceParticipant } from "./useVoiceRoom";
 import { useAppUpdate } from "./useAppUpdate";
 import { useMicLevel } from "./useMicLevel";
-import { HangUpIcon, MicIcon, MicOffIcon, SpeakerIcon } from "./icons";
+import { GearIcon, HangUpIcon, MicIcon, MicOffIcon, SpeakerIcon } from "./icons";
+import { VoiceSettings } from "./VoiceSettings";
 
 const NAME_KEY = "toca.name";
 const ROOMS_POLL_MS = 5000;
@@ -122,6 +123,7 @@ function VoiceApp({
   const voice = useVoiceRoom();
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const refreshRooms = useCallback(async () => {
     try {
@@ -214,11 +216,14 @@ function VoiceApp({
               </button>
             </div>
             <MicButton
-              track={voice.micTrack}
+              track={voice.micMediaTrack}
               muted={voice.muted}
               disabled={!connected}
               onToggle={() => void voice.toggleMute()}
             />
+            <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Configurações de voz">
+              <GearIcon />
+            </button>
           </div>
         </footer>
       </aside>
@@ -251,6 +256,14 @@ function VoiceApp({
           <div className="empty">Escolha uma sala na lista para entrar.</div>
         )}
 
+        {settingsOpen && (
+          <VoiceSettings
+            micDeviceId={voice.micDeviceId}
+            onChangeMic={(id) => void voice.setMicDevice(id)}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+
         {voice.error && (
           <div className="toast" role="alert">
             <span>{voice.error}</span>
@@ -271,7 +284,7 @@ function MicButton({
   disabled,
   onToggle,
 }: {
-  track: LocalAudioTrack | null;
+  track: MediaStreamTrack | null;
   muted: boolean;
   disabled: boolean;
   onToggle: () => void;

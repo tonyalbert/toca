@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { LocalAudioTrack } from "livekit-client";
 
 const SAMPLE_MS = 50;
 /** Volume RMS (0..1) a partir do qual consideramos que você está falando */
@@ -10,13 +9,14 @@ const FULL_RMS = 0.2;
 const HOLD_MS = 300;
 
 /**
- * Mede o volume do nosso microfone direto no app (sem esperar o servidor).
- * O track já passou pelo filtro de ruído, então reflete o que os outros ouvem.
+ * Mede o volume de um microfone direto no app (sem esperar o servidor).
+ * Na sala, o track já passou pelo filtro de ruído, então reflete o que os
+ * outros ouvem. Também é usado no teste de microfone das configurações.
  *
  * Não usa o createAudioAnalyser do livekit-client: a faixa padrão dele
  * (-100 a -80 dB) satura com qualquer resíduo e o ícone ficava sempre aceso.
  */
-export function useMicLevel(track: LocalAudioTrack | null, muted: boolean) {
+export function useMicLevel(track: MediaStreamTrack | null, muted = false) {
   const [level, setLevel] = useState(0);
   const [speaking, setSpeaking] = useState(false);
 
@@ -26,7 +26,7 @@ export function useMicLevel(track: LocalAudioTrack | null, muted: boolean) {
     if (!track || muted) return;
 
     const ctx = new AudioContext();
-    const source = ctx.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+    const source = ctx.createMediaStreamSource(new MediaStream([track]));
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
     source.connect(analyser);
