@@ -1,10 +1,24 @@
 export const API_URL = (import.meta.env.VITE_API_URL ?? "https://api-toca.rabbitapps.com.br").replace(/\/$/, "");
 
+/** Outra pessoa (amigo, membro de sala): sempre com @ e nome */
 export interface User {
   id: string;
   username: string;
   displayName: string;
 }
+
+/** A própria conta: o @ e o nome ficam vazios entre o cadastro e a escolha */
+export interface Account {
+  id: string;
+  email: string | null;
+  username: string | null;
+  displayName: string | null;
+}
+
+/** Conta com @ e nome já escolhidos */
+export type Profile = Account & { username: string; displayName: string };
+
+export const isProfileComplete = (a: Account): a is Profile => !!a.username && !!a.displayName;
 
 export interface Friend extends User {
   since: string;
@@ -46,7 +60,7 @@ export interface TokenResponse {
 }
 
 interface Session {
-  user: User;
+  user: Account;
   accessToken: string;
   accessTokenExpiresIn: number;
   refreshToken: string;
@@ -98,7 +112,7 @@ function json(method: string, body: unknown): RequestInit {
   return { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
 }
 
-async function startSession(session: Session): Promise<User> {
+async function startSession(session: Session): Promise<Account> {
   accessToken = session.accessToken;
   // Renova um minuto antes de expirar
   accessExpiresAt = Date.now() + (session.accessTokenExpiresIn - 60) * 1000;
@@ -160,7 +174,7 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
 // ---------- Contas ----------
 
 /** Retoma a sessão salva. null = precisa entrar. Lança ApiError se estiver sem rede. */
-export async function restoreSession(): Promise<User | null> {
+export async function restoreSession(): Promise<Account | null> {
   refreshToken = await window.toca.loadSession();
   if (!refreshToken) return null;
   try {
@@ -169,21 +183,22 @@ export async function restoreSession(): Promise<User | null> {
     if (err instanceof SessionExpiredError) return null;
     throw err;
   }
-  return (await authed<{ user: User }>("/me")).user;
+  return (await authed<{ user: Account }>("/me")).user;
 }
 
-export async function login(username: string, password: string): Promise<User> {
-  return startSession(await call<Session>("/auth/login", json("POST", { username, password })));
+/** login = e-mail ou @ */
+export async function login(loginName: string, password: string): Promise<Account> {
+  return startSession(await call<Session>("/auth/login", json("POST", { login: loginName, password })));
 }
 
-export async function register(input: {
-  username: string;
-  displayName: string;
-  password: string;
-  inviteCode: string;
-}): Promise<User> {
-  return startSession(await call<Session>("/auth/register", json("POST", input)));
+/** Cadastro só com e-mail e senha; depois o app pede o @ e o nome (updateProfile) */
+export async function register(email: string, password: string): Promise<Account> {
+  return startSession(await call<Session>("/auth/register", json("POST", { email, password })));
 }
+
+/** Escolhe o @ (uma vez só) e/ou troca o nome de exibição */
+export const updateProfile = async (changes: { username?: string; displayName?: string }) =>
+  (await authed<{ user: Account }>("/me", json("PATCH", changes))).user;
 
 export async function logout(): Promise<void> {
   const token = refreshToken;

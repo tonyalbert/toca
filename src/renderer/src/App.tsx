@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ConnectionState } from "livekit-client";
-import { logout, onSessionLost, restoreSession, type RoomInfo, type User } from "./api";
+import { isProfileComplete, logout, onSessionLost, restoreSession, type Account, type Profile, type RoomInfo } from "./api";
 import type { RealtimeEvent } from "./realtime";
 import type { UpdateState } from "../../shared/update";
 import { useVoiceRoom, type VoiceParticipant } from "./useVoiceRoom";
@@ -23,6 +23,8 @@ import {
 import { AuthScreen } from "./AuthScreen";
 import { Avatar } from "./Avatar";
 import { FriendsPage } from "./FriendsPage";
+import { ProfileModal } from "./ProfileModal";
+import { ProfileSetup } from "./ProfileSetup";
 import { CreateRoomModal, RoomSettingsModal } from "./RoomModals";
 import { ScreenSharePicker } from "./ScreenSharePicker";
 import { Stage } from "./Stage";
@@ -34,7 +36,7 @@ type Auth =
   | { status: "loading" }
   | { status: "offline"; message: string }
   | { status: "signedOut"; notice?: string }
-  | { status: "signedIn"; user: User };
+  | { status: "signedIn"; account: Account };
 
 export default function App() {
   const [auth, setAuth] = useState<Auth>({ status: "loading" });
@@ -47,7 +49,7 @@ export default function App() {
     const attempt = async () => {
       try {
         const user = await restoreSession();
-        if (!cancelled) setAuth(user ? { status: "signedIn", user } : { status: "signedOut" });
+        if (!cancelled) setAuth(user ? { status: "signedIn", account: user } : { status: "signedOut" });
       } catch (err) {
         if (cancelled) return;
         setAuth({ status: "offline", message: (err as Error).message });
@@ -66,18 +68,25 @@ export default function App() {
 
   return (
     <>
-      {auth.status === "signedIn" ? (
+      {auth.status === "signedIn" && isProfileComplete(auth.account) ? (
         <MainApp
-          key={auth.user.id}
-          me={auth.user}
+          key={auth.account.id}
+          me={auth.account}
           version={version}
+          onMeChange={(account) => setAuth({ status: "signedIn", account })}
           onLogout={() => setAuth({ status: "signedOut" })}
+        />
+      ) : auth.status === "signedIn" ? (
+        <ProfileSetup
+          account={auth.account}
+          onDone={(account) => setAuth({ status: "signedIn", account })}
+          onCancel={() => void logout().then(() => setAuth({ status: "signedOut" }))}
         />
       ) : auth.status === "signedOut" ? (
         <AuthScreen
           version={version}
           notice={auth.notice}
-          onAuthenticated={(user) => setAuth({ status: "signedIn", user })}
+          onAuthenticated={(account) => setAuth({ status: "signedIn", account })}
         />
       ) : (
         <div className="name-screen">
@@ -132,13 +141,24 @@ function notify(title: string, body: string) {
   }
 }
 
-function MainApp({ me, version, onLogout }: { me: User; version: string | null; onLogout: () => void }) {
+function MainApp({
+  me,
+  version,
+  onMeChange,
+  onLogout,
+}: {
+  me: Profile;
+  version: string | null;
+  onMeChange: (me: Profile) => void;
+  onLogout: () => void;
+}) {
   const voice = useVoiceRoom();
   const [view, setView] = useState<"friends" | "voice">("friends");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [roomSettingsId, setRoomSettingsId] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const { leave, showError } = voice;
   const currentRoomId = voice.room;
@@ -155,6 +175,10 @@ function MainApp({ me, version, onLogout }: { me: User; version: string | null; 
         case "room_added":
           if (event.room.role === "member") notify("Nova sala", `Você foi adicionado à sala ${event.room.name}`);
           break;
+        case "user_updated":
+          // Trocou o nome em outro PC
+          if (event.user.id === me.id) onMeChange({ ...me, displayName: event.user.displayName });
+          break;
         case "room_removed":
         case "room_deleted":
           // Removido da sala em que está: sai da call (o LiveKit também derruba)
@@ -166,7 +190,7 @@ function MainApp({ me, version, onLogout }: { me: User; version: string | null; 
           break;
       }
     },
-    [currentRoomId, leave, showError],
+    [currentRoomId, leave, showError, me, onMeChange],
   );
 
   const data = useTocaData(handleEvent);
@@ -295,16 +319,13 @@ function MainApp({ me, version, onLogout }: { me: User; version: string | null; 
             </div>
           )}
           <div className="user-row">
-            <Avatar name={me.displayName} size={32} />
-            <div className="user-info">
-              <div className="user-name">{me.displayName}</div>
-              <div className="muted-text user-handle">
-                @{me.username} ·{" "}
-                <button className="link-button" onClick={() => void signOut()}>
-                  sair
-                </button>
+            <button className="user-identity" onClick={() => setProfileOpen(true)} title="Minha conta">
+              <Avatar name={me.displayName} size={32} />
+              <div className="user-info">
+                <div className="user-name">{me.displayName}</div>
+                <div className="muted-text user-handle">@{me.username}</div>
               </div>
-            </div>
+            </button>
             <MicButton
               track={voice.micMediaTrack}
               muted={voice.muted}
@@ -363,6 +384,18 @@ function MainApp({ me, version, onLogout }: { me: User; version: string | null; 
             onChangeMic={(id) => void voice.setMicDevice(id)}
             onChangeCamera={(id) => void voice.setCameraDevice(id)}
             onClose={() => setSettingsOpen(false)}
+          />
+        )}
+
+        {profileOpen && (
+          <ProfileModal
+            me={me}
+            onSaved={onMeChange}
+            onSignOut={() => {
+              setProfileOpen(false);
+              void signOut();
+            }}
+            onClose={() => setProfileOpen(false)}
           />
         )}
 

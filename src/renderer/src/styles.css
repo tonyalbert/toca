@@ -1246,3 +1246,66 @@ button:disabled {
 .modal-form .modal-actions {
   justify-content: flex-end;
 }
+
+/* ---------- Perfil ---------- */
+
+.steps {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.at-input {
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  background: var(--bg-deep);
+}
+
+.at-input span {
+  padding-left: 12px;
+  color: var(--text-muted);
+}
+
+.name-card .at-input input {
+  flex: 1;
+  min-width: 0;
+  padding-left: 2px;
+  background: none;
+}
+
+.at-input:focus-within {
+  outline: 2px solid var(--accent);
+}
+
+.name-card .at-input input:focus {
+  outline: none;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.selectable {
+  user-select: text;
+}
+
+.user-identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px;
+  margin: -2px;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.user-identity:hover {
+  background: var(--bg-hover);
+}

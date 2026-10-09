@@ -74,6 +74,10 @@ export function useTocaData(onEvent: (event: RealtimeEvent) => void): TocaData {
         case "friend_removed":
           void reloadFriends();
           break;
+        case "user_updated":
+          void reloadFriends();
+          void reloadRooms();
+          break;
         case "room_renamed":
           setRooms((rs) => rs.map((r) => (r.id === event.roomId ? { ...r, name: event.name } : r)));
           break;

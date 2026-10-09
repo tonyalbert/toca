@@ -7,6 +7,8 @@ export type RealtimeEvent =
   | { type: "friend_request_declined"; requestId: string }
   | { type: "friend_request_canceled"; requestId: string }
   | { type: "friend_removed"; userId: string }
+  /** Amigo, colega de sala ou você mesmo (em outro PC) trocou o nome */
+  | { type: "user_updated"; user: User }
   | { type: "room_added"; room: { id: string; name: string; ownerId: string; role: RoomRole } }
   | { type: "room_removed"; roomId: string }
   | { type: "room_renamed"; roomId: string; name: string }

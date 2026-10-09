@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { login, register, type User } from "./api";
+import { login, register, type Account } from "./api";
 
-const USERNAME_PATTERN = /^[A-Za-z0-9_.]{3,20}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Entrar ou criar conta (cadastro exige código de convite) */
+/** Entrar (e-mail ou @) ou criar conta (e-mail e senha; o @ e o nome vêm depois) */
 export function AuthScreen({
   version,
   notice,
@@ -12,25 +12,22 @@ export function AuthScreen({
   version: string | null;
   /** Mensagem ao abrir (ex.: sessão expirada) */
   notice?: string | null;
-  onAuthenticated: (user: User) => void;
+  onAuthenticated: (account: Account) => void;
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [username, setUsername] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isRegister = mode === "register";
 
   function validate(): string | null {
-    if (!isRegister) return username.trim() && password ? null : "Preencha usuário e senha";
-    if (!USERNAME_PATTERN.test(username.trim()))
-      return "Usuário: 3 a 20 caracteres, só letras sem acento, números, _ e .";
-    if (!displayName.trim()) return "Escolha como você quer aparecer para os outros";
+    if (!isRegister) return email.trim() && password ? null : "Preencha o e-mail e a senha";
+    if (!EMAIL_PATTERN.test(email.trim())) return "Digite um e-mail válido";
     if (password.length < 8) return "A senha precisa ter pelo menos 8 caracteres";
-    if (!inviteCode.trim()) return "Informe o código de convite";
+    if (password !== confirm) return "As senhas não são iguais";
     return null;
   }
 
@@ -41,15 +38,8 @@ export function AuthScreen({
     setBusy(true);
     setError(null);
     try {
-      const user = isRegister
-        ? await register({
-            username: username.trim(),
-            displayName: displayName.trim(),
-            password,
-            inviteCode: inviteCode.trim(),
-          })
-        : await login(username.trim(), password);
-      onAuthenticated(user);
+      const account = isRegister ? await register(email.trim(), password) : await login(email.trim(), password);
+      onAuthenticated(account);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -58,6 +48,7 @@ export function AuthScreen({
 
   const switchMode = () => {
     setMode(isRegister ? "login" : "register");
+    setConfirm("");
     setError(null);
   };
 
@@ -69,23 +60,17 @@ export function AuthScreen({
         {notice && !error && <div className="form-notice">{notice}</div>}
 
         <label className="auth-field">
-          <span className="field-label">Usuário</span>
+          <span className="field-label">{isRegister ? "E-mail" : "E-mail ou usuário"}</span>
           <input
             autoFocus
-            maxLength={20}
-            autoComplete="username"
+            type={isRegister ? "email" : "text"}
+            maxLength={254}
+            autoComplete={isRegister ? "email" : "username"}
             spellCheck={false}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </label>
-
-        {isRegister && (
-          <label className="auth-field">
-            <span className="field-label">Nome de exibição</span>
-            <input maxLength={32} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          </label>
-        )}
 
         <label className="auth-field">
           <span className="field-label">Senha</span>
@@ -100,8 +85,14 @@ export function AuthScreen({
 
         {isRegister && (
           <label className="auth-field">
-            <span className="field-label">Código de convite</span>
-            <input spellCheck={false} value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} />
+            <span className="field-label">Confirme a senha</span>
+            <input
+              type="password"
+              maxLength={128}
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
           </label>
         )}
 
