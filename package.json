@@ -1,18 +1,19 @@
 {
   "name": "toca-desktop",
   "productName": "Toca",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "Toca - chamadas de voz em grupo",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "npm run build:audio-helper && electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "dist": "electron-vite build && electron-builder --win --publish never",
+    "dist": "npm run build:audio-helper && electron-vite build && electron-builder --win --publish never",
     "release": "npm run dist && node scripts/publish-github.mjs",
-    "publish:github": "node scripts/publish-github.mjs"
+    "publish:github": "node scripts/publish-github.mjs",
+    "build:audio-helper": "node scripts/build-audio-helper.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

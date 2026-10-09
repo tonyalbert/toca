@@ -1,6 +1,7 @@
 import { app, BrowserWindow, session, shell } from "electron";
 import { join } from "node:path";
 import { appIcon, hideOnClose, setupTray, showWindow } from "./tray";
+import { setupScreenShare } from "./screenShare";
 import { setupUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
@@ -48,6 +49,12 @@ function createWindow(): void {
   }
 }
 
+// Em desenvolvimento (npm run dev) usa uma pasta de dados separada, para rodar
+// junto com o Toca instalado em vez de só trazer a janela dele para frente
+if (!app.isPackaged) {
+  app.setPath("userData", `${app.getPath("userData")}-dev`);
+}
+
 // Uma instância só: abrir o atalho de novo traz a janela existente para frente
 // (inclusive quando ela está escondida na bandeja)
 if (!app.requestSingleInstanceLock()) {
@@ -61,10 +68,12 @@ if (!app.requestSingleInstanceLock()) {
     // Nome do app nas notificações do Windows (igual ao appId do electron-builder.yml)
     app.setAppUserModelId("br.com.rabbitapps.toca");
 
-    // Só o microfone (media) é liberado; qualquer outra permissão é negada
+    // Microfone/câmera (media), captura de tela e tela cheia são liberados; o resto é negado
     session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-      callback(permission === "media");
+      callback(permission === "media" || permission === "display-capture" || permission === "fullscreen");
     });
+
+    setupScreenShare();
 
     setupUpdater();
     setupTray(() => mainWindow);

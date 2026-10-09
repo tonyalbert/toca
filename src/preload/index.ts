@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import type { ScreenAudioStartResult, ScreenSource } from "../shared/screen";
 import type { UpdateState } from "../shared/update";
 
 // Ponte mínima com o processo principal. Push-to-talk global vai entrar aqui.
@@ -14,4 +15,15 @@ contextBridge.exposeInMainWorld("toca", {
     };
   },
   installUpdate: (): Promise<void> => ipcRenderer.invoke("update:install"),
+  getScreenSources: (): Promise<ScreenSource[]> => ipcRenderer.invoke("screen:sources"),
+  selectScreenSource: (sourceId: string): Promise<void> => ipcRenderer.invoke("screen:select", sourceId),
+  startScreenAudio: (): Promise<ScreenAudioStartResult> => ipcRenderer.invoke("screen:audio-start"),
+  stopScreenAudio: (): Promise<void> => ipcRenderer.invoke("screen:audio-stop"),
+  onScreenAudioData: (callback: (chunk: Uint8Array) => void) => {
+    const listener = (_e: IpcRendererEvent, chunk: Uint8Array) => callback(chunk);
+    ipcRenderer.on("screen:audio-data", listener);
+    return () => {
+      ipcRenderer.removeListener("screen:audio-data", listener);
+    };
+  },
 });

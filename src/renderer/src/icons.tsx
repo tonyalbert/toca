@@ -74,3 +74,37 @@ export function CameraOffIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function ScreenShareIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <path d="M8 21h8M12 17v4M12 13V7M9 10l3-3 3 3" />
+    </svg>
+  );
+}
+
+export function ScreenShareOffIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <path d="M8 21h8M12 17v4M9 7l6 6M15 7l-6 6" />
+    </svg>
+  );
+}
+
+export function FullscreenIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
+    </svg>
+  );
+}
+
+export function ExitFullscreenIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3" />
+    </svg>
+  );
+}

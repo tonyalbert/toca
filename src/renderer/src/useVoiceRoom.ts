@@ -5,12 +5,15 @@ import {
   Participant,
   RemoteTrack,
   Room,
+  AudioPresets,
   RoomEvent,
+  ScreenSharePresets,
   Track,
   VideoPresets,
   type VideoTrack,
 } from "livekit-client";
 import { fetchToken } from "./api";
+import { startScreenAudio, type ScreenAudio } from "./screenAudio";
 import {
   DEFAULT_DEVICE,
   availableDeviceId,
@@ -28,6 +31,8 @@ export interface VoiceParticipant {
   isMuted: boolean;
   /** Vídeo da câmera, se estiver ligada (e, para os outros, já recebida) */
   cameraTrack: VideoTrack | null;
+  /** Tela compartilhada, se estiver compartilhando */
+  screenTrack: VideoTrack | null;
 }
 
 export interface VoiceState {
@@ -37,6 +42,7 @@ export interface VoiceState {
   participants: VoiceParticipant[];
   muted: boolean;
   cameraOn: boolean;
+  screenSharing: boolean;
   /** Áudio do nosso microfone, para medir o volume localmente. Muda ao trocar de microfone. */
   micMediaTrack: MediaStreamTrack | null;
   error: string | null;
@@ -48,6 +54,7 @@ const initialState: VoiceState = {
   participants: [],
   muted: false,
   cameraOn: false,
+  screenSharing: false,
   micMediaTrack: null,
   error: null,
 };
@@ -59,12 +66,13 @@ function toVoiceParticipant(p: Participant, isLocal: boolean): VoiceParticipant 
     isLocal,
     isSpeaking: p.isSpeaking,
     isMuted: !p.isMicrophoneEnabled,
-    cameraTrack: cameraTrackOf(p),
+    cameraTrack: videoTrackOf(p, Track.Source.Camera),
+    screenTrack: videoTrackOf(p, Track.Source.ScreenShare),
   };
 }
 
-function cameraTrackOf(p: Participant): VideoTrack | null {
-  const pub = p.getTrackPublication(Track.Source.Camera);
+function videoTrackOf(p: Participant, source: Track.Source): VideoTrack | null {
+  const pub = p.getTrackPublication(source);
   if (!pub || pub.isMuted) return null;
   return pub.videoTrack ?? null;
 }
@@ -90,6 +98,18 @@ export function useVoiceRoom() {
   const [cameraDeviceId, setCameraDeviceIdState] = useState(() => loadDeviceId("videoinput"));
   const cameraDeviceRef = useRef(cameraDeviceId);
   const roomRef = useRef<Room | null>(null);
+  // Áudio do computador publicado junto com a tela (sem o som do próprio Toca)
+  const screenAudioRef = useRef<ScreenAudio | null>(null);
+
+  const stopScreenAudio = async (room: Room | null) => {
+    const audio = screenAudioRef.current;
+    screenAudioRef.current = null;
+    if (!audio) return;
+    if (room && room.state === ConnectionState.Connected) {
+      await room.localParticipant.unpublishTrack(audio.track).catch(() => {});
+    }
+    audio.stop();
+  };
   // Identidades que este app já usou nesta sessão. A API pode demorar alguns
   // segundos para refletir uma saída, então isso permite esconder "ecos" nossos
   // em salas de onde já saímos.
@@ -108,6 +128,7 @@ export function useVoiceRoom() {
   const leave = useCallback(async () => {
     const room = roomRef.current;
     roomRef.current = null;
+    await stopScreenAudio(null);
     if (room) await room.disconnect();
     setState((s) => ({ ...initialState, error: s.error }));
   }, []);
@@ -141,6 +162,7 @@ export function useVoiceRoom() {
           participants: snapshot(room),
           muted: !room.localParticipant.isMicrophoneEnabled,
           cameraOn: room.localParticipant.isCameraEnabled,
+          screenSharing: room.localParticipant.isScreenShareEnabled,
           micMediaTrack: localMicTrack(room),
         }));
       };
@@ -165,7 +187,11 @@ export function useVoiceRoom() {
         .on(RoomEvent.TrackPublished, sync)
         .on(RoomEvent.TrackUnpublished, sync)
         .on(RoomEvent.LocalTrackPublished, sync)
-        .on(RoomEvent.LocalTrackUnpublished, sync)
+        .on(RoomEvent.LocalTrackUnpublished, (pub) => {
+          // Tela parou (pelo botão ou pelo sistema): o áudio dela para junto
+          if (pub.source === Track.Source.ScreenShare) void stopScreenAudio(room);
+          sync();
+        })
         .on(RoomEvent.ConnectionStateChanged, sync)
         .on(RoomEvent.ActiveDeviceChanged, sync)
         .on(RoomEvent.Disconnected, () => {
@@ -242,6 +268,59 @@ export function useVoiceRoom() {
     setState((s) => ({ ...s, cameraOn: lp.isCameraEnabled, participants: snapshot(room) }));
   }, []);
 
+  /**
+   * Compartilha a tela/janela escolhida no seletor. O processo principal entrega
+   * essa fonte quando o LiveKit chama getDisplayMedia.
+   */
+  const startScreenShare = useCallback(async (sourceId: string, withAudio: boolean) => {
+    const room = roomRef.current;
+    if (!room || room.state !== ConnectionState.Connected) return;
+    const lp = room.localParticipant;
+    try {
+      if (lp.isScreenShareEnabled) await lp.setScreenShareEnabled(false);
+      await window.toca.selectScreenSource(sourceId);
+      // Só o vídeo vem do getDisplayMedia; o áudio vem do startScreenAudio abaixo
+      await lp.setScreenShareEnabled(
+        true,
+        { audio: false, resolution: ScreenSharePresets.h1080fps30.resolution, contentHint: "detail" },
+        { screenShareEncoding: ScreenSharePresets.h1080fps30.encoding },
+      );
+    } catch (err) {
+      setState((s) => ({ ...s, error: `Não foi possível compartilhar a tela: ${(err as Error).message}` }));
+    }
+
+    if (withAudio && lp.isScreenShareEnabled) {
+      try {
+        const audio = await startScreenAudio();
+        screenAudioRef.current = audio;
+        await lp.publishTrack(audio.track, {
+          source: Track.Source.ScreenShareAudio,
+          name: "screen_share_audio",
+          // Configurações para música/jogo, não para voz
+          audioPreset: AudioPresets.musicHighQualityStereo,
+          forceStereo: true,
+          dtx: false,
+          red: false,
+        });
+      } catch (err) {
+        await stopScreenAudio(room);
+        setState((s) => ({
+          ...s,
+          error: `Compartilhando a tela sem áudio: ${(err as Error).message}`,
+        }));
+      }
+    }
+    setState((s) => ({ ...s, screenSharing: lp.isScreenShareEnabled, participants: snapshot(room) }));
+  }, []);
+
+  const stopScreenShare = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    await stopScreenAudio(room);
+    await room.localParticipant.setScreenShareEnabled(false);
+    setState((s) => ({ ...s, screenSharing: false, participants: snapshot(room) }));
+  }, []);
+
   /** Troca o microfone; se estiver numa sala, a troca acontece na hora */
   const setMicDevice = useCallback(async (deviceId: string) => {
     micDeviceRef.current = deviceId;
@@ -301,6 +380,8 @@ export function useVoiceRoom() {
     leave,
     toggleMute,
     toggleCamera,
+    startScreenShare,
+    stopScreenShare,
     setMicDevice,
     setCameraDevice,
     clearError,

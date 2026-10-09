@@ -11,6 +11,11 @@ files:
   - out/**/*
   - package.json
 
+# Captura do áudio do sistema sem o próprio Toca (compilado por scripts/build-audio-helper.mjs)
+extraResources:
+  - from: native/out/toca-audio-capture.exe
+    to: toca-audio-capture.exe
+
 win:
   target: nsis
   icon: build/icon.png

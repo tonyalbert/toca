@@ -1,11 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ConnectionState, type VideoTrack } from "livekit-client";
+import { useCallback, useEffect, useState } from "react";
+import { ConnectionState } from "livekit-client";
 import { fetchRooms, type RoomInfo } from "./api";
 import type { UpdateState } from "../../shared/update";
 import { useVoiceRoom, type VoiceParticipant } from "./useVoiceRoom";
 import { useAppUpdate } from "./useAppUpdate";
 import { useMicLevel } from "./useMicLevel";
-import { CameraIcon, CameraOffIcon, GearIcon, HangUpIcon, MicIcon, MicOffIcon, SpeakerIcon } from "./icons";
+import {
+  CameraIcon,
+  CameraOffIcon,
+  GearIcon,
+  HangUpIcon,
+  MicIcon,
+  MicOffIcon,
+  ScreenShareIcon,
+  ScreenShareOffIcon,
+  SpeakerIcon,
+} from "./icons";
+import { Avatar } from "./Avatar";
+import { ScreenSharePicker } from "./ScreenSharePicker";
+import { Stage } from "./Stage";
 import { VoiceSettings } from "./VoiceSettings";
 
 const NAME_KEY = "toca.name";
@@ -124,8 +137,7 @@ function VoiceApp({
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Quadro ampliado (clique num vídeo)
-  const [focused, setFocused] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const refreshRooms = useCallback(async () => {
     try {
@@ -151,8 +163,6 @@ function VoiceApp({
   }, [voice.room, voice.connection, refreshRooms]);
 
   const connected = voice.connection === ConnectionState.Connected;
-  const focusedParticipant = voice.participants.find((p) => p.identity === focused && p.cameraTrack);
-  const toggleFocus = (identity: string) => setFocused((f) => (f === identity ? null : identity));
   const currentRoom = rooms.find((r) => r.slug === voice.room);
 
   return (
@@ -215,6 +225,14 @@ function VoiceApp({
                 >
                   {voice.cameraOn ? <CameraIcon /> : <CameraOffIcon />}
                 </button>
+                <button
+                  className={`icon-button ${voice.screenSharing ? "sharing" : ""}`}
+                  onClick={() => (voice.screenSharing ? void voice.stopScreenShare() : setPickerOpen(true))}
+                  disabled={!connected}
+                  title={voice.screenSharing ? "Parar de compartilhar" : "Compartilhar tela"}
+                >
+                  {voice.screenSharing ? <ScreenShareOffIcon /> : <ScreenShareIcon />}
+                </button>
                 <button className="icon-button danger" onClick={() => void voice.leave()} title="Sair da sala">
                   <HangUpIcon />
                 </button>
@@ -248,35 +266,31 @@ function VoiceApp({
             <header className="stage-header">
               <SpeakerIcon />
               <span>{currentRoom?.name ?? voice.room}</span>
+              {voice.screenSharing && (
+                <button className="stop-share" onClick={() => void voice.stopScreenShare()}>
+                  <ScreenShareOffIcon />
+                  Parar de compartilhar
+                </button>
+              )}
             </header>
             {connected ? (
-              focusedParticipant ? (
-                // Vídeo ampliado ocupando a área, os demais numa faixa embaixo
-                <div className="focus-layout">
-                  <div className="focus-main">
-                    <ParticipantTile p={focusedParticipant} focused onClick={() => toggleFocus(focusedParticipant.identity)} />
-                  </div>
-                  <div className="focus-strip">
-                    {voice.participants
-                      .filter((p) => p !== focusedParticipant)
-                      .map((p) => (
-                        <ParticipantTile key={p.identity} p={p} focused={false} onClick={() => toggleFocus(p.identity)} />
-                      ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="tiles">
-                  {voice.participants.map((p) => (
-                    <ParticipantTile key={p.identity} p={p} focused={false} onClick={() => toggleFocus(p.identity)} />
-                  ))}
-                </div>
-              )
+              <Stage participants={voice.participants} />
             ) : (
               <div className="empty">{connectionLabel(voice.connection)}</div>
             )}
           </>
         ) : (
           <div className="empty">Escolha uma sala na lista para entrar.</div>
+        )}
+
+        {pickerOpen && (
+          <ScreenSharePicker
+            onShare={(sourceId, withAudio) => {
+              setPickerOpen(false);
+              void voice.startScreenShare(sourceId, withAudio);
+            }}
+            onClose={() => setPickerOpen(false)}
+          />
         )}
 
         {settingsOpen && (
@@ -328,80 +342,15 @@ function MicButton({
   );
 }
 
-function ParticipantTile({
-  p,
-  focused,
-  onClick,
-}: {
-  p: VoiceParticipant;
-  focused: boolean;
-  onClick: () => void;
-}) {
-  const classes = ["tile", p.isSpeaking && "speaking", p.cameraTrack && "has-video", focused && "focused"];
-  return (
-    <div
-      className={classes.filter(Boolean).join(" ")}
-      onClick={p.cameraTrack ? onClick : undefined}
-      title={p.cameraTrack ? (focused ? "Clique para reduzir" : "Clique para ampliar") : undefined}
-    >
-      {p.cameraTrack ? (
-        <VideoView track={p.cameraTrack} mirror={p.isLocal} />
-      ) : (
-        <Avatar name={p.name} size={72} />
-      )}
-      <div className="tile-name">
-        {p.isMuted && <MicOffIcon />}
-        {p.name}
-        {p.isLocal && " (você)"}
-      </div>
-    </div>
-  );
-}
-
-function VideoView({ track, mirror }: { track: VideoTrack; mirror: boolean }) {
-  const ref = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    track.attach(el);
-    return () => {
-      track.detach(el);
-    };
-  }, [track]);
-
-  // O próprio vídeo aparece espelhado, como num espelho (os outros te veem normal)
-  return <video ref={ref} className={`tile-video ${mirror ? "mirror" : ""}`} autoPlay playsInline muted />;
-}
-
 function MemberRow({ p }: { p: VoiceParticipant }) {
   return (
     <li className={`member ${p.isSpeaking ? "speaking" : ""}`}>
       <Avatar name={p.name} size={22} />
       <span className="member-name">{p.name}</span>
+      {p.screenTrack && <span className="live-badge">AO VIVO</span>}
       {p.cameraTrack && <CameraIcon className="member-icon camera" />}
       {p.isMuted && <MicOffIcon className="member-icon" />}
     </li>
-  );
-}
-
-function Avatar({ name, size }: { name: string; size: number }) {
-  // Cor estável por nome
-  let hash = 0;
-  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
-  const hue = Math.abs(hash) % 360;
-  return (
-    <div
-      className="avatar"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.45,
-        background: `hsl(${hue} 45% 45%)`,
-      }}
-    >
-      {name.slice(0, 1).toUpperCase()}
-    </div>
   );
 }
 
