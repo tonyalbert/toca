@@ -18,7 +18,7 @@ extraResources:
 
 win:
   target: nsis
-  icon: build/icon.png
+  icon: build/icon.ico
   executableName: Toca
 
 nsis:

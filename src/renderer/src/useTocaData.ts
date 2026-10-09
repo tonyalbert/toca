@@ -78,8 +78,12 @@ export function useTocaData(onEvent: (event: RealtimeEvent) => void): TocaData {
           void reloadFriends();
           void reloadRooms();
           break;
-        case "room_renamed":
-          setRooms((rs) => rs.map((r) => (r.id === event.roomId ? { ...r, name: event.name } : r)));
+        case "presence":
+          setFriends((fs) => fs.map((f) => (f.id === event.userId ? { ...f, online: event.online } : f)));
+          break;
+        // room_renamed também chega (para apps antigos), mas room_updated já traz tudo
+        case "room_updated":
+          setRooms((rs) => rs.map((r) => (r.id === event.roomId ? { ...r, name: event.name, icon: event.icon } : r)));
           break;
         case "room_removed":
         case "room_deleted":

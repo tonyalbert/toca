@@ -15,6 +15,17 @@ contextBridge.exposeInMainWorld("toca", {
     };
   },
   installUpdate: (): Promise<void> => ipcRenderer.invoke("update:install"),
+  minimizeWindow: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
+  toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke("window:toggle-maximize"),
+  closeWindow: (): Promise<void> => ipcRenderer.invoke("window:close"),
+  isWindowMaximized: (): Promise<boolean> => ipcRenderer.invoke("window:is-maximized"),
+  onWindowMaximized: (callback: (maximized: boolean) => void) => {
+    const listener = (_e: IpcRendererEvent, maximized: boolean) => callback(maximized);
+    ipcRenderer.on("window:maximized", listener);
+    return () => {
+      ipcRenderer.removeListener("window:maximized", listener);
+    };
+  },
   loadSession: (): Promise<string | null> => ipcRenderer.invoke("session:load"),
   saveSession: (refreshToken: string | null): Promise<void> => ipcRenderer.invoke("session:save", refreshToken),
   getScreenSources: (): Promise<ScreenSource[]> => ipcRenderer.invoke("screen:sources"),

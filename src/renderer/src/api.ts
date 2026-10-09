@@ -1,10 +1,17 @@
 export const API_URL = (import.meta.env.VITE_API_URL ?? "https://api-toca.rabbitapps.com.br").replace(/\/$/, "");
 
+/** Bichinho do avatar: orelhas de coelho, gato ou urso */
+export type Avatar = "rabbit" | "cat" | "bear";
+
+export const ROOM_ICONS = ["sofa", "game", "film", "music", "book", "moon"] as const;
+export type RoomIcon = (typeof ROOM_ICONS)[number];
+
 /** Outra pessoa (amigo, membro de sala): sempre com @ e nome */
 export interface User {
   id: string;
   username: string;
   displayName: string;
+  avatar: Avatar;
 }
 
 /** A própria conta: o @ e o nome ficam vazios entre o cadastro e a escolha */
@@ -13,6 +20,7 @@ export interface Account {
   email: string | null;
   username: string | null;
   displayName: string | null;
+  avatar: Avatar;
 }
 
 /** Conta com @ e nome já escolhidos */
@@ -21,6 +29,8 @@ export type Profile = Account & { username: string; displayName: string };
 export const isProfileComplete = (a: Account): a is Profile => !!a.username && !!a.displayName;
 
 export interface Friend extends User {
+  /** Está com o app aberto agora */
+  online: boolean;
   since: string;
 }
 
@@ -46,6 +56,7 @@ export interface RoomParticipant {
 export interface RoomInfo {
   id: string;
   name: string;
+  icon: RoomIcon;
   ownerId: string;
   role: RoomRole;
   members: RoomMember[];
@@ -196,8 +207,8 @@ export async function register(email: string, password: string): Promise<Account
   return startSession(await call<Session>("/auth/register", json("POST", { email, password })));
 }
 
-/** Escolhe o @ (uma vez só) e/ou troca o nome de exibição */
-export const updateProfile = async (changes: { username?: string; displayName?: string }) =>
+/** Escolhe o @ (uma vez só); troca o nome de exibição e o bichinho quando quiser */
+export const updateProfile = async (changes: { username?: string; displayName?: string; avatar?: Avatar }) =>
   (await authed<{ user: Account }>("/me", json("PATCH", changes))).user;
 
 export async function logout(): Promise<void> {
@@ -238,10 +249,14 @@ export const removeFriend = (userId: string) => authed<void>(`/friends/${userId}
 
 export const fetchRooms = async () => (await authed<{ rooms: RoomInfo[] }>("/rooms")).rooms;
 
-export const createRoom = async (name: string) =>
-  (await authed<{ room: RoomInfo }>("/rooms", json("POST", { name }))).room;
+export const createRoom = async (name: string, icon?: RoomIcon) =>
+  (await authed<{ room: RoomInfo }>("/rooms", json("POST", { name, icon }))).room;
 
-export const renameRoom = (id: string, name: string) => authed(`/rooms/${id}`, json("PATCH", { name }));
+/** Renomeia e/ou troca o ícone (só o dono) */
+export const updateRoom = (id: string, changes: { name?: string; icon?: RoomIcon }) =>
+  authed(`/rooms/${id}`, json("PATCH", changes));
+
+export const renameRoom = (id: string, name: string) => updateRoom(id, { name });
 
 export const deleteRoom = (id: string) => authed<void>(`/rooms/${id}`, { method: "DELETE" });
 

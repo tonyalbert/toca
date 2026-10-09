@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { captureDeviceId, listDevices, type DeviceKind, type DeviceOption } from "./devices";
 import { useMicLevel } from "./useMicLevel";
+import { Select } from "./components/Select";
 
 /**
  * Configurações de voz e vídeo: escolha do microfone (com medidor ao vivo) e da
@@ -74,16 +75,12 @@ function DeviceSelect({
     : [...devices, { deviceId, label: "Dispositivo desconectado" }];
 
   return (
-    <label className="field">
-      <span className="field-label">{label}</span>
-      <select value={deviceId} onChange={(e) => onChange(e.target.value)}>
-        {options.map((d) => (
-          <option key={d.deviceId} value={d.deviceId}>
-            {d.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select
+      label={label}
+      value={deviceId}
+      onChange={onChange}
+      options={options.map((d) => ({ value: d.deviceId, label: d.label }))}
+    />
   );
 }
 
@@ -127,7 +124,7 @@ function MicSection({ deviceId, onChange }: { deviceId: string; onChange: (id: s
   return (
     <section className="settings-section">
       <DeviceSelect label="Microfone" deviceId={deviceId} devices={devices} onChange={onChange} />
-      <div className="field">
+      <div className="form-field">
         <span className="field-label">Teste do microfone</span>
         <div className="meter">
           <div className={`meter-fill ${speaking ? "speaking" : ""}`} style={{ width: `${level * 100}%` }} />
@@ -181,7 +178,7 @@ function CameraSection({ deviceId, onChange }: { deviceId: string; onChange: (id
   return (
     <section className="settings-section">
       <DeviceSelect label="Câmera" deviceId={deviceId} devices={devices} onChange={onChange} />
-      <div className="field">
+      <div className="form-field">
         <div className="field-row">
           <span className="field-label">Prévia da câmera</span>
           <button className="secondary" onClick={() => setTesting((t) => !t)}>

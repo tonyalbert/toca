@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Monitor, RefreshCw, ScreenShare } from "lucide-react";
 import type { ScreenSource } from "../../shared/screen";
+import { Button, IconButton } from "./components/Button";
+import { Modal } from "./components/Modal";
+import { Switch } from "./components/Switch";
 
-/** Seletor de tela inteira ou janela, com opção de incluir o áudio do sistema */
+/** Seletor de tela inteira ou janela, com opção de incluir o áudio do computador */
 export function ScreenSharePicker({
   onShare,
   onClose,
 }: {
-  onShare: (sourceId: string, withAudio: boolean) => void;
+  onShare: (sourceId: string, withAudio: boolean, sourceName: string) => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<ScreenSource["type"]>("screen");
@@ -14,11 +18,16 @@ export function ScreenSharePicker({
   const [selected, setSelected] = useState<string | null>(null);
   const [withAudio, setWithAudio] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
-      setSources(await window.toca.getScreenSources());
+      const list = await window.toca.getScreenSources();
+      setSources(list);
       setError(null);
+      // Com uma tela só, ela já vem escolhida
+      const screens = list.filter((x) => x.type === "screen");
+      setSelected((s) => s ?? (screens.length === 1 ? screens[0].id : null));
     } catch (err) {
       setError(`Não foi possível listar as telas: ${(err as Error).message}`);
     }
@@ -28,82 +37,114 @@ export function ScreenSharePicker({
     void load();
   }, [load]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const visible = sources?.filter((s) => s.type === tab) ?? [];
-  const share = () => selected && onShare(selected, withAudio);
+  const chosen = sources?.find((s) => s.id === selected);
+  const share = (source = chosen) => source && onShare(source.id, withAudio, sourceLabel(source));
+
+  // Setas andam entre as miniaturas (grupo de opções), Enter compartilha
+  const onGridKey = (e: KeyboardEvent) => {
+    if (visible.length === 0) return;
+    const cols = 3;
+    const i = Math.max(0, visible.findIndex((s) => s.id === selected));
+    const step = ({ ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols } as Record<string, number>)[e.key];
+    if (step !== undefined) {
+      e.preventDefault();
+      const next = visible[Math.max(0, Math.min(visible.length - 1, i + step))];
+      setSelected(next.id);
+      gridRef.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(next.id)}"]`)?.focus();
+    } else if (e.key === "Enter" && chosen) {
+      e.preventDefault();
+      share();
+    }
+  };
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-wide" role="dialog" aria-labelledby="screen-picker-title">
-        <header className="modal-header">
-          <h2 id="screen-picker-title">Compartilhar tela</h2>
-          <button className="link-button" onClick={() => void load()}>
-            atualizar lista
+    <Modal
+      wide
+      title="Compartilhar tela"
+      description="Escolha o que a turma vai ver."
+      onClose={onClose}
+      headerAction={
+        <IconButton size="sm" label="Atualizar a lista" onClick={() => void load()}>
+          <RefreshCw size={16} aria-hidden="true" />
+        </IconButton>
+      }
+      footer={
+        <>
+          <span className="xs muted grow">Qualidade automática · até 1080p, 30 fps</span>
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button
+            variant="primary"
+            icon={<ScreenShare size={15} aria-hidden="true" />}
+            disabled={!chosen}
+            onClick={() => share()}
+          >
+            Compartilhar
+          </Button>
+        </>
+      }
+    >
+      <div className="tabs" role="tablist" aria-label="Tipo de compartilhamento" style={{ alignSelf: "flex-start" }}>
+        {(["screen", "window"] as const).map((t) => (
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
+            {t === "screen" ? "Tela inteira" : "Janela"}
           </button>
-        </header>
-
-        <div className="tabs" role="tablist">
-          {(["screen", "window"] as const).map((t) => (
-            <button
-              key={t}
-              role="tab"
-              aria-selected={tab === t}
-              className={`tab ${tab === t ? "active" : ""}`}
-              onClick={() => setTab(t)}
-            >
-              {t === "screen" ? "Tela inteira" : "Janela"}
-            </button>
-          ))}
-        </div>
-
-        <div className="source-grid">
-          {error && <div className="muted-text">{error}</div>}
-          {!sources && !error && <div className="muted-text">Carregando…</div>}
-          {sources && visible.length === 0 && <div className="muted-text">Nada para mostrar aqui.</div>}
-          {visible.map((s) => (
-            <button
-              key={s.id}
-              className={`source ${selected === s.id ? "selected" : ""}`}
-              onClick={() => setSelected(s.id)}
-              onDoubleClick={() => onShare(s.id, withAudio)}
-              title={s.name}
-            >
-              <img className="source-thumb" src={s.thumbnail} alt="" />
-              <span className="source-name">
-                {s.icon && <img className="source-icon" src={s.icon} alt="" />}
-                <span>{s.name}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {withAudio && (
-          <div className="muted-text">
-            Vai o som do computador (vídeos, músicas, jogos), sem as vozes da chamada: ninguém ouve o
-            próprio eco.
-          </div>
-        )}
-
-        <footer className="modal-footer">
-          <label className="checkbox">
-            <input type="checkbox" checked={withAudio} onChange={(e) => setWithAudio(e.target.checked)} />
-            Incluir o áudio do computador
-          </label>
-          <div className="modal-actions">
-            <button className="secondary" onClick={onClose}>
-              Cancelar
-            </button>
-            <button className="primary" disabled={!selected} onClick={share}>
-              Compartilhar
-            </button>
-          </div>
-        </footer>
+        ))}
       </div>
-    </div>
+
+      {error && <div className="notice error">{error}</div>}
+      {!sources && !error && <p className="sm muted">Carregando…</p>}
+      {sources && visible.length === 0 && (
+        <p className="sm muted">{tab === "screen" ? "Nenhuma tela encontrada." : "Nenhuma janela aberta para compartilhar."}</p>
+      )}
+
+      {visible.length > 0 && (
+        <div ref={gridRef} className="thumbs" role="radiogroup" aria-label="O que compartilhar" onKeyDown={onGridKey}>
+          {visible.map((s, i) => {
+            const isSel = s.id === selected;
+            // Só um item entra no Tab: o escolhido (ou o primeiro)
+            const focusable = isSel || (!visible.some((v) => v.id === selected) && i === 0);
+            return (
+              <button
+                key={s.id}
+                data-id={s.id}
+                className="thumb"
+                role="radio"
+                aria-checked={isSel}
+                tabIndex={focusable ? 0 : -1}
+                data-tip={s.name}
+                onClick={() => setSelected(s.id)}
+                onDoubleClick={() => share(s)}
+              >
+                <span className="pv">
+                  <img src={s.thumbnail} alt="" />
+                </span>
+                <span>
+                  {s.icon ? <img className="src-icon" src={s.icon} alt="" /> : <Monitor size={14} aria-hidden="true" />}
+                  <span className="src-name">{sourceLabel(s)}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="panel" style={{ padding: 14 }}>
+        <Switch
+          checked={withAudio}
+          onChange={setWithAudio}
+          label="Compartilhar o áudio do PC"
+          description="A turma ouve o som do vídeo ou do jogo junto com a tela. As vozes da chamada não vão junto, então ninguém ouve o próprio eco."
+        />
+      </div>
+    </Modal>
   );
+}
+
+/** "Entire screen"/"Screen 1" do Windows vira "Tela inteira"/"Tela 1" */
+function sourceLabel(s: ScreenSource): string {
+  if (s.type === "window") return s.name;
+  if (/^entire screen$/i.test(s.name)) return "Tela inteira";
+  const n = s.name.match(/^screen (\d+)$/i);
+  return n ? `Tela ${n[1]}` : s.name;
 }

@@ -1,15 +1,21 @@
 import { useState } from "react";
-import { updateProfile, type Account } from "./api";
+import { CircleAlert } from "lucide-react";
+import { ApiError, updateProfile, type Account } from "./api";
+import { AuthHeading, AuthLayout } from "./components/AuthLayout";
+import { Button } from "./components/Button";
+import { Input } from "./components/Input";
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_.]{3,20}$/;
 
 /** Depois do cadastro: primeiro o @ (não muda depois), depois o nome de exibição */
 export function ProfileSetup({
   account,
+  version,
   onDone,
   onCancel,
 }: {
   account: Account;
+  version: string | null;
   onDone: (account: Account) => void;
   /** Sai da conta (ex.: e-mail errado) */
   onCancel: () => void;
@@ -17,70 +23,93 @@ export function ProfileSetup({
   const step = account.username ? "displayName" : "username";
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = value.trim();
     if (step === "username" && !USERNAME_PATTERN.test(trimmed)) {
-      return setError("De 3 a 20 caracteres: letras sem acento, números, _ e .");
+      return setFieldError("De 3 a 20 caracteres: letras sem acento, números, _ e .");
     }
-    if (step === "displayName" && !trimmed) return setError("Escolha um nome");
+    if (step === "displayName" && !trimmed) return setFieldError("Escolha um nome.");
     setBusy(true);
-    setError(null);
+    setFieldError(null);
+    setFormError(null);
     try {
       const updated = await updateProfile(step === "username" ? { username: trimmed } : { displayName: trimmed });
       setValue("");
       setBusy(false);
       onDone(updated);
     } catch (err) {
-      setError((err as Error).message);
+      // @ já usado: o erro fica no campo
+      if (err instanceof ApiError && err.status === 409) setFieldError(err.message);
+      else setFormError((err as Error).message);
       setBusy(false);
     }
   }
 
+  const onChange = (next: string) => {
+    setValue(next);
+    setFieldError(null);
+  };
+
   return (
-    <div className="name-screen">
-      <form key={step} className="name-card auth-card" onSubmit={submit} noValidate>
-        <div className="steps">Passo {step === "username" ? 1 : 2} de 2</div>
+    <AuthLayout version={version}>
+      <form key={step} onSubmit={submit} noValidate>
         {step === "username" ? (
           <>
-            <h1>Seu @</h1>
-            <p>É como seus amigos vão te encontrar. Não dá para trocar depois.</p>
-            <label className="auth-field">
-              <span className="field-label">Nome de usuário</span>
-              <div className="at-input">
-                <span>@</span>
-                <input
-                  autoFocus
-                  maxLength={20}
-                  spellCheck={false}
-                  value={value}
-                  onChange={(e) => setValue(e.target.value.replace(/^@/, ""))}
-                />
-              </div>
-            </label>
+            <AuthHeading eyebrow="Passo 1 de 2" title="Seu @usuário">
+              É como os amigos vão te achar. Não dá para trocar depois.
+            </AuthHeading>
+            <Input
+              label="@usuário"
+              prefix="@"
+              autoFocus
+              maxLength={20}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder="usuario"
+              value={value}
+              hint="De 3 a 20 caracteres: letras sem acento, números, _ e ."
+              error={fieldError}
+              onChange={(e) => onChange(e.target.value.replace(/^@/, ""))}
+            />
           </>
         ) : (
           <>
-            <h1>Como te chamam?</h1>
-            <p>É o nome que aparece nas salas. Você pode trocar quando quiser.</p>
-            <label className="auth-field">
-              <span className="field-label">Nome de exibição</span>
-              <input autoFocus maxLength={32} value={value} onChange={(e) => setValue(e.target.value)} />
-            </label>
+            <AuthHeading eyebrow="Passo 2 de 2" title="Como te chamam?">
+              É o nome que aparece nas salas. Dá para trocar quando quiser.
+            </AuthHeading>
+            <Input
+              label="Nome"
+              autoFocus
+              maxLength={32}
+              placeholder="Como te chamam"
+              value={value}
+              error={fieldError}
+              onChange={(e) => onChange(e.target.value)}
+            />
           </>
         )}
 
-        {error && <div className="form-error">{error}</div>}
+        {formError && (
+          <div className="notice error" role="alert">
+            <CircleAlert size={16} aria-hidden="true" />
+            {formError}
+          </div>
+        )}
 
-        <button type="submit" className="primary" disabled={busy || !value.trim()}>
-          {busy ? "Aguarde…" : "Continuar"}
-        </button>
-        <button type="button" className="link-button" onClick={onCancel}>
-          sair{account.email ? ` (${account.email})` : ""}
-        </button>
+        <Button type="submit" variant="primary" size="lg" block disabled={busy || !value.trim()}>
+          {busy ? "Aguarde…" : step === "username" ? "Continuar" : "Entrar na toca"}
+        </Button>
+        <p className="sm muted">
+          {account.email ? `Entrou como ${account.email}. ` : ""}
+          <button type="button" className="link" onClick={onCancel}>
+            Sair
+          </button>
+        </p>
       </form>
-    </div>
+    </AuthLayout>
   );
 }

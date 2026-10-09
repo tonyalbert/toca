@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { updateProfile, type Profile } from "./api";
-import { Avatar } from "./Avatar";
-import { Modal } from "./RoomModals";
+import { Avatar } from "./components/Avatar";
+import { Modal } from "./components/Modal";
+import { useTheme, type ThemePreference } from "./theme";
+import { Select } from "./components/Select";
 
 /** Minha conta: troca o nome de exibição (o @ e o e-mail só aparecem) */
 export function ProfileModal({
@@ -18,6 +20,7 @@ export function ProfileModal({
   const [name, setName] = useState(me.displayName);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useTheme();
   const trimmed = name.trim();
 
   async function save(e: React.FormEvent) {
@@ -38,7 +41,7 @@ export function ProfileModal({
   return (
     <Modal title="Minha conta" onClose={onClose}>
       <div className="profile-head">
-        <Avatar name={trimmed || me.displayName} size={56} />
+        <Avatar kind={me.avatar} size={56} mine />
         <div>
           <div className="person-name">{trimmed || me.displayName}</div>
           <div className="muted-text">@{me.username}</div>
@@ -46,14 +49,25 @@ export function ProfileModal({
       </div>
 
       <form className="modal-form" onSubmit={save}>
-        <label className="field">
+        <label className="form-field">
           <span className="field-label">Nome de exibição</span>
           <input autoFocus maxLength={32} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <div className="field">
+        <div className="form-field">
           <span className="field-label">E-mail</span>
           <div className="muted-text selectable">{me.email ?? "não cadastrado"}</div>
         </div>
+        {/* Provisório: vai para Configurações > Aparência na etapa (g) do redesign */}
+        <Select<ThemePreference>
+          label="Aparência"
+          value={theme}
+          onChange={setTheme}
+          options={[
+            { value: "dark", label: "Escuro" },
+            { value: "light", label: "Claro" },
+            { value: "system", label: "Sistema (igual ao Windows)" },
+          ]}
+        />
         {error && <div className="form-error">{error}</div>}
         <div className="modal-actions spread">
           <button type="button" className="secondary danger-text" onClick={onSignOut}>

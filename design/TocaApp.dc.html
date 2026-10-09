@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Toca — app</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./toca2.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="tk win" data-theme="{{theme}}">
+
+  <header class="titlebar">
+    <svg class="tmark" width="20" height="20" viewBox="0 0 96 96" aria-hidden="true"><rect class="bg" width="96" height="96" rx="22"></rect><path class="fg" d="M33 74 V45 A15 15 0 0 1 63 45 V74 Z"></path></svg>
+    <span>Toca</span>
+    <span class="spacer"></span>
+    <sc-if value="{{hasUpdate}}" hint-placeholder-val="{{ false }}">
+      <button class="upd-pill" onClick="{{doUpdate}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>Atualizar</button>
+    </sc-if>
+    <button class="wc" aria-label="Minimizar"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
+    <button class="wc" aria-label="Maximizar"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1.5"></rect></svg></button>
+    <button class="wc close" aria-label="Fechar"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+  </header>
+  <sc-if value="{{isAuth}}" hint-placeholder-val="{{ false }}">
+    <div class="auth">
+      <div class="auth-art">
+        <div class="row" style="gap: 12px; position: relative">
+          <svg class="tmark" width="36" height="36" viewBox="0 0 96 96" aria-hidden="true"><rect class="bg" width="96" height="96" rx="22" style="fill: var(--card-2)"></rect><path class="fg" d="M33 74 V45 A15 15 0 0 1 63 45 V74 Z"></path></svg>
+          <strong class="h-display" style="font-size: 20px">toca</strong>
+        </div>
+        <svg class="big-arch" viewBox="0 0 520 520" aria-hidden="true">
+          <path class="ring" d="M20 520 V300 A240 240 0 0 1 500 300 V520"></path>
+          <path class="ring" d="M80 520 V300 A180 180 0 0 1 440 300 V520"></path>
+          <path class="ring" d="M140 520 V300 A120 120 0 0 1 380 300 V520"></path>
+          <path class="glow" d="M170 520 V300 A90 90 0 0 1 350 300 V520 Z"></path>
+          <path class="core" d="M200 520 V300 A60 60 0 0 1 320 300 V520 Z"></path>
+        </svg>
+        <h2>Entra, a turma <em>já tá na toca.</em></h2>
+        <span class="xs muted" style="position: relative">Toca é um app da Rabbit</span>
+      </div>
+
+      <div class="auth-form">
+        <sc-if value="{{scr.login}}" hint-placeholder-val="{{ true }}">
+          <div class="col" style="gap: 6px"><h1>Entrar</h1><p class="muted">Bom te ver de novo.</p></div>
+          <div class="field"><label class="label" for="a-user">E-mail ou @usuário</label><input id="a-user" class="input" value="{{f.user}}" onChange="{{f.onUser}}" autocomplete="username"></div>
+          <div class="field">
+            <div class="row" style="justify-content: space-between"><label class="label" for="a-pass">Senha</label><button class="link" onClick="{{go.esqueci}}">Esqueci a senha</button></div>
+            <div class="in-wrap"><input id="a-pass" class="input" type="{{f.pwType}}" value="{{f.pass}}" onChange="{{f.onPass}}" autocomplete="current-password" style="padding-right: 48px"><button class="ib ib-sm post" aria-label="{{f.pwLabel}}" onClick="{{f.togglePw}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div>
+          </div>
+          <button class="btn btn-p btn-lg btn-block" onClick="{{go.sala}}">Entrar</button>
+          <div class="divider">ainda não tem conta?</div>
+          <button class="btn btn-s btn-block" onClick="{{go.cadastro}}">Criar conta</button>
+        </sc-if>
+
+        <sc-if value="{{scr.cadastro}}" hint-placeholder-val="{{ false }}">
+          <div class="col" style="gap: 6px"><h1>Criar conta</h1><p class="muted">Seu @usuário é como os amigos vão te achar.</p></div>
+          <div class="grid2">
+            <div class="field"><label class="label" for="c-nome">Nome</label><input id="c-nome" class="input" placeholder="Como te chamam"></div>
+            <div class="field"><label class="label" for="c-user">@usuário</label><div class="in-wrap"><span class="pre">@</span><input id="c-user" class="input has-pre" value="tony" aria-describedby="c-user-ok"></div><span class="hint" id="c-user-ok" style="color: var(--ok)">Disponível</span></div>
+          </div>
+          <div class="field"><label class="label" for="c-mail">E-mail</label><input id="c-mail" class="input" type="email" placeholder="voce@email.com"></div>
+          <div class="field"><label class="label" for="c-pass">Senha</label><input id="c-pass" class="input is-error" type="password" value="1234" aria-invalid="true" aria-describedby="c-pass-e"><span class="err" id="c-pass-e"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4M12 16h.01"></path></svg>Use pelo menos 8 caracteres.</span></div>
+          <button class="btn btn-p btn-lg btn-block" onClick="{{go.codigo}}">Continuar</button>
+          <p class="sm muted">Já tem conta? <button class="link" onClick="{{go.login}}">Entrar</button></p>
+        </sc-if>
+
+        <sc-if value="{{scr.codigo}}" hint-placeholder-val="{{ false }}">
+          <button class="btn btn-g btn-sm" style="align-self: flex-start; margin-left: -12px" onClick="{{go.cadastro}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>Voltar</button>
+          <div class="col" style="gap: 6px"><h1>Confirme seu e-mail</h1><p class="muted">Mandamos um código de 6 dígitos para <strong style="color: var(--text)">t•••@email.com</strong>.</p></div>
+          <div class="otp" role="group" aria-label="Código de confirmação">
+            <input aria-label="Dígito 1" value="4" maxlength="1" inputmode="numeric"><input aria-label="Dígito 2" value="8" maxlength="1" inputmode="numeric"><input aria-label="Dígito 3" value="2" maxlength="1" inputmode="numeric">
+            <span class="dash" aria-hidden="true"></span>
+            <input class="is-focus" aria-label="Dígito 4" value="" maxlength="1" inputmode="numeric"><input aria-label="Dígito 5" value="" maxlength="1" inputmode="numeric"><input aria-label="Dígito 6" value="" maxlength="1" inputmode="numeric">
+          </div>
+          <p class="sm muted">Não chegou? Reenviar em <span class="num" style="color: var(--text); font-weight: 700">0:42</span> · <button class="link">Trocar e-mail</button></p>
+          <button class="btn btn-p btn-lg btn-block" onClick="{{go.sala}}">Confirmar</button>
+        </sc-if>
+
+        <sc-if value="{{scr.esqueci}}" hint-placeholder-val="{{ false }}">
+          <button class="btn btn-g btn-sm" style="align-self: flex-start; margin-left: -12px" onClick="{{go.login}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>Voltar para entrar</button>
+          <div class="col" style="gap: 6px"><h1>Esqueceu a senha?</h1><p class="muted">A gente manda um código para você criar uma nova.</p></div>
+          <sc-if value="{{f.notSent}}" hint-placeholder-val="{{ true }}">
+            <div class="field"><label class="label" for="e-mail">E-mail da conta</label><input id="e-mail" class="input" type="email" value="tony@email.com"></div>
+            <button class="btn btn-p btn-lg btn-block" onClick="{{f.send}}">Enviar código</button>
+          </sc-if>
+          <sc-if value="{{f.sent}}" hint-placeholder-val="{{ false }}">
+            <div class="panel" style="flex-direction: row; align-items: flex-start; gap: 12px; background: var(--ok-soft); border-color: transparent">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ok)"><circle cx="12" cy="12" r="10"></circle><path d="M9 12l2 2 4-4"></path></svg>
+              <div><strong>Código enviado</strong><p class="sm muted">Confira t•••@email.com. Ele vale por 15 minutos.</p></div>
+            </div>
+            <button class="btn btn-p btn-lg btn-block" onClick="{{go.codigo}}">Digitar código</button>
+          </sc-if>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{isApp}}" hint-placeholder-val="{{ true }}">
+    <div class="app-body">
+      <aside class="side" aria-label="Suas tocas">
+        <div class="side-h">
+          <h2>Suas tocas</h2>
+          <button class="ib solid ib-sm" aria-label="Criar sala" onClick="{{openCreate}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg></button>
+        </div>
+        <div class="side-scroll">
+          <sc-if value="{{noRooms}}" hint-placeholder-val="{{ false }}">
+            <div class="panel" style="margin: 6px 4px; gap: 8px; background: transparent; border-style: dashed">
+              <strong class="sm">Nenhuma toca ainda</strong>
+              <p class="xs muted">Crie uma sala e chame a turma.</p>
+              <button class="btn btn-s btn-sm" onClick="{{openCreate}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg>Criar sala</button>
+            </div>
+          </sc-if>
+          <sc-for list="{{rooms}}" as="r" hint-placeholder-count="3">
+            <button class="room {{r.cls}}" onClick="{{r.pick}}" aria-current="{{r.cur}}">
+              <span class="room-h">
+                <span class="room-ico">
+                  <sc-if value="{{r.i.sofa}}" hint-placeholder-val="{{ true }}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"></path><path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0z"></path><path d="M4 18v2M20 18v2"></path></svg></sc-if>
+                  <sc-if value="{{r.i.game}}" hint-placeholder-val="{{ false }}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"></path><rect x="2" y="6" width="20" height="12" rx="6"></rect></svg></sc-if>
+                  <sc-if value="{{r.i.film}}" hint-placeholder-val="{{ false }}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"></path></svg></sc-if>
+                  <sc-if value="{{r.i.music}}" hint-placeholder-val="{{ false }}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg></sc-if>
+                </span>
+                {{r.nome}}<span class="count">{{r.count}}</span>
+              </span>
+              <sc-if value="{{r.has}}" hint-placeholder-val="{{ true }}">
+                <span class="room-ppl">
+                  <sc-for list="{{r.ppl}}" as="p" hint-placeholder-count="3">
+                    <span class="rp {{p.talkCls}}">
+                      <span class="avw {{p.talkCls}}" style="width: 20px; height: 20px"><svg class="av {{p.ears}}" width="18" height="18" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle></svg></span>
+                      {{p.nome}}
+                      <span class="flags">
+                        <sc-if value="{{p.isTalk}}" hint-placeholder-val="{{ false }}"><span class="eq" aria-label="falando"><i></i><i></i><i></i></span></sc-if>
+                        <sc-if value="{{p.share}}" hint-placeholder-val="{{ false }}"><span class="badge" style="height: 18px; font-size: 10px; background: var(--danger-strong); color: #fff">AO VIVO</span></sc-if>
+                        <sc-if value="{{p.muted}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-label="microfone desligado"><path d="M2 2l20 20M18.9 13.4A7 7 0 0 0 19 12v-2M5 10v2a7 7 0 0 0 12 5M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v3a3 3 0 0 0 5.1 2.1M12 19v3"></path></svg></sc-if>
+                        <sc-if value="{{p.deaf}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-label="fone desligado"><path d="M2 2l20 20M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.7-6.4M21 14v-2a9 9 0 0 0-12.7-8.2M21 14h-3a2 2 0 0 0-2 2v3"></path></svg></sc-if>
+                      </span>
+                    </span>
+                  </sc-for>
+                </span>
+              </sc-if>
+              <sc-if value="{{r.empty}}" hint-placeholder-val="{{ false }}"><span class="room-empty">Ninguém aqui agora</span></sc-if>
+            </button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{inCall}}" hint-placeholder-val="{{ true }}">
+          <div class="side-call">
+            <span class="dot" aria-hidden="true"></span>
+            <div class="grow"><strong>Na toca · {{callRoom}}</strong><span>Voz conectada · 24 ms</span></div>
+            <button class="ib ib-sm" aria-label="Sair da sala" onClick="{{leave}}" style="color: var(--danger)"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 13.3a16 16 0 0 0 3.4 2.6l1.3-1.3a2 2 0 0 1 2.1-.4 12.8 12.8 0 0 0 2.8.7 2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-3.4-2.6M2 2l20 20M5.3 13.3A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7 12.8 12.8 0 0 0 .7 2.8 2 2 0 0 1-.4 2.1L8.1 9.9"></path></svg></button>
+          </div>
+        </sc-if>
+
+        <div class="side-foot">
+          <div class="me">
+            <span class="avw" style="width: 38px; height: 38px"><svg class="av e-b tint-a" width="34" height="34" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle><path class="mouth" d="M28 44 Q32 47.5 36 44"></path></svg><span class="pres call" aria-hidden="true"></span></span>
+            <div class="grow"><strong>Tony</strong><span>@tony</span></div>
+            <button class="ib ib-sm {{nav.amigos}}" aria-label="Amigos (2 pedidos)" onClick="{{go.amigos}}" style="position: relative"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"></path></svg><span class="badge count" style="position: absolute; top: -4px; right: -6px; height: 16px; min-width: 16px; font-size: 10px; padding: 0 4px">2</span></button>
+            <button class="ib ib-sm" aria-label="Configurações" onClick="{{go.config}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg></button>
+          </div>
+          <div class="ver"><span>Toca v0.9.2</span><span>{{verNote}}</span></div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <sc-if value="{{showBanner}}" hint-placeholder-val="{{ false }}">
+          <div class="banner" role="status">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--accent-text)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+            <span class="grow"><strong>Nova versão disponível — 0.9.3.</strong> <span class="muted">Áudio mais limpo no compartilhamento de tela. Leva uns segundos e você volta pra mesma sala.</span></span>
+            <button class="btn btn-p btn-sm" onClick="{{doUpdate}}">Atualizar</button>
+            <button class="ib ib-sm" aria-label="Lembrar depois" onClick="{{hideBanner}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+          </div>
+        </sc-if>
+        <sc-if value="{{view.room}}" hint-placeholder-val="{{ true }}">
+          <div class="main-h">
+            <span class="room-ico" style="width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-text)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"></path><path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0z"></path><path d="M4 18v2M20 18v2"></path></svg></span>
+            <div><h1>{{room.nome}}</h1><span class="sub">{{room.sub}}</span></div>
+            <span class="spacer"></span>
+            <button class="btn btn-s btn-sm" onClick="{{openMembers}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"></path></svg>Membros · 6</button>
+            <button class="btn btn-s btn-sm"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path></svg>Convidar</button>
+          </div>
+          <sc-if value="{{room.alone}}" hint-placeholder-val="{{ false }}">
+            <div class="empty">
+              <svg class="art" viewBox="0 0 140 120" aria-hidden="true"><path class="a4" d="M10 118 V70 A60 60 0 0 1 130 70 V118"></path><path class="a1" d="M40 118 V74 A30 30 0 0 1 100 74 V118 Z"></path><circle class="a2" cx="70" cy="96" r="7"></circle></svg>
+              <h2>Só você por aqui</h2>
+              <p>A sala fica aberta. Quando alguém entrar, você ouve um toque e vê a pessoa aqui.</p>
+              <div class="row" style="margin-top: 6px"><button class="btn btn-p" onClick="{{openMembers}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6M22 11h-6"></path></svg>Chamar amigos</button><button class="btn btn-s"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path></svg>Copiar convite</button></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{room.full}}" hint-placeholder-val="{{ true }}">
+            <div class="stage">
+              <sc-for list="{{cards}}" as="c" hint-placeholder-count="5">
+                <div class="pc {{c.talkCls}}" aria-label="{{c.aria}}">
+                  <sc-if value="{{c.isYou}}" hint-placeholder-val="{{ false }}"><span class="you">você</span></sc-if>
+                  <span class="avw" style="width: 104px; height: 104px"><svg class="av {{c.ears}}" width="92" height="92" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle><path class="mouth" d="M28 44 Q32 47.5 36 44"></path></svg></span>
+                  <span class="name">{{c.nome}}<sc-if value="{{c.isTalk}}" hint-placeholder-val="{{ false }}"><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span></sc-if></span>
+                  <span class="state">{{c.state}}</span>
+                  <span class="flags">
+                    <sc-if value="{{c.muted}}" hint-placeholder-val="{{ false }}"><span class="flag" title="Microfone desligado"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 2l20 20M18.9 13.4A7 7 0 0 0 19 12v-2M5 10v2a7 7 0 0 0 12 5M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v3a3 3 0 0 0 5.1 2.1M12 19v3"></path></svg></span></sc-if>
+                    <sc-if value="{{c.deaf}}" hint-placeholder-val="{{ false }}"><span class="flag" title="Fone desligado"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 2l20 20M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.7-6.4M21 14v-2a9 9 0 0 0-12.7-8.2M21 14h-3a2 2 0 0 0-2 2v3"></path></svg></span></sc-if>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </sc-if>
+        <sc-if value="{{view.share}}" hint-placeholder-val="{{ false }}">
+          <div class="main-h" style="min-height: 64px; padding: 12px 24px">
+            <div><h1 style="font-size: 20px">{{room.nome}}</h1><span class="sub">Você está compartilhando · 4 assistindo</span></div>
+            <span class="spacer"></span>
+            <button class="btn btn-d btn-sm" onClick="{{stopShare}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 12.5l-5-5M9.5 12.5l5-5"></path><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M12 17v4M8 21h8"></path></svg>Parar de compartilhar</button>
+          </div>
+          <div class="share-layout">
+            <div class="screen">
+              <div class="screen-top">
+                <span class="live">AO VIVO</span>
+                <span class="who">Tela do Tony · Planilha da viagem</span>
+                <span class="spacer"></span>
+                <button class="ib" aria-label="Volume da transmissão"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"></path><path d="M16 9a5 5 0 0 1 0 6"></path></svg></button>
+                <button class="ib" aria-label="Tela cheia"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path></svg></button>
+              </div>
+              <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" style="width: 100%; height: 100%; display: block" aria-label="Prévia da tela compartilhada: planilha com o roteiro da viagem" role="img">
+                <rect width="1600" height="900" fill="#f3f2ee"></rect>
+                <rect width="1600" height="70" fill="#1d6b45"></rect>
+                <rect x="40" y="22" width="260" height="26" rx="6" fill="#ffffff" opacity=".85"></rect>
+                <rect x="0" y="70" width="1600" height="52" fill="#e6e4dd"></rect>
+                <g fill="#d4d1c7"><rect x="0" y="122" width="1600" height="2"></rect></g>
+                <g font-family="Manrope, sans-serif" font-size="26" fill="#2a2d31">
+                  <text x="60" y="190" font-weight="700">Dia</text><text x="260" y="190" font-weight="700">Cidade</text><text x="660" y="190" font-weight="700">Hospedagem</text><text x="1160" y="190" font-weight="700">Quem paga</text>
+                  <text x="60" y="270">Sex 14/11</text><text x="260" y="270">Paraty</text><text x="660" y="270">Pousada na praia</text><text x="1160" y="270">Lu e Tony</text>
+                  <text x="60" y="350">Sáb 15/11</text><text x="260" y="350">Paraty</text><text x="660" y="350">Pousada na praia</text><text x="1160" y="350">Bia</text>
+                  <text x="60" y="430">Dom 16/11</text><text x="260" y="430">Trindade</text><text x="660" y="430">Camping</text><text x="1160" y="430">Caio e Duda</text>
+                </g>
+                <g fill="#d4d1c7"><rect x="40" y="220" width="1520" height="2"></rect><rect x="40" y="300" width="1520" height="2"></rect><rect x="40" y="380" width="1520" height="2"></rect><rect x="40" y="460" width="1520" height="2"></rect></g>
+                <rect x="1140" y="320" width="420" height="56" fill="none" stroke="#1d6b45" stroke-width="4"></rect>
+              </svg>
+            </div>
+            <div class="side-ppl" aria-label="Participantes">
+              <sc-for list="{{cards}}" as="c" hint-placeholder-count="5">
+                <div class="pc small {{c.talkCls}}">
+                  <span class="avw" style="width: 36px; height: 36px"><svg class="av {{c.ears}}" width="32" height="32" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle><path class="mouth" d="M28 44 Q32 47.5 36 44"></path></svg></span>
+                  <span class="col" style="gap: 0"><span class="name" style="font-size: 13px">{{c.nome}}<sc-if value="{{c.isTalk}}" hint-placeholder-val="{{ false }}"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></sc-if></span><span class="state" style="height: auto">{{c.state}}</span></span>
+                  <span class="flags">
+                    <sc-if value="{{c.muted}}" hint-placeholder-val="{{ false }}"><span class="flag"><svg class="ic" viewBox="0 0 24 24" aria-label="microfone desligado"><path d="M2 2l20 20M18.9 13.4A7 7 0 0 0 19 12v-2M5 10v2a7 7 0 0 0 12 5M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v3a3 3 0 0 0 5.1 2.1M12 19v3"></path></svg></span></sc-if>
+                    <sc-if value="{{c.deaf}}" hint-placeholder-val="{{ false }}"><span class="flag"><svg class="ic" viewBox="0 0 24 24" aria-label="fone desligado"><path d="M2 2l20 20M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.7-6.4M21 14v-2a9 9 0 0 0-12.7-8.2M21 14h-3a2 2 0 0 0-2 2v3"></path></svg></span></sc-if>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{showCtrl}}" hint-placeholder-val="{{ true }}">
+          <div class="ctrl-wrap">
+            <div class="ctrl" role="toolbar" aria-label="Controles da chamada">
+              <button class="cb {{ctl.micCls}}" aria-pressed="{{ctl.micPressed}}" onClick="{{ctl.toggleMic}}" aria-label="{{ctl.micLabel}}"><span class="tip">{{ctl.micLabel}}</span>
+                <sc-if value="{{ctl.micOn}}" hint-placeholder-val="{{ true }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg></sc-if>
+                <sc-if value="{{ctl.micOff}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 2l20 20M18.9 13.4A7 7 0 0 0 19 12v-2M5 10v2a7 7 0 0 0 12 5M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v3a3 3 0 0 0 5.1 2.1M12 19v3"></path></svg></sc-if>
+              </button>
+              <button class="cb {{ctl.deafCls}}" aria-pressed="{{ctl.deafPressed}}" onClick="{{ctl.toggleDeaf}}" aria-label="{{ctl.deafLabel}}"><span class="tip">{{ctl.deafLabel}}</span>
+                <sc-if value="{{ctl.deafOn}}" hint-placeholder-val="{{ true }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"></path></svg></sc-if>
+                <sc-if value="{{ctl.deafOff}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 2l20 20M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.7-6.4M21 14v-2a9 9 0 0 0-12.7-8.2M21 14h-3a2 2 0 0 0-2 2v3"></path></svg></sc-if>
+              </button>
+              <button class="cb {{ctl.camCls}}" aria-pressed="{{ctl.camPressed}}" onClick="{{ctl.toggleCam}}" aria-label="{{ctl.camLabel}}"><span class="tip">{{ctl.camLabel}}</span>
+                <sc-if value="{{ctl.camOn}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 13l5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg></sc-if>
+                <sc-if value="{{ctl.camOff}}" hint-placeholder-val="{{ true }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 2l20 20M10.7 6H14a2 2 0 0 1 2 2v3.3l1 1L22 7v10M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2"></path></svg></sc-if>
+              </button>
+              <button class="cb {{ctl.shareCls}}" aria-pressed="{{ctl.sharePressed}}" onClick="{{ctl.share}}" aria-label="{{ctl.shareLabel}}"><span class="tip">{{ctl.shareLabel}}</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 10l3-3 3 3M12 13V7"></path><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M12 17v4M8 21h8"></path></svg></button>
+              <span class="sep"></span>
+              <button class="cb leave" aria-label="Sair da sala" onClick="{{leave}}"><span class="tip">Sair da sala</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 13.3a16 16 0 0 0 3.4 2.6l1.3-1.3a2 2 0 0 1 2.1-.4 12.8 12.8 0 0 0 2.8.7 2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-3.4-2.6M2 2l20 20M5.3 13.3A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7 12.8 12.8 0 0 0 .7 2.8 2 2 0 0 1-.4 2.1L8.1 9.9"></path></svg></button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{view.noRooms}}" hint-placeholder-val="{{ false }}">
+          <div class="empty">
+            <svg class="art" viewBox="0 0 140 120" aria-hidden="true"><path class="a4" d="M10 118 V70 A60 60 0 0 1 130 70 V118"></path><path class="a2" d="M40 118 V74 A30 30 0 0 1 100 74 V118 Z"></path><path class="a3" d="M58 118 V88 A12 12 0 0 1 82 88 V118 Z"></path></svg>
+            <h2>Sua primeira toca</h2>
+            <p>Uma sala é um cantinho fixo da turma: fica sempre ali, e todo mundo entra quando quiser.</p>
+            <div class="row" style="margin-top: 6px"><button class="btn btn-p" onClick="{{openCreate}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg>Criar sala</button><button class="btn btn-s" onClick="{{go.amigos}}">Adicionar amigos</button></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{view.friends}}" hint-placeholder-val="{{ false }}">
+          <div class="main-h">
+            <div><h1>Amigos</h1><span class="sub">{{fr.sub}}</span></div>
+            <span class="spacer"></span>
+            <div class="tabs" role="tablist" aria-label="Filtrar amigos">
+              <sc-for list="{{fr.tabs}}" as="tb" hint-placeholder-count="3">
+                <button role="tab" aria-selected="{{tb.sel}}" onClick="{{tb.pick}}">{{tb.label}}<span class="badge {{tb.badgeCls}}" style="height: 18px; padding: 0 6px">{{tb.n}}</span></button>
+              </sc-for>
+            </div>
+          </div>
+          <div class="main-b col" style="gap: 20px">
+            <div class="panel" style="flex-direction: row; align-items: flex-end; gap: 12px">
+              <div class="field grow"><label class="label" for="add-u">Adicionar por nome de usuário</label><div class="in-wrap"><span class="pre">@</span><input id="add-u" class="input has-pre" placeholder="usuario" value="{{fr.q}}" onChange="{{fr.onQ}}"></div></div>
+              <button class="btn btn-p" style="height: 44px" onClick="{{fr.send}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6M22 11h-6"></path></svg>Enviar pedido</button>
+            </div>
+            <sc-if value="{{fr.empty}}" hint-placeholder-val="{{ false }}">
+              <div class="empty" style="padding: 32px">
+                <svg class="art" viewBox="0 0 140 120" aria-hidden="true"><circle class="a1" cx="52" cy="70" r="26"></circle><rect class="a1" x="38" y="22" width="10" height="30" rx="5" transform="rotate(-8 43 52)"></rect><rect class="a1" x="56" y="22" width="10" height="30" rx="5" transform="rotate(8 61 52)"></rect><circle class="a4" cx="96" cy="74" r="22"></circle><path class="a2" d="M96 64 v20 M86 74 h20" style="stroke: var(--accent); stroke-width: 4; stroke-linecap: round"></path></svg>
+                <h2>Ninguém por aqui ainda</h2>
+                <p>Mande seu @usuário para a turma ou procure o deles acima. Quando aceitarem, eles aparecem aqui.</p>
+                <button class="btn btn-s"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path></svg>Copiar meu @tony</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{fr.hasList}}" hint-placeholder-val="{{ true }}">
+              <div class="list">
+                <sc-for list="{{fr.list}}" as="u" hint-placeholder-count="5">
+                  <div class="li">
+                    <span class="avw" style="width: 42px; height: 42px"><svg class="av {{u.ears}}" width="38" height="38" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle><path class="mouth" d="M28 44 Q32 47.5 36 44"></path></svg><span class="pres {{u.pres}}" aria-hidden="true" style="border-color: var(--bg)"></span></span>
+                    <div><strong>{{u.nome}}</strong><span class="sub">@{{u.user}} · {{u.status}}</span></div>
+                    <div class="acts">
+                      <sc-if value="{{u.isFriend}}" hint-placeholder-val="{{ true }}">
+                        <sc-if value="{{u.canJoin}}" hint-placeholder-val="{{ false }}"><button class="btn btn-s btn-sm" onClick="{{u.join}}">Entrar na {{u.room}}</button></sc-if>
+                        <button class="ib ib-sm" aria-label="Mais opções para {{u.nome}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button>
+                      </sc-if>
+                      <sc-if value="{{u.isIn}}" hint-placeholder-val="{{ false }}">
+                        <button class="btn btn-p btn-sm" onClick="{{u.accept}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>Aceitar</button>
+                        <button class="btn btn-s btn-sm" onClick="{{u.decline}}">Recusar</button>
+                      </sc-if>
+                      <sc-if value="{{u.isOut}}" hint-placeholder-val="{{ false }}">
+                        <span class="xs muted">Enviado {{u.when}}</span>
+                        <button class="btn btn-g btn-sm" onClick="{{u.decline}}">Cancelar</button>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{view.config}}" hint-placeholder-val="{{ false }}">
+          <div class="cfg">
+            <nav class="cfg-nav" aria-label="Seções das configurações">
+              <button aria-current="page"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M20 21a8 8 0 0 0-16 0"></path></svg>Perfil</button>
+              <button><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg>Voz e áudio</button>
+              <button><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg>Notificações</button>
+              <button><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"></path></svg>Aparência</button>
+              <span style="flex: 1"></span>
+              <button class="danger" onClick="{{go.login}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>Sair da conta</button>
+            </nav>
+            <div class="cfg-b">
+              <section class="sect" aria-labelledby="cfg-p">
+                <h3 id="cfg-p">Perfil</h3>
+                <div class="panel" style="flex-direction: row; gap: 24px; align-items: flex-start">
+                  <div class="col" style="gap: 10px; align-items: center">
+                    <span class="avw" style="width: 96px; height: 96px"><svg class="av {{cfg.ears}} tint-a" width="84" height="84" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle><path class="mouth" d="M28 44 Q32 47.5 36 44"></path></svg></span>
+                    <button class="link">Enviar foto</button>
+                  </div>
+                  <div class="col grow" style="gap: 14px">
+                    <div class="grid2">
+                      <div class="field"><label class="label" for="p-nome">Nome</label><input id="p-nome" class="input" value="Tony"></div>
+                      <div class="field"><label class="label" for="p-user">@usuário</label><div class="in-wrap"><span class="pre">@</span><input id="p-user" class="input has-pre" value="tony"></div></div>
+                    </div>
+                    <div class="field"><span class="label" id="p-ears">Seu bichinho</span>
+                      <div class="pick" role="radiogroup" aria-labelledby="p-ears">
+                        <sc-for list="{{cfg.ears3}}" as="e" hint-placeholder-count="3">
+                          <button role="radio" aria-checked="{{e.sel}}" aria-label="{{e.label}}" onClick="{{e.pick}}"><svg class="av {{e.cls}}" width="40" height="40" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle></svg></button>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <section class="sect" aria-labelledby="cfg-a">
+                <h3 id="cfg-a">Voz e áudio</h3>
+                <div class="panel">
+                  <div class="grid2">
+                    <div class="field"><label class="label" for="a-mic">Microfone</label><div class="in-wrap"><select id="a-mic" class="input"><option>Microfone (Fone USB)</option><option>Padrão do Windows</option></select><svg class="ic ic-s chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+                    <div class="field"><label class="label" for="a-out">Fone ou alto-falante</label><div class="in-wrap"><select id="a-out" class="input"><option>Fone USB</option><option>Alto-falantes (Realtek)</option></select><svg class="ic ic-s chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+                  </div>
+                  <div class="grid2">
+                    <div class="field"><div class="row" style="justify-content: space-between"><label class="label" for="a-vin">Volume do microfone</label><span class="xs muted num">{{cfg.vin}}%</span></div><input id="a-vin" class="range" type="range" min="0" max="200" value="{{cfg.vin}}" onChange="{{cfg.onVin}}"><div class="meter" aria-hidden="true"><i style="width: {{cfg.level}}%"></i></div><span class="hint">Fale algo: a barra verde mostra o nível que os amigos ouvem.</span></div>
+                    <div class="field"><div class="row" style="justify-content: space-between"><label class="label" for="a-vout">Volume da saída</label><span class="xs muted num">{{cfg.vout}}%</span></div><input id="a-vout" class="range" type="range" min="0" max="200" value="{{cfg.vout}}" onChange="{{cfg.onVout}}"><button class="btn btn-s btn-sm" style="align-self: flex-start; margin-top: 6px"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"></path><path d="M16 9a5 5 0 0 1 0 6"></path></svg>Tocar som de teste</button></div>
+                  </div>
+                  <div class="row" style="justify-content: space-between; border-top: 1px solid var(--line); padding-top: 14px">
+                    <div><strong class="sm" id="a-ns">Reduzir ruído de fundo</strong><p class="xs muted">Corta teclado, ventilador e barulho da rua.</p></div>
+                    <button class="switch" role="switch" aria-checked="{{cfg.ns}}" aria-labelledby="a-ns" onClick="{{cfg.toggleNs}}"></button>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </sc-if>
+      </main>
+    </div>
+    <sc-if value="{{ov.picker}}" hint-placeholder-val="{{ false }}">
+      <div class="ov" aria-hidden="true"></div>
+      <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="pk-t">
+        <div class="modal-h"><div class="grow"><h2 id="pk-t">Compartilhar tela</h2><p>Escolha o que a turma vai ver.</p></div><button class="ib ib-sm" aria-label="Fechar" onClick="{{closeOv}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button></div>
+        <div class="modal-b">
+          <div class="tabs" role="tablist" aria-label="Tipo de compartilhamento" style="align-self: flex-start">
+            <button role="tab" aria-selected="{{pk.tabScreen}}" onClick="{{pk.setScreen}}">Tela inteira</button>
+            <button role="tab" aria-selected="{{pk.tabWin}}" onClick="{{pk.setWin}}">Janela</button>
+          </div>
+          <div class="thumbs" role="radiogroup" aria-label="Fontes disponíveis">
+            <sc-for list="{{pk.items}}" as="t" hint-placeholder-count="6">
+              <button class="thumb" role="radio" aria-checked="{{t.sel}}" onClick="{{t.pick}}">
+                <span class="pv"><svg viewBox="0 0 160 100" aria-hidden="true"><rect width="160" height="100" fill="{{t.bg}}"></rect><rect x="0" y="0" width="160" height="12" fill="{{t.bar}}"></rect><rect x="12" y="24" width="{{t.w1}}" height="8" rx="2" fill="{{t.fg}}"></rect><rect x="12" y="40" width="{{t.w2}}" height="8" rx="2" fill="{{t.fg}}" opacity=".6"></rect><rect x="12" y="56" width="{{t.w3}}" height="30" rx="3" fill="{{t.fg}}" opacity=".35"></rect></svg></span>
+                <span>{{t.nome}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <label class="row panel" style="flex-direction: row; gap: 12px; padding: 14px; cursor: pointer">
+            <input type="checkbox" class="check" checked="{{pk.audio}}" onChange="{{pk.toggleAudio}}">
+            <span class="grow"><strong class="sm">Compartilhar o áudio do PC</strong><span class="xs muted" style="display: block">A turma ouve o som do vídeo ou do jogo junto com a tela.</span></span>
+          </label>
+        </div>
+        <div class="modal-f"><span class="xs muted grow">Qualidade automática · até 1080p, 30 fps</span><button class="btn btn-s" onClick="{{closeOv}}">Cancelar</button><button class="btn btn-p" onClick="{{pk.start}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 10l3-3 3 3M12 13V7"></path><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M12 17v4M8 21h8"></path></svg>Compartilhar</button></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ov.create}}" hint-placeholder-val="{{ false }}">
+      <div class="ov" aria-hidden="true"></div>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cr-t">
+        <div class="modal-h"><div class="grow"><h2 id="cr-t">Nova sala</h2><p>Um cantinho fixo para a turma se encontrar.</p></div><button class="ib ib-sm" aria-label="Fechar" onClick="{{closeOv}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button></div>
+        <div class="modal-b">
+          <div class="field"><label class="label" for="cr-n">Nome da sala</label><input id="cr-n" class="input is-focus" value="{{cr.nome}}" onChange="{{cr.onNome}}" placeholder="Ex.: Sofá, Jogatina, Estudos"></div>
+          <div class="field"><span class="label" id="cr-i">Ícone</span>
+            <div class="ico-pick" role="radiogroup" aria-labelledby="cr-i">
+              <sc-for list="{{cr.icons}}" as="i" hint-placeholder-count="6">
+                <button role="radio" aria-checked="{{i.sel}}" aria-label="{{i.label}}" onClick="{{i.pick}}">
+                  <sc-if value="{{i.sofa}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"></path><path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0z"></path><path d="M4 18v2M20 18v2"></path></svg></sc-if>
+                  <sc-if value="{{i.game}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"></path><rect x="2" y="6" width="20" height="12" rx="6"></rect></svg></sc-if>
+                  <sc-if value="{{i.film}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"></path></svg></sc-if>
+                  <sc-if value="{{i.music}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg></sc-if>
+                  <sc-if value="{{i.book}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"></path></svg></sc-if>
+                  <sc-if value="{{i.moon}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"></path></svg></sc-if>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div class="field"><span class="label">Chamar amigos <span class="muted" style="font-weight: 500">· {{cr.selCount}} selecionados</span></span>
+            <div class="list" style="max-height: 220px; overflow: auto">
+              <sc-for list="{{cr.friends}}" as="u" hint-placeholder-count="4">
+                <label class="li" style="min-height: 52px; cursor: pointer">
+                  <input type="checkbox" class="check" checked="{{u.sel}}" onChange="{{u.toggle}}">
+                  <span class="avw" style="width: 32px; height: 32px"><svg class="av {{u.ears}}" width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle></svg></span>
+                  <span><strong>{{u.nome}}</strong><span class="sub">@{{u.user}}</span></span>
+                </label>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div class="modal-f"><button class="btn btn-s" onClick="{{closeOv}}">Cancelar</button><button class="btn btn-p" onClick="{{cr.create}}">Criar sala</button></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ov.members}}" hint-placeholder-val="{{ false }}">
+      <div class="ov" aria-hidden="true"></div>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mb-t">
+        <div class="modal-h"><div class="grow"><h2 id="mb-t">Membros do Sofá</h2><p>Quem pode entrar nesta sala. Só você, que criou, pode mudar.</p></div><button class="ib ib-sm" aria-label="Fechar" onClick="{{closeOv}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button></div>
+        <div class="modal-b">
+          <div class="in-wrap"><span class="pre"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></span><input class="input has-pre" placeholder="Adicionar amigo pelo nome ou @usuário" aria-label="Adicionar amigo" value="{{mb.q}}" onChange="{{mb.onQ}}"></div>
+          <sc-if value="{{mb.hasSug}}" hint-placeholder-val="{{ true }}">
+            <div class="col" style="gap: 4px"><span class="xs muted" style="font-weight: 700; letter-spacing: .04em; text-transform: uppercase">Amigos fora da sala</span>
+              <div class="list">
+                <sc-for list="{{mb.sug}}" as="u" hint-placeholder-count="2">
+                  <div class="li" style="min-height: 52px">
+                    <span class="avw" style="width: 32px; height: 32px"><svg class="av {{u.ears}}" width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle></svg></span>
+                    <span><strong>{{u.nome}}</strong><span class="sub">@{{u.user}}</span></span>
+                    <div class="acts"><button class="btn btn-s btn-sm" onClick="{{u.add}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg>Adicionar</button></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <div class="col" style="gap: 4px"><span class="xs muted" style="font-weight: 700; letter-spacing: .04em; text-transform: uppercase">Na sala · {{mb.count}}</span>
+            <div class="list">
+              <sc-for list="{{mb.list}}" as="u" hint-placeholder-count="6">
+                <div class="li" style="min-height: 52px">
+                  <span class="avw" style="width: 32px; height: 32px"><svg class="av {{u.ears}}" width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><g class="ears-u"><circle class="ear" cx="17" cy="22" r="8"></circle><circle class="ear" cx="47" cy="22" r="8"></circle></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle></svg></span>
+                  <span><strong>{{u.nome}}</strong><span class="sub">@{{u.user}}</span></span>
+                  <div class="acts">
+                    <sc-if value="{{u.owner}}" hint-placeholder-val="{{ false }}"><span class="badge accent">Criou a sala</span></sc-if>
+                    <sc-if value="{{u.confirm}}" hint-placeholder-val="{{ false }}"><span class="xs muted">Remover {{u.nome}}?</span><button class="btn btn-dg btn-sm" onClick="{{u.remove}}">Remover</button><button class="btn btn-g btn-sm" onClick="{{u.cancel}}">Não</button></sc-if>
+                    <sc-if value="{{u.canRemove}}" hint-placeholder-val="{{ true }}"><button class="ib ib-sm" aria-label="Remover {{u.nome}} da sala" onClick="{{u.ask}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 11h-6"></path></svg></button></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div class="modal-f"><button class="btn btn-p" onClick="{{closeOv}}">Pronto</button></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{showToasts}}" hint-placeholder-val="{{ false }}">
+      <div class="toasts" aria-live="polite">
+        <sc-if value="{{toastFriend}}" hint-placeholder-val="{{ false }}">
+          <div class="toast" role="status">
+            <span class="avw" style="width: 40px; height: 40px"><svg class="av e-c" width="36" height="36" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle><path class="mouth" d="M28 44 Q32 47.5 36 44"></path></svg></span>
+            <div class="grow"><strong>Gabi quer ser sua amiga</strong><span class="sub">@gabi.s · amiga da Lu</span><div class="acts"><button class="btn btn-p btn-sm" onClick="{{closeToastFriend}}">Aceitar</button><button class="btn btn-s btn-sm" onClick="{{closeToastFriend}}">Agora não</button></div></div>
+            <button class="ib ib-sm" aria-label="Fechar" onClick="{{closeToastFriend}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+          </div>
+        </sc-if>
+        <sc-if value="{{toastRoom}}" hint-placeholder-val="{{ false }}">
+          <div class="toast" role="status">
+            <span class="room-ico" style="width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-text)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"></path><rect x="2" y="6" width="20" height="12" rx="6"></rect></svg></span>
+            <div class="grow"><strong>Você entrou na Jogatina</strong><span class="sub">Rafa te adicionou · 2 pessoas lá agora</span><div class="acts"><button class="btn btn-s btn-sm" onClick="{{closeToastRoom}}">Ver sala</button></div></div>
+            <button class="ib ib-sm" aria-label="Fechar" onClick="{{closeToastRoom}}"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+          </div>
+        </sc-if>
+        <sc-if value="{{toastMsg}}" hint-placeholder-val="{{ false }}">
+          <div class="toast" role="status"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ok)"><circle cx="12" cy="12" r="10"></circle><path d="M9 12l2 2 4-4"></path></svg><div class="grow"><strong>{{toastText}}</strong></div></div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"screen":{"editor":"enum","options":["login","cadastro","codigo","esqueci","sala","tela","compartilhar","amigos","criar","membros","config","avisos","vazio-salas","vazio-amigos","vazio-sala"],"default":"sala"},"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    this._iv = setInterval(() => {
+      const s = this.state || {};
+      this.setState({ tick: (s.tick || 0) + 1 });
+    }, 2400);
+  }
+  componentWillUnmount() { clearInterval(this._iv); clearTimeout(this._tt); }
+  say(text) { clearTimeout(this._tt); this.setState({ toastText: text }); this._tt = setTimeout(() => this.setState({ toastText: '' }), 2600); }
+  renderVals() {
+    const s = this.state || {};
+    const p = this.props || {};
+    const tf = (b) => (b ? 'true' : 'false');
+    const theme = p.theme === 'light' ? 'light' : 'dark';
+    const screen = s.screen || p.screen || 'sala';
+    const AUTH = ['login', 'cadastro', 'codigo', 'esqueci'];
+    const isAuth = AUTH.indexOf(screen) >= 0;
+    const go = {};
+    ['login', 'cadastro', 'codigo', 'esqueci', 'sala', 'amigos', 'config'].forEach((k) => { go[k] = () => this.setState({ screen: k, ov: null }); });
+
+    /* overlay: vem do prop na primeira renderização */
+    const ovFromProp = { compartilhar: 'picker', criar: 'create', membros: 'members' }[p.screen] || null;
+    const ovKey = s.ov !== undefined ? s.ov : ovFromProp;
+    const baseScreen = { compartilhar: 'sala', criar: 'sala', membros: 'sala', avisos: 'sala' }[screen] || screen;
+
+    /* pessoas */
+    const P = {
+      tony: { nome: 'Tony', user: 'tony', ears: 'e-b tint-a' }, lu: { nome: 'Lu', user: 'lu.mendes', ears: 'e-c' }, bia: { nome: 'Bia', user: 'bia', ears: 'e-b' },
+      caio: { nome: 'Caio', user: 'caiozin', ears: 'e-u' }, duda: { nome: 'Duda', user: 'duda', ears: 'e-c' }, rafa: { nome: 'Rafa', user: 'rafa.r', ears: 'e-u' },
+      mari: { nome: 'Mari', user: 'mari', ears: 'e-b' }, gabi: { nome: 'Gabi', user: 'gabi.s', ears: 'e-c' }, pedro: { nome: 'Pedro', user: 'pedrinho', ears: 'e-u' }, nina: { nome: 'Nina', user: 'nina', ears: 'e-b' }
+    };
+    const micOff = !!s.micOff, deafOff = !!s.deafOff, camOn = !!s.camOn;
+    const sharing = baseScreen === 'tela' || !!s.sharing;
+    const alone = screen === 'vazio-sala';
+    const inSofa = ['bia', 'caio', 'lu', 'duda'];
+    const speakers = ['lu', 'duda', 'lu', 'tony'];
+    const tick = s.tick || 0;
+    let talker = speakers[tick % speakers.length];
+    if (talker === 'tony' && micOff) talker = 'lu';
+    const flags = { bia: { muted: true }, caio: { muted: true, deaf: true }, tony: { muted: micOff || deafOff, deaf: deafOff } };
+    const sofaIds = alone ? ['tony'] : ['lu', 'tony', 'bia', 'caio', 'duda'];
+    const cards = sofaIds.map((id) => {
+      const f = flags[id] || {};
+      const t = id === talker && !f.muted && !alone;
+      const st = f.deaf ? 'Fone desligado' : f.muted ? 'Microfone desligado' : t ? 'Falando agora' : (id === 'tony' && sharing ? 'Compartilhando a tela' : '');
+      return Object.assign({}, P[id], { isYou: id === 'tony', muted: !!f.muted, deaf: !!f.deaf, isTalk: t, talkCls: t ? 'talk' : '', state: st,
+        aria: P[id].nome + (t ? ', falando' : '') + (f.muted ? ', microfone desligado' : '') + (f.deaf ? ', fone desligado' : '') });
+    });
+
+    /* salas na lateral */
+    const activeRoom = s.room || 'sofa';
+    const noRooms = screen === 'vazio-salas';
+    const pr = (id, extra) => Object.assign({}, P[id], { talkCls: '', isTalk: false, muted: false, deaf: false, share: false }, extra || {});
+    const ROOMS = noRooms ? [] : [
+      { id: 'sofa', nome: 'Sofá', i: 'sofa', ppl: sofaIds.map((id) => { const f = flags[id] || {}; const t = id === talker && !f.muted && !alone; return pr(id, { talkCls: t ? 'talk' : '', isTalk: t, muted: !!f.muted, deaf: !!f.deaf, share: id === 'tony' && sharing }); }) },
+      { id: 'jogatina', nome: 'Jogatina', i: 'game', ppl: [pr('rafa'), pr('mari', { muted: true })] },
+      { id: 'cinema', nome: 'Cinema de domingo', i: 'film', ppl: [] },
+      { id: 'musica', nome: 'Rolê musical', i: 'music', ppl: [] }
+    ];
+    const rooms = ROOMS.map((r) => ({
+      nome: r.nome, count: r.ppl.length ? String(r.ppl.length) : '', cls: r.id === activeRoom ? 'is-on' : '', cur: r.id === activeRoom ? 'page' : undefined,
+      i: { sofa: r.i === 'sofa', game: r.i === 'game', film: r.i === 'film', music: r.i === 'music' },
+      ppl: r.ppl, has: r.ppl.length > 0, empty: r.ppl.length === 0,
+      pick: () => this.setState({ room: r.id, screen: 'sala', ov: null })
+    }));
+
+    /* amigos */
+    const frTab = s.frTab || 'todos';
+    const removed = s.frRemoved || {};
+    const FR = {
+      todos: [
+        Object.assign({}, P.lu, { pres: 'call', status: 'na toca Sofá', isFriend: true, canJoin: false }),
+        Object.assign({}, P.duda, { pres: 'call', status: 'na toca Sofá', isFriend: true, canJoin: false }),
+        Object.assign({}, P.rafa, { pres: 'call', status: 'na toca Jogatina', isFriend: true, canJoin: true, room: 'Jogatina' }),
+        Object.assign({}, P.caio, { pres: 'on', status: 'online', isFriend: true, canJoin: false }),
+        Object.assign({}, P.mari, { pres: '', status: 'offline · visto há 2 h', isFriend: true, canJoin: false })
+      ],
+      recebidos: [Object.assign({}, P.gabi, { pres: 'on', status: 'amiga da Lu', isIn: true }), Object.assign({}, P.pedro, { pres: '', status: '3 amigos em comum', isIn: true })],
+      enviados: [Object.assign({}, P.nina, { pres: '', status: 'aguardando', isOut: true, when: 'ontem' })]
+    };
+    const emptyFriends = screen === 'vazio-amigos';
+    const listFor = (k) => (emptyFriends ? [] : FR[k].filter((u) => !removed[u.user]));
+    const frList = listFor(frTab).map((u) => Object.assign({ isFriend: false, isIn: false, isOut: false, canJoin: false, room: '' }, u, {
+      join: () => this.setState({ room: 'jogatina', screen: 'sala' }),
+      accept: () => { this.setState({ frRemoved: Object.assign({}, removed, { [u.user]: true }) }); this.say(u.nome + ' agora é seu amigo'); },
+      decline: () => this.setState({ frRemoved: Object.assign({}, removed, { [u.user]: true }) })
+    }));
+    const fr = {
+      sub: emptyFriends ? 'Ainda sem amigos' : '5 amigos · 3 na toca agora',
+      tabs: [['todos', 'Todos'], ['recebidos', 'Recebidos'], ['enviados', 'Enviados']].map((x) => ({ label: x[1], n: listFor(x[0]).length, sel: tf(frTab === x[0]), badgeCls: x[0] === 'recebidos' && listFor(x[0]).length ? 'count' : '', pick: () => this.setState({ frTab: x[0] }) })),
+      list: frList, hasList: frList.length > 0, empty: frList.length === 0,
+      q: s.frQ || '', onQ: (e) => this.setState({ frQ: e.target.value }),
+      send: () => { if (!(s.frQ || '').trim()) return; this.say('Pedido enviado para @' + s.frQ.replace('@', '')); this.setState({ frQ: '' }); }
+    };
+
+    /* seletor de tela */
+    const pkTab = s.pkTab || 'screen';
+    const pkSel = s.pkSel !== undefined ? s.pkSel : 1;
+    const ITEMS = pkTab === 'screen'
+      ? [['Tela 1 · principal', '#1d2a3a', '#2f4c6e', '#cfd8e3'], ['Tela 2', '#20201d', '#3a3a33', '#d8d4c4']]
+      : [['Navegador · Roteiro', '#f3f2ee', '#1d6b45', '#2a2d31'], ['Planilha da viagem', '#f3f2ee', '#1d6b45', '#2a2d31'], ['Jogo · Corrida', '#0f1a12', '#253a2b', '#9fe3a8'], ['Player de música', '#151515', '#2a2a2a', '#e0e0e0'], ['Fotos', '#222', '#333', '#bbb'], ['Bloco de notas', '#fffef6', '#e8e4d0', '#555']];
+    const pk = {
+      tabScreen: tf(pkTab === 'screen'), tabWin: tf(pkTab === 'win'),
+      setScreen: () => this.setState({ pkTab: 'screen', pkSel: 0 }), setWin: () => this.setState({ pkTab: 'win', pkSel: 1 }),
+      items: ITEMS.map((t, i) => ({ nome: t[0], bg: t[1], bar: t[2], fg: t[3], w1: 60 + (i * 23) % 70, w2: 40 + (i * 37) % 80, w3: 136, sel: tf(i === pkSel), pick: () => this.setState({ pkSel: i }) })),
+      audio: s.pkAudio !== undefined ? s.pkAudio : true, toggleAudio: () => this.setState({ pkAudio: !(s.pkAudio !== undefined ? s.pkAudio : true) }),
+      start: () => this.setState({ screen: 'tela', ov: null, sharing: true })
+    };
+
+    /* criar sala */
+    const crIcon = s.crIcon || 'moon';
+    const crSel = s.crSel || { lu: true, bia: true };
+    const cr = {
+      nome: s.crNome !== undefined ? s.crNome : 'Madrugada', onNome: (e) => this.setState({ crNome: e.target.value }),
+      icons: [['sofa', 'Sofá'], ['game', 'Jogos'], ['film', 'Filme'], ['music', 'Música'], ['book', 'Estudos'], ['moon', 'Noite']].map((x) => ({ label: x[1], sel: tf(crIcon === x[0]), sofa: x[0] === 'sofa', game: x[0] === 'game', film: x[0] === 'film', music: x[0] === 'music', book: x[0] === 'book', moon: x[0] === 'moon', pick: () => this.setState({ crIcon: x[0] }) })),
+      friends: ['lu', 'bia', 'caio', 'duda', 'rafa', 'mari'].map((id) => Object.assign({}, P[id], { sel: !!crSel[id], toggle: () => this.setState({ crSel: Object.assign({}, crSel, { [id]: !crSel[id] }) }) })),
+      selCount: Object.keys(crSel).filter((k) => crSel[k]).length,
+      create: () => { this.setState({ ov: null, screen: 'sala' }); this.say('Sala criada'); }
+    };
+
+    /* membros */
+    const mbIn = s.mbIn || { tony: true, lu: true, bia: true, caio: true, duda: true, mari: true };
+    const mbAsk = s.mbAsk || null;
+    const mb = {
+      q: s.mbQ || '', onQ: (e) => this.setState({ mbQ: e.target.value }),
+      list: Object.keys(mbIn).filter((k) => mbIn[k]).map((id) => Object.assign({}, P[id], {
+        owner: id === 'tony', confirm: mbAsk === id, canRemove: id !== 'tony' && mbAsk !== id,
+        ask: () => this.setState({ mbAsk: id }), cancel: () => this.setState({ mbAsk: null }),
+        remove: () => { this.setState({ mbIn: Object.assign({}, mbIn, { [id]: false }), mbAsk: null }); this.say(P[id].nome + ' saiu da sala'); }
+      })),
+      sug: ['rafa', 'gabi'].filter((id) => !mbIn[id]).map((id) => Object.assign({}, P[id], { add: () => this.setState({ mbIn: Object.assign({}, mbIn, { [id]: true }) }) }))
+    };
+    mb.count = mb.list.length; mb.hasSug = mb.sug.length > 0;
+
+    /* config */
+    const ears = s.ears || 'e-b';
+    const vin = s.vin !== undefined ? s.vin : 100, vout = s.vout !== undefined ? s.vout : 85;
+    const cfg = {
+      ears: ears, vin: vin, vout: vout,
+      level: Math.min(100, Math.round((vin / 200) * 100 * (0.55 + 0.35 * ((tick % 3) / 2)))),
+      onVin: (e) => this.setState({ vin: +e.target.value }), onVout: (e) => this.setState({ vout: +e.target.value }),
+      ns: tf(s.ns !== undefined ? s.ns : true), toggleNs: () => this.setState({ ns: !(s.ns !== undefined ? s.ns : true) }),
+      ears3: [['e-b', 'Coelho'], ['e-c', 'Gato'], ['e-u', 'Urso']].map((x) => ({ cls: x[0], label: x[1], sel: tf(ears === x[0]), pick: () => this.setState({ ears: x[0] }) }))
+    };
+
+    /* controles */
+    const ctl = {
+      micOn: !micOff, micOff: micOff, micCls: micOff ? 'off' : '', micPressed: tf(micOff), micLabel: micOff ? 'Ligar microfone' : 'Desligar microfone',
+      toggleMic: () => this.setState({ micOff: !micOff }),
+      deafOn: !deafOff, deafOff: deafOff, deafCls: deafOff ? 'off' : '', deafPressed: tf(deafOff), deafLabel: deafOff ? 'Ligar fone' : 'Desligar fone',
+      toggleDeaf: () => this.setState({ deafOff: !deafOff }),
+      camOn: camOn, camOff: !camOn, camCls: camOn ? 'on' : '', camPressed: tf(camOn), camLabel: camOn ? 'Desligar câmera' : 'Ligar câmera',
+      toggleCam: () => this.setState({ camOn: !camOn }),
+      shareCls: sharing ? 'on' : '', sharePressed: tf(sharing), shareLabel: sharing ? 'Parar de compartilhar' : 'Compartilhar tela',
+      share: () => (sharing ? this.setState({ sharing: false, screen: 'sala' }) : this.setState({ ov: 'picker' }))
+    };
+
+    const view = {
+      room: ['sala', 'vazio-sala'].indexOf(baseScreen) >= 0,
+      share: baseScreen === 'tela',
+      friends: ['amigos', 'vazio-amigos'].indexOf(baseScreen) >= 0,
+      config: baseScreen === 'config',
+      noRooms: noRooms
+    };
+    const inCall = !noRooms && !s.left;
+    const isAvisos = screen === 'avisos';
+    const tf2 = s.toastFriend !== undefined ? s.toastFriend : isAvisos;
+    const tr = s.toastRoom !== undefined ? s.toastRoom : isAvisos;
+    const bannerOn = (s.banner !== undefined ? s.banner : isAvisos) && !s.updated;
+
+    return {
+      theme: theme, isAuth: isAuth, isApp: !isAuth,
+      scr: { login: screen === 'login', cadastro: screen === 'cadastro', codigo: screen === 'codigo', esqueci: screen === 'esqueci' },
+      go: go, nav: { amigos: view.friends ? 'solid' : '' },
+      f: {
+        user: s.fUser !== undefined ? s.fUser : 'tony@email.com', onUser: (e) => this.setState({ fUser: e.target.value }),
+        pass: s.fPass !== undefined ? s.fPass : 'toca-2026', onPass: (e) => this.setState({ fPass: e.target.value }),
+        pwType: s.showPw ? 'text' : 'password', pwLabel: s.showPw ? 'Ocultar senha' : 'Mostrar senha', togglePw: () => this.setState({ showPw: !s.showPw }),
+        sent: !!s.sent, notSent: !s.sent, send: () => this.setState({ sent: true })
+      },
+      rooms: rooms, noRooms: noRooms, cards: cards,
+      room: { nome: activeRoom === 'jogatina' ? 'Jogatina' : 'Sofá', sub: alone ? 'Só você · sala aberta' : (activeRoom === 'jogatina' ? '2 pessoas' : '5 pessoas · ' + (cards.filter((c) => c.isTalk)[0] || { nome: 'ninguém' }).nome + ' está falando'), alone: alone, full: !alone },
+      inCall: inCall, callRoom: activeRoom === 'jogatina' ? 'Jogatina' : 'Sofá',
+      leave: () => { this.setState({ left: true }); this.say('Você saiu da sala'); },
+      showCtrl: (view.room || view.share) && !s.left,
+      view: view, fr: fr, pk: pk, cr: cr, mb: mb, cfg: cfg, ctl: ctl,
+      ov: { picker: ovKey === 'picker', create: ovKey === 'create', members: ovKey === 'members' },
+      openCreate: () => this.setState({ ov: 'create' }), openMembers: () => this.setState({ ov: 'members' }), closeOv: () => this.setState({ ov: null }),
+      stopShare: () => this.setState({ sharing: false, screen: 'sala' }),
+      hasUpdate: !s.updated, verNote: s.updated ? 'Atualizado' : 'Nova versão: 0.9.3',
+      doUpdate: () => { this.setState({ updated: true, banner: false }); this.say('Atualizando… o Toca volta em segundos'); },
+      showBanner: bannerOn, hideBanner: () => this.setState({ banner: false }),
+      showToasts: tf2 || tr || !!s.toastText, toastFriend: tf2, toastRoom: tr, toastMsg: !!s.toastText, toastText: s.toastText || '',
+      closeToastFriend: () => this.setState({ toastFriend: false }), closeToastRoom: () => this.setState({ toastRoom: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

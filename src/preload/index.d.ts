@@ -10,6 +10,13 @@ declare global {
       /** Retorna a função que cancela a inscrição */
       onUpdateState(callback: (state: UpdateState) => void): () => void;
       installUpdate(): Promise<void>;
+      minimizeWindow(): Promise<void>;
+      toggleMaximizeWindow(): Promise<void>;
+      /** Esconde na bandeja (o app continua rodando) */
+      closeWindow(): Promise<void>;
+      isWindowMaximized(): Promise<boolean>;
+      /** Retorna a função que cancela a inscrição */
+      onWindowMaximized(callback: (maximized: boolean) => void): () => void;
       /** Refresh token salvo (criptografado pelo Windows), ou null */
       loadSession(): Promise<string | null>;
       /** null apaga a sessão salva */

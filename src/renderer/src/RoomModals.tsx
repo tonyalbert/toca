@@ -1,56 +1,62 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { CircleAlert, LogOut, Search, Trash2, UserMinus, UserPlus } from "lucide-react";
 import {
   addRoomMember,
   createRoom,
   deleteRoom,
   removeRoomMember,
-  renameRoom,
+  updateRoom,
   type Friend,
+  type RoomIcon as RoomIconKind,
   type RoomInfo,
   type User,
 } from "./api";
-import { PersonRow } from "./FriendsPage";
-import { CrownIcon } from "./icons";
+import { Button, IconButton } from "./components/Button";
+import { Checkbox } from "./components/Checkbox";
+import { useConfirm } from "./components/ConfirmDialog";
+import { Input } from "./components/Input";
+import { Modal } from "./components/Modal";
+import { PersonRow } from "./components/PersonRow";
+import { RoomIconPicker } from "./components/RoomIconPicker";
 
-function useEscape(onClose: () => void) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-}
-
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  useEscape(onClose);
-  return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-label={title}>
-        <header className="modal-header">
-          <h2>{title}</h2>
-        </header>
-        {children}
-      </div>
-    </div>
-  );
-}
-
+/** Nova sala: nome, ícone e os amigos que já entram nela */
 export function CreateRoomModal({
+  friends,
   onCreated,
   onClose,
 }: {
+  friends: Friend[];
   onCreated: (room: RoomInfo) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
+  const [icon, setIcon] = useState<RoomIconKind>("sofa");
+  const [invited, setInvited] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
+  const toggle = (id: string) =>
+    setInvited((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!name.trim() || busy) return;
     setBusy(true);
+    setError(null);
     try {
-      onCreated(await createRoom(name.trim()));
+      const room = await createRoom(name.trim(), icon);
+      // A sala já existe: se algum convite falhar, ela aparece mesmo assim
+      const failed: string[] = [];
+      for (const id of invited) {
+        await addRoomMember(room.id, id).catch(() => failed.push(friends.find((f) => f.id === id)?.displayName ?? "?"));
+      }
+      if (failed.length > 0) setError(`Sala criada, mas não deu para chamar: ${failed.join(", ")}`);
+      onCreated(room);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -58,32 +64,77 @@ export function CreateRoomModal({
   }
 
   return (
-    <Modal title="Criar sala" onClose={onClose}>
-      <form className="modal-form" onSubmit={submit}>
-        <label className="field">
-          <span className="field-label">Nome da sala</span>
-          <input autoFocus maxLength={50} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <div className="muted-text">Você vai ser o dono e pode adicionar seus amigos depois.</div>
-        {error && <div className="form-error">{error}</div>}
-        <div className="modal-actions">
-          <button type="button" className="secondary" onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="submit" className="primary" disabled={busy || !name.trim()}>
-            Criar
-          </button>
-        </div>
+    <Modal
+      title="Nova sala"
+      description="Um cantinho fixo para a turma se encontrar."
+      onClose={onClose}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button variant="primary" disabled={busy || !name.trim()} onClick={() => void submit()}>
+            {busy ? "Criando…" : "Criar sala"}
+          </Button>
+        </>
+      }
+    >
+      <form className="col" style={{ gap: 16 }} onSubmit={submit}>
+        <Input
+          label="Nome da sala"
+          maxLength={50}
+          placeholder="Ex.: Sofá, Jogatina, Estudos"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <RoomIconPicker value={icon} onChange={setIcon} />
       </form>
+
+      <div className="field">
+        <span className="label">
+          Chamar amigos{" "}
+          <span className="muted" style={{ fontWeight: 500 }}>
+            · {invited.size} {invited.size === 1 ? "selecionado" : "selecionados"}
+          </span>
+        </span>
+        {friends.length === 0 ? (
+          <p className="sm muted">Você ainda não tem amigos para chamar. Dá para adicionar depois, pelos membros da sala.</p>
+        ) : (
+          <ul className="list pick-list">
+            {friends.map((f) => (
+              <PersonRow
+                key={f.id}
+                small
+                avatar={f.avatar}
+                name={f.displayName}
+                username={f.username}
+                onClick={() => toggle(f.id)}
+                lead={<Checkbox checked={invited.has(f.id)} onChange={() => toggle(f.id)} label={`Chamar ${f.displayName}`} />}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {error && (
+        <div className="notice error" role="alert">
+          <CircleAlert size={16} aria-hidden="true" />
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }
 
-/** Dono: renomeia, adiciona amigos, remove membros e exclui. Membro: vê quem está e pode sair. */
-export function RoomSettingsModal({
+export type RoomModalTab = "members" | "room";
+
+/**
+ * Janela da sala. Membros: quem pode entrar (o dono adiciona amigos e remove
+ * gente). Sala: nome e ícone (dono) e excluir/sair.
+ */
+export function RoomModal({
   room,
   me,
   friends,
+  initialTab,
   onChanged,
   onLeft,
   onClose,
@@ -91,18 +142,17 @@ export function RoomSettingsModal({
   room: RoomInfo;
   me: User;
   friends: Friend[];
+  initialTab: RoomModalTab;
   onChanged: () => Promise<void>;
   /** Saiu da sala ou a excluiu */
   onLeft: () => void;
   onClose: () => void;
 }) {
   const isOwner = room.role === "owner";
-  const [name, setName] = useState(room.name);
+  const owner = room.members.find((m) => m.role === "owner");
+  const [tab, setTab] = useState<RoomModalTab>(initialTab);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const memberIds = new Set(room.members.map((m) => m.id));
-  const candidates = friends.filter((f) => !memberIds.has(f.id));
 
   async function act(key: string, action: () => Promise<unknown>, after?: () => void) {
     setBusy(key);
@@ -117,112 +167,251 @@ export function RoomSettingsModal({
     setBusy(null);
   }
 
-  const rename = (e: React.FormEvent) => {
-    e.preventDefault();
-    const value = name.trim();
-    if (value && value !== room.name) void act("rename", () => renameRoom(room.id, value));
-  };
-
   return (
-    <Modal title={isOwner ? "Configurações da sala" : room.name} onClose={onClose}>
-      {isOwner && (
-        <form className="field" onSubmit={rename}>
-          <span className="field-label">Nome da sala</span>
-          <div className="add-friend-row">
-            <input maxLength={50} value={name} onChange={(e) => setName(e.target.value)} />
-            <button
-              type="submit"
-              className="secondary"
-              disabled={busy === "rename" || !name.trim() || name.trim() === room.name}
-            >
-              Salvar
-            </button>
-          </div>
-        </form>
+    <Modal
+      title={room.name}
+      description={
+        isOwner
+          ? "Quem pode entrar nesta sala. Só você, que criou, pode mudar."
+          : `Quem pode entrar nesta sala. Só ${owner?.displayName ?? "o dono"}, que criou, pode mudar.`
+      }
+      onClose={onClose}
+      footer={
+        <Button variant="primary" onClick={onClose}>
+          Pronto
+        </Button>
+      }
+    >
+      <div className="tabs" role="tablist" aria-label="Seções da sala" style={{ alignSelf: "flex-start" }}>
+        <button role="tab" aria-selected={tab === "members"} onClick={() => setTab("members")}>
+          Membros
+          <span className="badge" style={{ height: 18, padding: "0 6px" }}>
+            {room.members.length}
+          </span>
+        </button>
+        <button role="tab" aria-selected={tab === "room"} onClick={() => setTab("room")}>
+          Sala
+        </button>
+      </div>
+
+      {error && (
+        <div className="notice error" role="alert">
+          <CircleAlert size={16} aria-hidden="true" />
+          {error}
+        </div>
       )}
 
-      <div className="field">
-        <span className="field-label">Membros — {room.members.length}</span>
-        <ul className="people compact">
+      {tab === "members" ? (
+        <MembersTab room={room} me={me} friends={friends} isOwner={isOwner} busy={busy} act={act} />
+      ) : (
+        <RoomTab room={room} me={me} isOwner={isOwner} busy={busy} act={act} onLeft={onLeft} />
+      )}
+    </Modal>
+  );
+}
+
+type Act = (key: string, action: () => Promise<unknown>, after?: () => void) => Promise<void>;
+
+function MembersTab({
+  room,
+  me,
+  friends,
+  isOwner,
+  busy,
+  act,
+}: {
+  room: RoomInfo;
+  me: User;
+  friends: Friend[];
+  isOwner: boolean;
+  busy: string | null;
+  act: Act;
+}) {
+  const [query, setQuery] = useState("");
+  // Remoção pede confirmação na própria linha
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const memberIds = new Set(room.members.map((m) => m.id));
+  const q = query.trim().toLowerCase().replace(/^@/, "");
+  const outside = friends
+    .filter((f) => !memberIds.has(f.id))
+    .filter((f) => !q || f.displayName.toLowerCase().includes(q) || f.username.includes(q));
+
+  return (
+    <>
+      {isOwner && (
+        <>
+          <Input
+            label="Adicionar amigo"
+            prefix={<Search size={15} aria-hidden="true" />}
+            placeholder="Nome ou @usuário"
+            spellCheck={false}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <div className="col" style={{ gap: 4 }}>
+            <span className="eyebrow muted-eyebrow">Amigos fora da sala</span>
+            {outside.length === 0 ? (
+              <p className="sm muted">
+                {friends.length === 0
+                  ? "Adicione amigos na tela de Amigos primeiro."
+                  : q
+                    ? "Nenhum amigo com esse nome fora da sala."
+                    : "Todos os seus amigos já estão aqui."}
+              </p>
+            ) : (
+              <ul className="list">
+                {outside.map((f) => (
+                  <PersonRow key={f.id} small avatar={f.avatar} name={f.displayName} username={f.username}>
+                    <Button
+                      size="sm"
+                      icon={<UserPlus size={15} aria-hidden="true" />}
+                      disabled={busy === f.id}
+                      onClick={() => void act(f.id, () => addRoomMember(room.id, f.id))}
+                    >
+                      Adicionar
+                    </Button>
+                  </PersonRow>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+
+      <div className="col" style={{ gap: 4 }}>
+        <span className="eyebrow muted-eyebrow">Na sala · {room.members.length}</span>
+        <ul className="list">
           {room.members.map((m) => (
             <PersonRow
               key={m.id}
+              small
+              avatar={m.avatar}
               name={m.displayName}
               username={m.username}
-              note={m.role === "owner" ? "dono" : m.id === me.id ? "você" : undefined}
+              detail={m.id === me.id ? "você" : undefined}
             >
-              {m.role === "owner" && <CrownIcon className="owner-icon" />}
-              {isOwner && m.role !== "owner" && (
-                <button
-                  className="secondary danger-text"
-                  disabled={busy === m.id}
-                  onClick={() => void act(m.id, () => removeRoomMember(room.id, m.id))}
-                >
-                  Remover
-                </button>
+              {m.role === "owner" && <span className="badge accent">Criou a sala</span>}
+              {isOwner && m.role !== "owner" && confirming === m.id && (
+                <>
+                  <span className="xs muted">Remover {m.displayName}?</span>
+                  <Button
+                    size="sm"
+                    variant="danger-soft"
+                    disabled={busy === m.id}
+                    onClick={() => void act(m.id, () => removeRoomMember(room.id, m.id), () => setConfirming(null))}
+                  >
+                    Remover
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>
+                    Não
+                  </Button>
+                </>
+              )}
+              {isOwner && m.role !== "owner" && confirming !== m.id && (
+                <IconButton size="sm" label={`Remover ${m.displayName} da sala`} onClick={() => setConfirming(m.id)}>
+                  <UserMinus size={16} aria-hidden="true" />
+                </IconButton>
               )}
             </PersonRow>
           ))}
         </ul>
       </div>
+    </>
+  );
+}
 
+function RoomTab({
+  room,
+  me,
+  isOwner,
+  busy,
+  act,
+  onLeft,
+}: {
+  room: RoomInfo;
+  me: User;
+  isOwner: boolean;
+  busy: string | null;
+  act: Act;
+  onLeft: () => void;
+}) {
+  const confirm = useConfirm();
+  const [name, setName] = useState(room.name);
+  const [icon, setIcon] = useState<RoomIconKind>(room.icon);
+  const changed = (name.trim() && name.trim() !== room.name) || icon !== room.icon;
+
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!changed) return;
+    void act("save", () =>
+      updateRoom(room.id, { ...(name.trim() !== room.name ? { name: name.trim() } : {}), ...(icon !== room.icon ? { icon } : {}) }),
+    );
+  };
+
+  return (
+    <>
       {isOwner && (
-        <div className="field">
-          <span className="field-label">Adicionar amigos</span>
-          {candidates.length === 0 ? (
-            <div className="muted-text">
-              {friends.length === 0 ? "Adicione amigos na tela de Amigos primeiro." : "Todos os seus amigos já estão aqui."}
-            </div>
-          ) : (
-            <ul className="people compact">
-              {candidates.map((f) => (
-                <PersonRow key={f.id} name={f.displayName} username={f.username}>
-                  <button
-                    className="secondary"
-                    disabled={busy === f.id}
-                    onClick={() => void act(f.id, () => addRoomMember(room.id, f.id))}
-                  >
-                    Adicionar
-                  </button>
-                </PersonRow>
-              ))}
-            </ul>
-          )}
-        </div>
+        <form className="col" style={{ gap: 16 }} onSubmit={save}>
+          <Input label="Nome da sala" maxLength={50} value={name} onChange={(e) => setName(e.target.value)} />
+          <RoomIconPicker value={icon} onChange={setIcon} />
+          <Button type="submit" style={{ alignSelf: "flex-start" }} disabled={!changed || busy === "save"}>
+            {busy === "save" ? "Salvando…" : "Salvar"}
+          </Button>
+        </form>
       )}
 
-      {error && <div className="form-error">{error}</div>}
-
-      <div className="modal-actions spread">
+      <div className="panel danger-zone">
         {isOwner ? (
-          <button
-            className="secondary danger-text"
-            disabled={busy === "delete"}
-            onClick={() => {
-              if (confirm(`Excluir a sala "${room.name}"? Quem estiver na call sai na hora.`)) {
-                void act("delete", () => deleteRoom(room.id), onLeft);
-              }
-            }}
-          >
-            Excluir sala
-          </button>
+          <div className="row" style={{ gap: 16 }}>
+            <div className="grow">
+              <strong className="sm">Excluir a sala</strong>
+              <p className="xs muted">Some para todos os membros e quem estiver nela sai na hora.</p>
+            </div>
+            <Button
+              variant="danger-soft"
+              size="sm"
+              icon={<Trash2 size={15} aria-hidden="true" />}
+              disabled={busy === "delete"}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Excluir a sala ${room.name}?`,
+                  message: "A sala some para todos os membros e quem estiver nela sai na hora. Não dá para desfazer.",
+                  confirmLabel: "Excluir sala",
+                  danger: true,
+                });
+                if (ok) void act("delete", () => deleteRoom(room.id), onLeft);
+              }}
+            >
+              Excluir sala
+            </Button>
+          </div>
         ) : (
-          <button
-            className="secondary danger-text"
-            disabled={busy === "leave"}
-            onClick={() => {
-              if (confirm(`Sair da sala "${room.name}"?`)) {
-                void act("leave", () => removeRoomMember(room.id, me.id), onLeft);
-              }
-            }}
-          >
-            Sair da sala
-          </button>
+          <div className="row" style={{ gap: 16 }}>
+            <div className="grow">
+              <strong className="sm">Sair da sala</strong>
+              <p className="xs muted">Ela some da sua lista. Para voltar, o dono precisa te adicionar de novo.</p>
+            </div>
+            <Button
+              variant="danger-soft"
+              size="sm"
+              icon={<LogOut size={15} aria-hidden="true" />}
+              disabled={busy === "leave"}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Sair da sala ${room.name}?`,
+                  message: "Ela some da sua lista. Para voltar, o dono precisa te adicionar de novo.",
+                  confirmLabel: "Sair da sala",
+                  danger: true,
+                });
+                if (ok) void act("leave", () => removeRoomMember(room.id, me.id), onLeft);
+              }}
+            >
+              Sair da sala
+            </Button>
+          </div>
         )}
-        <button className="secondary" onClick={onClose}>
-          Fechar
-        </button>
       </div>
-    </Modal>
+    </>
   );
 }

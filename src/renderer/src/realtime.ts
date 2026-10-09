@@ -1,4 +1,4 @@
-import { API_URL, getAccessToken, SessionExpiredError, type FriendRequest, type RoomRole, type User } from "./api";
+import { API_URL, getAccessToken, SessionExpiredError, type FriendRequest, type RoomIcon, type RoomRole, type User } from "./api";
 
 /** Eventos que a API manda pelo /ws (veja API.md no toca-api) */
 export type RealtimeEvent =
@@ -9,9 +9,12 @@ export type RealtimeEvent =
   | { type: "friend_removed"; userId: string }
   /** Amigo, colega de sala ou você mesmo (em outro PC) trocou o nome */
   | { type: "user_updated"; user: User }
-  | { type: "room_added"; room: { id: string; name: string; ownerId: string; role: RoomRole } }
+  /** Amigo abriu ou fechou o app */
+  | { type: "presence"; userId: string; online: boolean }
+  | { type: "room_added"; room: { id: string; name: string; icon: RoomIcon; ownerId: string; role: RoomRole } }
   | { type: "room_removed"; roomId: string }
   | { type: "room_renamed"; roomId: string; name: string }
+  | { type: "room_updated"; roomId: string; name: string; icon: RoomIcon }
   | { type: "room_deleted"; roomId: string }
   | { type: "room_members_changed"; roomId: string }
   /** Gerado aqui: (re)conectou. Eventos perdidos enquanto estava fora: recarregue as listas. */

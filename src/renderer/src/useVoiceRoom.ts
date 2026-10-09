@@ -30,10 +30,20 @@ export interface VoiceParticipant {
   isLocal: boolean;
   isSpeaking: boolean;
   isMuted: boolean;
+  /** Fone desligado (não está ouvindo a sala) */
+  isDeafened: boolean;
+  /** Volume com que ouvimos essa pessoa (1 = 100%; vai até 2). Só neste PC. */
+  volume: number;
   /** Vídeo da câmera, se estiver ligada (e, para os outros, já recebida) */
   cameraTrack: VideoTrack | null;
   /** Tela compartilhada, se estiver compartilhando */
   screenTrack: VideoTrack | null;
+  /** O que está sendo compartilhado (nome da janela ou da tela) */
+  screenName: string | null;
+  /** A tela vai com o som do computador */
+  hasScreenAudio: boolean;
+  /** Volume do som da tela dessa pessoa (1 = 100%) */
+  screenVolume: number;
 }
 
 export interface VoiceState {
@@ -60,13 +70,53 @@ const initialState: VoiceState = {
   error: null,
 };
 
-function toVoiceParticipant(p: Participant, isLocal: boolean): VoiceParticipant {
+// Atributo do LiveKit em que cada app publica se está com o fone desligado
+const DEAFENED_ATTR = "deafened";
+
+/** Conta aos outros da sala se estamos com o fone desligado */
+function publishDeafened(room: Room | null, value: boolean) {
+  if (room?.state !== ConnectionState.Connected) return;
+  room.localParticipant.setAttributes({ [DEAFENED_ATTR]: value ? "1" : "0" }).catch(() => {
+    // Sem permissão no ingresso (API antiga): só os outros não veem o fone desligado
+  });
+}
+
+// Volume de cada pessoa (pelo id do usuário), lembrado entre as chamadas
+const VOLUMES_KEY = "toca.volumes";
+export const MAX_VOLUME = 2;
+
+/** O som da tela de cada pessoa tem volume próprio, separado da voz */
+const screenKey = (identity: string) => `tela:${identity}`;
+
+function loadVolumes(): Map<string, number> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VOLUMES_KEY) ?? "{}") as Record<string, number>;
+    return new Map(Object.entries(saved).filter(([, v]) => typeof v === "number" && v >= 0 && v <= MAX_VOLUME));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveVolumes(volumes: Map<string, number>) {
+  try {
+    localStorage.setItem(VOLUMES_KEY, JSON.stringify(Object.fromEntries(volumes)));
+  } catch {
+    // sem armazenamento: vale só até fechar o app
+  }
+}
+
+function toVoiceParticipant(p: Participant, isLocal: boolean, volumes: Map<string, number>): VoiceParticipant {
   return {
     identity: p.identity,
     name: p.name || p.identity,
     isLocal,
     isSpeaking: p.isSpeaking,
     isMuted: !p.isMicrophoneEnabled,
+    isDeafened: p.attributes[DEAFENED_ATTR] === "1",
+    volume: isLocal ? 1 : (volumes.get(p.identity) ?? 1),
+    screenName: p.getTrackPublication(Track.Source.ScreenShare)?.trackName || null,
+    hasScreenAudio: !!p.getTrackPublication(Track.Source.ScreenShareAudio),
+    screenVolume: isLocal ? 1 : (volumes.get(screenKey(p.identity)) ?? 1),
     cameraTrack: videoTrackOf(p, Track.Source.Camera),
     screenTrack: videoTrackOf(p, Track.Source.ScreenShare),
   };
@@ -96,11 +146,11 @@ function localMicTrack(room: Room): MediaStreamTrack | null {
   return track instanceof LocalAudioTrack ? track.mediaStreamTrack : null;
 }
 
-function snapshot(room: Room): VoiceParticipant[] {
+function snapshot(room: Room, volumes: Map<string, number>): VoiceParticipant[] {
   return [
-    toVoiceParticipant(room.localParticipant, true),
+    toVoiceParticipant(room.localParticipant, true, volumes),
     ...[...room.remoteParticipants.values()]
-      .map((p) => toVoiceParticipant(p, false))
+      .map((p) => toVoiceParticipant(p, false, volumes))
       .sort((a, b) => a.name.localeCompare(b.name)),
   ];
 }
@@ -134,10 +184,23 @@ export function useVoiceRoom() {
   // O microfone estava ligado quando mutou o fone? Ao desmutar, volta como estava.
   const micOnBeforeDeafen = useRef(true);
 
+  const volumesRef = useRef(loadVolumes());
+
+  /** Volume de cada pessoa da sala; com o fone desligado, tudo em 0 */
+  const applyVolumes = (room: Room | null) => {
+    if (!room) return;
+    for (const p of room.remoteParticipants.values()) {
+      const off = deafenedRef.current;
+      p.setVolume(off ? 0 : (volumesRef.current.get(p.identity) ?? 1), Track.Source.Microphone);
+      p.setVolume(off ? 0 : (volumesRef.current.get(screenKey(p.identity)) ?? 1), Track.Source.ScreenShareAudio);
+    }
+  };
+
   const applyDeafen = (value: boolean) => {
     deafenedRef.current = value;
     setDeafened(value);
-    audioContainer.current?.querySelectorAll("audio").forEach((el) => (el.muted = value));
+    applyVolumes(roomRef.current);
+    publishDeafened(roomRef.current, value);
   };
 
   useEffect(() => {
@@ -167,6 +230,8 @@ export function useVoiceRoom() {
         adaptiveStream: true,
         // Para de enviar camadas de vídeo que ninguém está assistindo
         dynacast: true,
+        // Áudio pelo Web Audio: permite volume por pessoa acima de 100%
+        webAudioMix: true,
         videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
         audioCaptureDefaults: {
           deviceId: captureDeviceId(await availableDeviceId("audioinput", micDeviceRef.current)),
@@ -182,7 +247,7 @@ export function useVoiceRoom() {
         setState((s) => ({
           ...s,
           connection: room.state,
-          participants: snapshot(room),
+          participants: snapshot(room, volumesRef.current),
           muted: !room.localParticipant.isMicrophoneEnabled,
           cameraOn: room.localParticipant.isCameraEnabled,
           screenSharing: room.localParticipant.isScreenShareEnabled,
@@ -193,9 +258,8 @@ export function useVoiceRoom() {
       room
         .on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
           if (track.kind === Track.Kind.Audio) {
-            const el = track.attach();
-            el.muted = deafenedRef.current;
-            audioContainer.current?.appendChild(el);
+            audioContainer.current?.appendChild(track.attach());
+            applyVolumes(room);
           }
           sync();
         })
@@ -203,9 +267,13 @@ export function useVoiceRoom() {
           track.detach().forEach((el) => el.remove());
           sync();
         })
-        .on(RoomEvent.ParticipantConnected, sync)
+        .on(RoomEvent.ParticipantConnected, () => {
+          applyVolumes(room);
+          sync();
+        })
         .on(RoomEvent.ParticipantDisconnected, sync)
         .on(RoomEvent.ParticipantNameChanged, sync)
+        .on(RoomEvent.ParticipantAttributesChanged, sync)
         .on(RoomEvent.ActiveSpeakersChanged, sync)
         .on(RoomEvent.TrackMuted, sync)
         .on(RoomEvent.TrackUnmuted, sync)
@@ -243,7 +311,10 @@ export function useVoiceRoom() {
 
       try {
         // Com o fone mutado, entra com o microfone desligado (liga ao desmutar)
-        if (deafenedRef.current) micOnBeforeDeafen.current = true;
+        if (deafenedRef.current) {
+          micOnBeforeDeafen.current = true;
+          publishDeafened(room, true);
+        }
         else await room.localParticipant.setMicrophoneEnabled(true);
       } catch (err) {
         // Conectado, mas sem microfone (sem permissão ou sem dispositivo)
@@ -265,7 +336,7 @@ export function useVoiceRoom() {
     setState((s) => ({
       ...s,
       muted: !lp.isMicrophoneEnabled,
-      participants: snapshot(room),
+      participants: snapshot(room, volumesRef.current),
       micMediaTrack: localMicTrack(room),
     }));
   };
@@ -301,7 +372,7 @@ export function useVoiceRoom() {
     setState((s) => ({
       ...s,
       muted: !lp.isMicrophoneEnabled,
-      participants: snapshot(room),
+      participants: snapshot(room, volumesRef.current),
       micMediaTrack: localMicTrack(room),
     }));
   }, [toggleDeafen]);
@@ -326,14 +397,14 @@ export function useVoiceRoom() {
       const hint = e.name === "NotReadableError" ? " (outro programa pode estar usando a câmera)" : "";
       setState((s) => ({ ...s, error: `Câmera indisponível: ${e.message}${hint}` }));
     }
-    setState((s) => ({ ...s, cameraOn: lp.isCameraEnabled, participants: snapshot(room) }));
+    setState((s) => ({ ...s, cameraOn: lp.isCameraEnabled, participants: snapshot(room, volumesRef.current) }));
   }, []);
 
   /**
    * Compartilha a tela/janela escolhida no seletor. O processo principal entrega
    * essa fonte quando o LiveKit chama getDisplayMedia.
    */
-  const startScreenShare = useCallback(async (sourceId: string, withAudio: boolean) => {
+  const startScreenShare = useCallback(async (sourceId: string, withAudio: boolean, sourceName?: string) => {
     const room = roomRef.current;
     if (!room || room.state !== ConnectionState.Connected) return;
     const lp = room.localParticipant;
@@ -344,7 +415,7 @@ export function useVoiceRoom() {
       await lp.setScreenShareEnabled(
         true,
         { audio: false, resolution: ScreenSharePresets.h1080fps30.resolution, contentHint: "detail" },
-        { screenShareEncoding: ScreenSharePresets.h1080fps30.encoding },
+        { screenShareEncoding: ScreenSharePresets.h1080fps30.encoding, name: sourceName?.slice(0, 80) },
       );
     } catch (err) {
       setState((s) => ({ ...s, error: `Não foi possível compartilhar a tela: ${(err as Error).message}` }));
@@ -371,7 +442,7 @@ export function useVoiceRoom() {
         }));
       }
     }
-    setState((s) => ({ ...s, screenSharing: lp.isScreenShareEnabled, participants: snapshot(room) }));
+    setState((s) => ({ ...s, screenSharing: lp.isScreenShareEnabled, participants: snapshot(room, volumesRef.current) }));
   }, []);
 
   const stopScreenShare = useCallback(async () => {
@@ -379,7 +450,7 @@ export function useVoiceRoom() {
     if (!room) return;
     await stopScreenAudio(room);
     await room.localParticipant.setScreenShareEnabled(false);
-    setState((s) => ({ ...s, screenSharing: false, participants: snapshot(room) }));
+    setState((s) => ({ ...s, screenSharing: false, participants: snapshot(room, volumesRef.current) }));
   }, []);
 
   /** Troca o microfone; se estiver numa sala, a troca acontece na hora */
@@ -416,7 +487,22 @@ export function useVoiceRoom() {
     } catch (err) {
       setState((s) => ({ ...s, error: `Não foi possível trocar a câmera: ${(err as Error).message}` }));
     }
-    setState((s) => ({ ...s, participants: snapshot(room) }));
+    setState((s) => ({ ...s, participants: snapshot(room, volumesRef.current) }));
+  }, []);
+
+  /**
+   * Volume de uma pessoa (0 a 2), lembrado neste PC para as próximas chamadas.
+   * what = "screen" muda só o som da tela que ela compartilha.
+   */
+  const setParticipantVolume = useCallback((identity: string, volume: number, what: "voice" | "screen" = "voice") => {
+    const v = Math.max(0, Math.min(MAX_VOLUME, volume));
+    const key = what === "screen" ? screenKey(identity) : identity;
+    if (v === 1) volumesRef.current.delete(key);
+    else volumesRef.current.set(key, v);
+    saveVolumes(volumesRef.current);
+    const room = roomRef.current;
+    applyVolumes(room);
+    if (room) setState((s) => ({ ...s, participants: snapshot(room, volumesRef.current) }));
   }, []);
 
   const clearError = useCallback(() => setState((s) => ({ ...s, error: null })), []);
@@ -446,7 +532,11 @@ export function useVoiceRoom() {
     stopScreenShare,
     setMicDevice,
     setCameraDevice,
+    setParticipantVolume,
     clearError,
     showError,
   };
 }
+
+/** O que useVoiceRoom devolve (estado da chamada + ações) */
+export type VoiceRoom = ReturnType<typeof useVoiceRoom>;

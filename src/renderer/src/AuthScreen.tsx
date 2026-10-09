@@ -1,7 +1,13 @@
 import { useState } from "react";
-import { login, register, type Account } from "./api";
+import { CircleAlert, Info } from "lucide-react";
+import { ApiError, login, register, type Account } from "./api";
+import { AuthHeading, AuthLayout } from "./components/AuthLayout";
+import { Button } from "./components/Button";
+import { Input } from "./components/Input";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type Errors = { login?: string; password?: string; form?: string };
 
 /** Entrar (e-mail ou @) ou criar conta (e-mail e senha; o @ e o nome vêm depois) */
 export function AuthScreen({
@@ -15,97 +21,123 @@ export function AuthScreen({
   onAuthenticated: (account: Account) => void;
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("");
+  const [loginValue, setLoginValue] = useState("");
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Errors>({});
 
   const isRegister = mode === "register";
 
-  function validate(): string | null {
-    if (!isRegister) return email.trim() && password ? null : "Preencha o e-mail e a senha";
-    if (!EMAIL_PATTERN.test(email.trim())) return "Digite um e-mail válido";
-    if (password.length < 8) return "A senha precisa ter pelo menos 8 caracteres";
-    if (password !== confirm) return "As senhas não são iguais";
-    return null;
+  function validate(): Errors {
+    const value = loginValue.trim();
+    if (!isRegister) {
+      return {
+        login: value ? undefined : "Digite seu e-mail ou @usuário.",
+        password: password ? undefined : "Digite sua senha.",
+      };
+    }
+    return {
+      login: EMAIL_PATTERN.test(value) ? undefined : "Digite um e-mail válido.",
+      password: password.length >= 8 ? undefined : "Use pelo menos 8 caracteres.",
+    };
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const problem = validate();
-    if (problem) return setError(problem);
+    const problems = validate();
+    if (problems.login || problems.password) return setErrors(problems);
     setBusy(true);
-    setError(null);
+    setErrors({});
     try {
-      const account = isRegister ? await register(email.trim(), password) : await login(email.trim(), password);
-      onAuthenticated(account);
+      const value = loginValue.trim();
+      onAuthenticated(isRegister ? await register(value, password) : await login(value, password));
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      // E-mail já cadastrado: o erro fica no próprio campo
+      setErrors(isRegister && err instanceof ApiError && err.status === 409 ? { login: message } : { form: message });
       setBusy(false);
     }
   }
 
   const switchMode = () => {
     setMode(isRegister ? "login" : "register");
-    setConfirm("");
-    setError(null);
+    setPassword("");
+    setErrors({});
   };
 
   return (
-    <div className="name-screen">
-      <form className="name-card auth-card" onSubmit={submit} noValidate>
-        <h1>Toca</h1>
-        <p>{isRegister ? "Crie sua conta" : "Que bom te ver de novo!"}</p>
-        {notice && !error && <div className="form-notice">{notice}</div>}
-
-        <label className="auth-field">
-          <span className="field-label">{isRegister ? "E-mail" : "E-mail ou usuário"}</span>
-          <input
-            autoFocus
-            type={isRegister ? "email" : "text"}
-            maxLength={254}
-            autoComplete={isRegister ? "email" : "username"}
-            spellCheck={false}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </label>
-
-        <label className="auth-field">
-          <span className="field-label">Senha</span>
-          <input
-            type="password"
-            maxLength={128}
-            autoComplete={isRegister ? "new-password" : "current-password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-
-        {isRegister && (
-          <label className="auth-field">
-            <span className="field-label">Confirme a senha</span>
-            <input
-              type="password"
-              maxLength={128}
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-            />
-          </label>
+    <AuthLayout version={version}>
+      <form onSubmit={submit} noValidate key={mode}>
+        {isRegister ? (
+          <AuthHeading title="Criar conta">Primeiro, seu e-mail e uma senha. Depois você escolhe seu @.</AuthHeading>
+        ) : (
+          <AuthHeading title="Entrar">Bom te ver de novo.</AuthHeading>
         )}
 
-        {error && <div className="form-error">{error}</div>}
+        {notice && !errors.form && (
+          <div className="notice info" role="status">
+            <Info size={16} aria-hidden="true" />
+            {notice}
+          </div>
+        )}
 
-        <button type="submit" className="primary" disabled={busy}>
-          {busy ? "Aguarde…" : isRegister ? "Criar conta" : "Entrar"}
-        </button>
-        <button type="button" className="link-button" onClick={switchMode}>
-          {isRegister ? "Já tenho conta" : "Criar uma conta"}
-        </button>
-        {version && <div className="version">v{version}</div>}
+        <Input
+          label={isRegister ? "E-mail" : "E-mail ou @usuário"}
+          autoFocus
+          type={isRegister ? "email" : "text"}
+          maxLength={254}
+          autoComplete={isRegister ? "email" : "username"}
+          spellCheck={false}
+          placeholder={isRegister ? "voce@email.com" : undefined}
+          value={loginValue}
+          error={errors.login}
+          onChange={(e) => {
+            setLoginValue(e.target.value);
+            setErrors((er) => ({ ...er, login: undefined }));
+          }}
+        />
+
+        <Input
+          label="Senha"
+          type="password"
+          maxLength={128}
+          autoComplete={isRegister ? "new-password" : "current-password"}
+          value={password}
+          hint={isRegister ? "Pelo menos 8 caracteres." : undefined}
+          error={errors.password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrors((er) => ({ ...er, password: undefined }));
+          }}
+        />
+
+        {errors.form && (
+          <div className="notice error" role="alert">
+            <CircleAlert size={16} aria-hidden="true" />
+            {errors.form}
+          </div>
+        )}
+
+        <Button type="submit" variant="primary" size="lg" block disabled={busy}>
+          {busy ? "Aguarde…" : isRegister ? "Continuar" : "Entrar"}
+        </Button>
+
+        {isRegister ? (
+          <p className="sm muted">
+            Já tem conta?{" "}
+            <button type="button" className="link" onClick={switchMode}>
+              Entrar
+            </button>
+          </p>
+        ) : (
+          <>
+            <div className="divider">ainda não tem conta?</div>
+            <Button block onClick={switchMode}>
+              Criar conta
+            </Button>
+          </>
+        )}
       </form>
-    </div>
+    </AuthLayout>
   );
 }

@@ -16,6 +16,9 @@
     "build:audio-helper": "node scripts/build-audio-helper.mjs"
   },
   "devDependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/sora": "^5.3.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -24,6 +27,7 @@
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "livekit-client": "^2.22.3",
+    "lucide-react": "^1.54.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "^7.0.2",

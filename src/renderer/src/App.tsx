@@ -1,35 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import { ConnectionState } from "livekit-client";
+import { WifiOff } from "lucide-react";
 import { isProfileComplete, logout, onSessionLost, restoreSession, type Account, type Profile, type RoomInfo } from "./api";
 import type { RealtimeEvent } from "./realtime";
 import type { UpdateState } from "../../shared/update";
-import { useVoiceRoom, type VoiceParticipant } from "./useVoiceRoom";
+import { useVoiceRoom } from "./useVoiceRoom";
 import { useTocaData } from "./useTocaData";
 import { useAppUpdate } from "./useAppUpdate";
-import { useMicLevel } from "./useMicLevel";
-import {
-  CameraIcon,
-  CameraOffIcon,
-  GearIcon,
-  HangUpIcon,
-  HeadphonesIcon,
-  HeadphonesOffIcon,
-  MicIcon,
-  MicOffIcon,
-  PlusIcon,
-  ScreenShareIcon,
-  ScreenShareOffIcon,
-  SpeakerIcon,
-  UsersIcon,
-} from "./icons";
 import { AuthScreen } from "./AuthScreen";
-import { Avatar } from "./Avatar";
+import { AuthHeading, AuthLayout } from "./components/AuthLayout";
+import { TitleBar } from "./components/TitleBar";
+import { avatarMap } from "./components/Avatar";
+import { Sidebar } from "./Sidebar";
 import { FriendsPage } from "./FriendsPage";
 import { ProfileModal } from "./ProfileModal";
 import { ProfileSetup } from "./ProfileSetup";
-import { CreateRoomModal, RoomSettingsModal } from "./RoomModals";
+import { CreateRoomModal, RoomModal, type RoomModalTab } from "./RoomModals";
 import { ScreenSharePicker } from "./ScreenSharePicker";
-import { Stage } from "./Stage";
+import { VoiceRoomView } from "./VoiceRoomView";
 import { VoiceSettings } from "./VoiceSettings";
 
 const RESTORE_RETRY_MS = 5000;
@@ -69,18 +56,22 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <div className="win">
+      <TitleBar update={update} onInstall={install} />
+      <div className="app-body">
       {auth.status === "signedIn" && isProfileComplete(auth.account) ? (
         <MainApp
           key={auth.account.id}
           me={auth.account}
           version={version}
+          update={update}
           onMeChange={(account) => setAuth({ status: "signedIn", account })}
           onLogout={() => setAuth({ status: "signedOut" })}
         />
       ) : auth.status === "signedIn" ? (
         <ProfileSetup
           account={auth.account}
+          version={version}
           onDone={(account) => setAuth({ status: "signedIn", account })}
           onCancel={() => void logout().then(() => setAuth({ status: "signedOut" }))}
         />
@@ -91,46 +82,23 @@ export default function App() {
           onAuthenticated={(account) => setAuth({ status: "signedIn", account })}
         />
       ) : (
-        <div className="name-screen">
-          <div className="name-card">
-            <h1>Toca</h1>
-            {auth.status === "offline" ? (
-              <>
-                <p>Sem conexão com o servidor.</p>
-                <div className="muted-text">Tentando de novo… ({auth.message})</div>
-              </>
-            ) : (
-              <p>Carregando…</p>
-            )}
-          </div>
-        </div>
+        <AuthLayout version={version}>
+          {auth.status === "offline" ? (
+            <>
+              <AuthHeading title="Sem conexão">Não deu para falar com o servidor. Tentando de novo sozinho…</AuthHeading>
+              <div className="notice" role="status">
+                <WifiOff size={16} aria-hidden="true" />
+                <span className="muted">{auth.message}</span>
+              </div>
+            </>
+          ) : (
+            <AuthHeading title="Entrando…" />
+          )}
+        </AuthLayout>
       )}
-      <UpdateBanner update={update} onInstall={install} />
-    </>
+      </div>
+    </div>
   );
-}
-
-function UpdateBanner({ update, onInstall }: { update: UpdateState; onInstall: () => void }) {
-  if (update.status === "downloading") {
-    return (
-      <div className="update-banner subtle">
-        Baixando a versão {update.version}… {update.percent}%
-      </div>
-    );
-  }
-  if (update.status === "downloaded") {
-    return (
-      <div className="update-banner" role="status">
-        <span>
-          Versão <strong>{update.version}</strong> pronta
-        </span>
-        <button className="primary small" onClick={onInstall} title="O app reinicia e a chamada atual é encerrada">
-          Atualizar
-        </button>
-      </div>
-    );
-  }
-  return null;
 }
 
 /** Notificação do Windows, só quando o Toca não está em foco */
@@ -146,11 +114,13 @@ function notify(title: string, body: string) {
 function MainApp({
   me,
   version,
+  update,
   onMeChange,
   onLogout,
 }: {
   me: Profile;
   version: string | null;
+  update: UpdateState;
   onMeChange: (me: Profile) => void;
   onLogout: () => void;
 }) {
@@ -159,7 +129,8 @@ function MainApp({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [roomSettingsId, setRoomSettingsId] = useState<string | null>(null);
+  // Janela da sala aberta (Membros pelo botão da sala, Sala pela engrenagem)
+  const [roomModal, setRoomModal] = useState<{ id: string; tab: RoomModalTab } | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const { leave, showError } = voice;
@@ -179,7 +150,7 @@ function MainApp({
           break;
         case "user_updated":
           // Trocou o nome em outro PC
-          if (event.user.id === me.id) onMeChange({ ...me, displayName: event.user.displayName });
+          if (event.user.id === me.id) onMeChange({ ...me, displayName: event.user.displayName, avatar: event.user.avatar });
           break;
         case "room_removed":
         case "room_deleted":
@@ -206,9 +177,8 @@ function MainApp({
     return () => clearTimeout(id);
   }, [voice.room, voice.connection, reloadRooms]);
 
-  const connected = voice.connection === ConnectionState.Connected;
   const currentRoom = data.rooms.find((r) => r.id === voice.room);
-  const settingsRoom = data.rooms.find((r) => r.id === roomSettingsId);
+  const modalRoom = roomModal && data.rooms.find((r) => r.id === roomModal.id);
   const showVoice = view === "voice" && voice.room;
 
   const joinRoom = (room: RoomInfo) => {
@@ -223,166 +193,52 @@ function MainApp({
   };
 
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <header className="sidebar-header">
-          <span>Toca</span>
-          {version && <span className="version">v{version}</span>}
-        </header>
+    <>
+      <Sidebar
+        me={me}
+        rooms={data.rooms}
+        friends={data.friends}
+        incomingCount={data.incoming.length}
+        online={data.online}
+        voice={voice}
+        version={version}
+        update={update}
+        view={showVoice ? "voice" : "friends"}
+        onOpenRoom={joinRoom}
+        onRoomSettings={(id) => setRoomModal({ id, tab: "room" })}
+        onCreateRoom={() => setCreateOpen(true)}
+        onFriends={() => setView("friends")}
+        onSettings={() => setSettingsOpen(true)}
+        onProfile={() => setProfileOpen(true)}
+      />
 
-        <nav className="room-list">
-          <button
-            className={`nav-button ${!showVoice ? "active" : ""}`}
-            onClick={() => setView("friends")}
-          >
-            <UsersIcon />
-            <span>Amigos</span>
-            {data.incoming.length > 0 && <span className="badge">{data.incoming.length}</span>}
-          </button>
-
-          <div className="section-title with-action">
-            <span>Salas de voz</span>
-            <button className="mini-button" title="Criar sala" onClick={() => setCreateOpen(true)}>
-              <PlusIcon />
-            </button>
-          </div>
-          {data.roomsLoaded && data.rooms.length === 0 && (
-            <div className="muted-text hint">Crie uma sala no + ou peça para um amigo te adicionar.</div>
-          )}
-          {data.rooms.map((room) => {
-            const isCurrent = room.id === voice.room;
-            return (
-              <div key={room.id} className="room">
-                <div className={`room-button ${isCurrent ? "active" : ""}`}>
-                  <button
-                    className="room-join"
-                    onClick={() => joinRoom(room)}
-                    title={isCurrent ? "Você está nesta sala" : `Entrar em ${room.name}`}
-                  >
-                    <SpeakerIcon />
-                    <span>{room.name}</span>
-                  </button>
-                  <button
-                    className="room-gear"
-                    title={room.role === "owner" ? "Configurações da sala" : "Membros da sala"}
-                    onClick={() => setRoomSettingsId(room.id)}
-                  >
-                    <GearIcon />
-                  </button>
-                </div>
-                <ul className="room-members">
-                  {isCurrent && connected
-                    ? voice.participants.map((p) => (
-                        <MemberRow key={p.identity} p={p} deafened={p.isLocal && voice.deafened} />
-                      ))
-                    : room.participants
-                        .filter((p) => p.id !== me.id)
-                        .map((p) => (
-                          <li key={p.id} className="member">
-                            <Avatar name={p.name} size={22} />
-                            <span className="member-name">{p.name}</span>
-                          </li>
-                        ))}
-                </ul>
-              </div>
-            );
-          })}
-        </nav>
-
-        <footer className="user-panel">
-          {!data.online && <div className="offline-line">Conectando ao servidor…</div>}
-          {voice.room && (
-            <div className="voice-status">
-              <button className="voice-status-info" onClick={() => setView("voice")} title="Ver a sala">
-                <div className={`status-line ${connected ? "ok" : "pending"}`}>
-                  {connected ? "Voz conectada" : connectionLabel(voice.connection)}
-                </div>
-                <div className="muted-text">{currentRoom?.name ?? "…"}</div>
-              </button>
-              <div className="voice-actions">
-                <button
-                  className={`icon-button ${voice.cameraOn ? "active" : ""}`}
-                  onClick={() => void voice.toggleCamera()}
-                  disabled={!connected}
-                  title={voice.cameraOn ? "Desligar câmera" : "Ligar câmera"}
-                >
-                  {voice.cameraOn ? <CameraIcon /> : <CameraOffIcon />}
-                </button>
-                <button
-                  className={`icon-button ${voice.screenSharing ? "sharing" : ""}`}
-                  onClick={() => (voice.screenSharing ? void voice.stopScreenShare() : setPickerOpen(true))}
-                  disabled={!connected}
-                  title={voice.screenSharing ? "Parar de compartilhar" : "Compartilhar tela"}
-                >
-                  {voice.screenSharing ? <ScreenShareOffIcon /> : <ScreenShareIcon />}
-                </button>
-                <button className="icon-button danger" onClick={() => void voice.leave()} title="Sair da sala">
-                  <HangUpIcon />
-                </button>
-              </div>
-            </div>
-          )}
-          <div className="user-row">
-            <button className="user-identity" onClick={() => setProfileOpen(true)} title="Minha conta">
-              <Avatar name={me.displayName} size={32} />
-              <div className="user-info">
-                <div className="user-name">{me.displayName}</div>
-                <div className="muted-text user-handle">@{me.username}</div>
-              </div>
-            </button>
-            <MicButton
-              track={voice.micMediaTrack}
-              muted={voice.muted}
-              disabled={!connected}
-              onToggle={() => void voice.toggleMute()}
-            />
-            <button
-              className={`icon-button ${voice.deafened ? "danger" : ""}`}
-              onClick={() => void voice.toggleDeafen()}
-              title={voice.deafened ? "Voltar a ouvir a sala" : "Parar de ouvir a sala (muta o fone)"}
-            >
-              {voice.deafened ? <HeadphonesOffIcon /> : <HeadphonesIcon />}
-            </button>
-            <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Configurações de voz e vídeo">
-              <GearIcon />
-            </button>
-          </div>
-        </footer>
-      </aside>
-
-      <main className="stage">
+      <main className="main">
         {showVoice ? (
-          <>
-            <header className="stage-header">
-              <SpeakerIcon />
-              <span>{currentRoom?.name ?? "…"}</span>
-              {voice.screenSharing && (
-                <button className="stop-share" onClick={() => void voice.stopScreenShare()}>
-                  <ScreenShareOffIcon />
-                  Parar de compartilhar
-                </button>
-              )}
-            </header>
-            {connected ? (
-              <Stage participants={voice.participants} />
-            ) : (
-              <div className="empty">{connectionLabel(voice.connection)}</div>
-            )}
-          </>
+          <VoiceRoomView
+            room={currentRoom}
+            voice={voice}
+            avatars={avatarMap(me, data.friends, data.rooms)}
+            onMembers={() => currentRoom && setRoomModal({ id: currentRoom.id, tab: "members" })}
+            onShareScreen={() => setPickerOpen(true)}
+          />
         ) : (
           <FriendsPage
+            myUsername={me.username}
             friends={data.friends}
             incoming={data.incoming}
             outgoing={data.outgoing}
+            rooms={data.rooms}
+            currentRoomId={voice.room}
             onChanged={reloadFriends}
+            onJoinRoom={joinRoom}
           />
         )}
 
         {pickerOpen && (
           <ScreenSharePicker
-            onShare={(sourceId, withAudio) => {
+            onShare={(sourceId, withAudio, sourceName) => {
               setPickerOpen(false);
-              void voice.startScreenShare(sourceId, withAudio);
+              void voice.startScreenShare(sourceId, withAudio, sourceName);
             }}
             onClose={() => setPickerOpen(false)}
           />
@@ -412,27 +268,28 @@ function MainApp({
 
         {createOpen && (
           <CreateRoomModal
+            friends={data.friends}
             onClose={() => setCreateOpen(false)}
-            onCreated={async (room) => {
+            onCreated={() => {
               setCreateOpen(false);
-              await reloadRooms();
-              // Já abre as configurações para adicionar amigos
-              setRoomSettingsId(room.id);
+              void reloadRooms();
             }}
           />
         )}
 
-        {settingsRoom && (
-          <RoomSettingsModal
-            room={settingsRoom}
+        {modalRoom && (
+          <RoomModal
+            key={modalRoom.id}
+            room={modalRoom}
             me={me}
             friends={data.friends}
+            initialTab={roomModal.tab}
             onChanged={reloadRooms}
             onLeft={() => {
-              setRoomSettingsId(null);
-              if (settingsRoom.id === voice.room) void voice.leave();
+              setRoomModal(null);
+              if (modalRoom.id === voice.room) void voice.leave();
             }}
-            onClose={() => setRoomSettingsId(null)}
+            onClose={() => setRoomModal(null)}
           />
         )}
 
@@ -445,59 +302,6 @@ function MainApp({
           </div>
         )}
       </main>
-    </div>
+    </>
   );
-}
-
-// Componente separado: o volume atualiza ~20x por segundo e só ele re-renderiza
-function MicButton({
-  track,
-  muted,
-  disabled,
-  onToggle,
-}: {
-  track: MediaStreamTrack | null;
-  muted: boolean;
-  disabled: boolean;
-  onToggle: () => void;
-}) {
-  const { level, speaking } = useMicLevel(track, muted);
-  return (
-    <button
-      className={`icon-button mic ${muted ? "danger" : ""} ${speaking ? "speaking" : ""}`}
-      style={{ "--level": level } as React.CSSProperties}
-      onClick={onToggle}
-      disabled={disabled}
-      title={muted ? "Desmutar" : speaking ? "Seu microfone está captando som" : "Mutar"}
-    >
-      {muted ? <MicOffIcon /> : <MicIcon />}
-    </button>
-  );
-}
-
-function MemberRow({ p, deafened }: { p: VoiceParticipant; deafened: boolean }) {
-  return (
-    <li className={`member ${p.isSpeaking ? "speaking" : ""}`}>
-      <Avatar name={p.name} size={22} />
-      <span className="member-name">{p.name}</span>
-      {p.screenTrack && <span className="live-badge">AO VIVO</span>}
-      {p.cameraTrack && <CameraIcon className="member-icon camera" />}
-      {p.isMuted && !deafened && <MicOffIcon className="member-icon" />}
-      {deafened && <HeadphonesOffIcon className="member-icon" />}
-    </li>
-  );
-}
-
-function connectionLabel(state: ConnectionState): string {
-  switch (state) {
-    case ConnectionState.Connecting:
-      return "Conectando…";
-    case ConnectionState.Reconnecting:
-    case ConnectionState.SignalReconnecting:
-      return "Reconectando…";
-    case ConnectionState.Connected:
-      return "Conectado";
-    default:
-      return "Desconectado";
-  }
 }

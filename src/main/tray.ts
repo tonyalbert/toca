@@ -1,5 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage } from "electron";
 import iconPath from "../../build/icon.png?asset";
+import trayPath from "../../build/tray.png?asset";
+import tray2xPath from "../../build/tray@2x.png?asset";
 
 let tray: Tray | null = null;
 let quitting = false;
@@ -8,10 +10,10 @@ let hintShown = false;
 export const appIcon = nativeImage.createFromPath(iconPath);
 
 function trayIcon(): Electron.NativeImage {
-  // A bandeja do Windows usa 16px em 100% de escala e 32px em 200%
-  const image = nativeImage.createEmpty();
-  image.addRepresentation({ scaleFactor: 1, buffer: appIcon.resize({ width: 16, height: 16 }).toPNG() });
-  image.addRepresentation({ scaleFactor: 2, buffer: appIcon.resize({ width: 32, height: 32 }).toPNG() });
+  // A bandeja do Windows usa 16px em 100% de escala e 32px em 200%. O de 16px
+  // é desenhado à parte (arco mais largo), por isso não sai de um resize.
+  const image = nativeImage.createFromPath(trayPath);
+  image.addRepresentation({ scaleFactor: 2, buffer: nativeImage.createFromPath(tray2xPath).toPNG() });
   return image;
 }
 

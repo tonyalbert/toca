@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Toca — baixar</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./toca2.css">
+<link rel="stylesheet" href="./toca-site.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0} html{scroll-behavior:smooth}</style>
+</helmet>
+<div class="tk ts" data-theme="{{theme}}">
+
+  <header class="ts-nav">
+    <div class="ts-wrap ts-nav-in">
+      <a class="ts-brand" href="#topo"><svg class="tmark" width="30" height="30" viewBox="0 0 96 96" aria-hidden="true"><rect class="bg" width="96" height="96" rx="22"></rect><path class="fg" d="M33 74 V45 A15 15 0 0 1 63 45 V74 Z"></path></svg>toca</a>
+      <nav class="ts-links" aria-label="Seções"><a href="#como-e">Como é</a><a href="#comecar">Começar</a><a href="#perguntas">Perguntas</a></nav>
+      <span class="ts-spacer"></span>
+      <a class="btn btn-p btn-sm" href="#download"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>Baixar</a>
+    </div>
+  </header>
+
+  <main id="topo">
+    <section class="ts-hero" aria-labelledby="ts-title">
+      <svg class="ts-arch" viewBox="0 0 1100 760" aria-hidden="true">
+        <path class="ring" d="M50 760 V550 A500 500 0 0 1 1050 550 V760"></path>
+        <path class="ring" d="M170 760 V550 A380 380 0 0 1 930 550 V760"></path>
+        <path class="ring" d="M290 760 V550 A260 260 0 0 1 810 550 V760"></path>
+        <path class="glow" d="M330 760 V550 A220 220 0 0 1 770 550 V760 Z"></path>
+      </svg>
+      <div class="ts-wrap">
+        <span class="ts-eyebrow">Para a turma · <b>voz e tela compartilhada</b></span>
+        <h1 class="ts-h1" id="ts-title">A sala da turma, <em>sempre aberta.</em></h1>
+        <p class="ts-sub">O Toca é um app de chamada de voz para grupos de amigos e casais. Cada turma tem suas salas fixas: é só entrar, falar e, se quiser, mostrar a tela com o som junto.</p>
+        <div class="ts-ctas">
+          <a class="btn btn-p" href="#download" id="download"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>Baixar para Windows</a>
+          <a class="btn btn-s" href="#como-e">Ver como é por dentro</a>
+        </div>
+        <p class="ts-meta num">Versão 0.9.2 · Windows 10 e 11 · atualiza sozinho</p>
+        <div class="ts-shot-wrap" aria-label="Tela do Toca com a sala Sofá: Lu está falando, Bia está com o microfone desligado." role="img">
+          <div class="ts-shot" aria-hidden="true"><dc-import name="TocaApp" screen="sala" theme="dark" hint-size="1280px,800px"></dc-import></div>
+          <div class="ts-shot-fade"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ts-sec" id="como-e" aria-labelledby="ts-como">
+      <div class="ts-wrap">
+        <span class="ts-kicker">Como é</span>
+        <h2 class="ts-h2" id="ts-como">Feito para a sala de casa, não para o escritório.</h2>
+        <p class="ts-lead">Sem canais, cargos ou servidores com mil pessoas. Só as suas salas e a sua turma.</p>
+        <div class="ts-feats">
+          <article class="ts-feat">
+            <div><h3>Salas fixas da turma</h3><p>O Sofá, a Jogatina, o Cinema de domingo: cada sala fica sempre ali, e você vê quem está em cada uma antes de entrar.</p></div>
+            <div class="ts-vis">
+              <div class="room is-on" style="cursor: default"><span class="room-h"><span class="room-ico"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"></path><path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0z"></path><path d="M4 18v2M20 18v2"></path></svg></span>Sofá<span class="count">3</span></span></div>
+              <div class="room" style="cursor: default"><span class="room-h"><span class="room-ico"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"></path><rect x="2" y="6" width="20" height="12" rx="6"></rect></svg></span>Jogatina<span class="count">2</span></span></div>
+              <div class="room" style="cursor: default"><span class="room-h"><span class="room-ico"><svg class="ic ic-s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"></path></svg></span>Cinema de domingo<span class="count"></span></span></div>
+            </div>
+          </article>
+          <article class="ts-feat">
+            <div><h3>Quem fala, acende</h3><p>Um anel âmbar, um equalizador e o aviso "falando agora". Microfone e fone desligados aparecem com ícone, sem adivinhação.</p></div>
+            <div class="ts-vis" style="flex-direction: row; gap: 10px">
+              <div class="pc talk" style="flex: 1; min-height: 150px; gap: 8px">
+                <span class="avw" style="width: 56px; height: 56px"><svg class="av e-c" width="48" height="48" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-c"><path class="ear" d="M14 32 L17 9 L31 22 Z"></path><path class="ear" d="M50 32 L47 9 L33 22 Z"></path></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle><path class="mouth" d="M28 44 Q32 47.5 36 44"></path></svg></span>
+                <span class="name" style="font-size: 13px">Lu<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></span><span class="state">Falando agora</span>
+              </div>
+              <div class="pc" style="flex: 1; min-height: 150px; gap: 8px">
+                <span class="avw" style="width: 56px; height: 56px"><svg class="av e-b" width="48" height="48" viewBox="0 0 64 64" aria-hidden="true"><g class="ears-b"><rect class="ear" x="17" y="2" width="10" height="26" rx="5" transform="rotate(-8 22 28)"></rect><rect class="ear" x="37" y="2" width="10" height="26" rx="5" transform="rotate(8 42 28)"></rect></g><circle class="head" cx="32" cy="38" r="20"></circle><circle class="eye" cx="25" cy="36" r="2.4"></circle><circle class="eye" cx="39" cy="36" r="2.4"></circle><path class="mouth" d="M28 44 Q32 47.5 36 44"></path></svg></span>
+                <span class="name" style="font-size: 13px">Bia</span><span class="state">Microfone desligado</span>
+                <span class="flags" style="bottom: 8px; right: 8px"><span class="flag" style="width: 24px; height: 24px"><svg class="ic" viewBox="0 0 24 24" aria-label="microfone desligado" style="width: 13px; height: 13px"><path d="M2 2l20 20M18.9 13.4A7 7 0 0 0 19 12v-2M5 10v2a7 7 0 0 0 12 5M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v3a3 3 0 0 0 5.1 2.1M12 19v3"></path></svg></span></span>
+              </div>
+            </div>
+          </article>
+          <article class="ts-feat">
+            <div><h3>Tela compartilhada com som</h3><p>Mostre a tela inteira ou só uma janela, com o áudio do PC junto: filme, jogo ou a planilha da viagem.</p></div>
+            <div class="ts-vis">
+              <div class="row" style="gap: 8px"><span class="live">AO VIVO</span><span class="sm muted">Tela do Tony · 4 assistindo</span></div>
+              <div style="height: 96px; border-radius: 8px; background: #f3f2ee; position: relative; overflow: hidden"><div style="height: 14px; background: #1d6b45"></div><div style="margin: 12px; height: 8px; width: 60%; border-radius: 3px; background: #c9c6bc"></div><div style="margin: 0 12px; height: 8px; width: 40%; border-radius: 3px; background: #dedbd2"></div></div>
+              <label class="row sm" style="gap: 8px"><input type="checkbox" class="check" checked="{{ true }}" disabled="{{ true }}">Compartilhar o áudio do PC</label>
+            </div>
+          </article>
+        </div>
+        <div class="ts-minis">
+          <div class="ts-mini"><svg class="ic ic-l" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7"></circle><path d="M9 6 L8 2 M15 6 L16 2"></path></svg><h4>Bichinho no lugar da inicial</h4><p>Escolha orelhas de coelho, gato ou urso. Foto, se quiser.</p></div>
+          <div class="ts-mini"><svg class="ic ic-l" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6M22 11h-6"></path></svg><h4>Amigos por @usuário</h4><p>Adicione pelo nome de usuário e escolha quem entra em cada sala.</p></div>
+          <div class="ts-mini"><svg class="ic ic-l" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg><h4>Atualiza sozinho</h4><p>Quando sai versão nova, um clique e você volta para a mesma sala.</p></div>
+          <div class="ts-mini"><svg class="ic ic-l" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"></path></svg><h4>Escuro e claro</h4><p>Escuro por padrão, claro se preferir, ou seguindo o Windows.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ts-sec" id="comecar" aria-labelledby="ts-comecar">
+      <div class="ts-wrap">
+        <span class="ts-kicker">Começar</span>
+        <h2 class="ts-h2" id="ts-comecar">Da instalação à primeira conversa em minutos.</h2>
+        <div class="ts-steps">
+          <div class="ts-step"><span class="n">1</span><h3>Baixe e instale</h3><p>Abra o instalador e siga os passos. O Toca abre sozinho no fim.</p></div>
+          <div class="ts-step"><span class="n">2</span><h3>Crie sua conta</h3><p>Nome, @usuário e e-mail. A gente manda um código de 6 dígitos para confirmar.</p></div>
+          <div class="ts-step"><span class="n">3</span><h3>Chame a turma</h3><p>Mande seu @usuário para os amigos, crie a primeira sala e é só entrar.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ts-sec" id="perguntas" aria-labelledby="ts-faq">
+      <div class="ts-wrap">
+        <div style="text-align: center"><span class="ts-kicker">Perguntas</span><h2 class="ts-h2" id="ts-faq">Antes de baixar</h2></div>
+        <div class="ts-faq">
+          <details open="{{ true }}"><summary>Funciona no Mac ou no celular?<svg class="ic ic-l" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg></summary><p>Por enquanto o Toca é só para Windows 10 e 11.</p></details>
+          <details><summary>Meus amigos também precisam instalar?<svg class="ic ic-l" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg></summary><p>Sim. Cada pessoa usa o Toca no próprio computador, com a própria conta.</p></details>
+          <details><summary>O Windows disse que o app é desconhecido. É seguro?<svg class="ic ic-l" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg></summary><p>Esse aviso aparece com apps novos que ainda não são conhecidos pelo Windows. Clique em "Mais informações" e depois em "Executar assim mesmo".</p></details>
+          <details><summary>Dá para compartilhar o som do jogo ou do filme?<svg class="ic ic-l" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"></path></svg></summary><p>Sim. Ao compartilhar a tela, marque "Compartilhar o áudio do PC" e a turma ouve junto.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="ts-sec" aria-labelledby="ts-final" style="border-top: 0; padding-top: 0">
+      <div class="ts-wrap">
+        <div class="ts-final">
+          <svg class="tmark" width="72" height="72" viewBox="0 0 96 96" aria-hidden="true" style="margin: 0 auto"><rect class="bg" width="96" height="96" rx="22" style="fill: var(--bg)"></rect><path class="fg" d="M33 74 V45 A15 15 0 0 1 63 45 V74 Z"></path></svg>
+          <h2 class="ts-h2" id="ts-final">A turma já tá na toca.</h2>
+          <div class="ts-ctas"><a class="btn btn-p" href="#download"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>Baixar para Windows</a></div>
+          <p class="ts-meta num">Versão 0.9.2 · Windows 10 e 11</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="ts-foot">
+    <div class="ts-wrap ts-foot-in">
+      <span class="row" style="gap: 8px"><svg class="rabbit" viewBox="0 0 96 96" aria-hidden="true"><rect class="f" x="31" y="4" width="14" height="44" rx="7" transform="rotate(-14 38 44)"></rect><rect class="f" x="51" y="4" width="14" height="44" rx="7" transform="rotate(14 58 44)"></rect><circle class="sep" cx="48" cy="62" r="28"></circle><path class="cut" d="M41.5 63.5 Q48 60.5 54.5 63.5 Q52 70 48 71.5 Q44 70 41.5 63.5 Z"></path></svg>© 2026 Rabbit · Toca é um app da Rabbit</span>
+      <nav aria-label="Rodapé"><a href="#privacidade">Privacidade</a><a href="#termos">Termos de uso</a><a href="#suporte">Suporte</a></nav>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":3900}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme === 'light' ? 'light' : 'dark' }; }
+}
+</script>
+</body>
+</html>
