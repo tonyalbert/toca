@@ -425,3 +425,20 @@ button:disabled {
 .update-banner .primary.small:hover {
   background: #e8f5ec;
 }
+
+/* ---------- Microfone captando som ---------- */
+
+.icon-button.mic {
+  --level: 0;
+  transition:
+    color 0.1s,
+    background-color 0.1s,
+    box-shadow 0.08s;
+}
+
+.icon-button.mic.speaking,
+.icon-button.mic.speaking:hover:not(:disabled) {
+  color: var(--speaking);
+  background: rgb(35 165 90 / calc(0.12 + var(--level) * 0.25));
+  box-shadow: 0 0 0 calc(1px + var(--level) * 3px) rgb(35 165 90 / 0.55);
+}

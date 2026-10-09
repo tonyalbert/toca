@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConnectionState,
+  LocalAudioTrack,
   Participant,
   RemoteTrack,
   Room,
@@ -23,6 +24,8 @@ export interface VoiceState {
   connection: ConnectionState;
   participants: VoiceParticipant[];
   muted: boolean;
+  /** Track do nosso microfone, para medir o volume localmente */
+  micTrack: LocalAudioTrack | null;
   error: string | null;
 }
 
@@ -31,6 +34,7 @@ const initialState: VoiceState = {
   connection: ConnectionState.Disconnected,
   participants: [],
   muted: false,
+  micTrack: null,
   error: null,
 };
 
@@ -42,6 +46,11 @@ function toVoiceParticipant(p: Participant, isLocal: boolean): VoiceParticipant 
     isSpeaking: p.isSpeaking,
     isMuted: !p.isMicrophoneEnabled,
   };
+}
+
+function localMicTrack(room: Room): LocalAudioTrack | null {
+  const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+  return track instanceof LocalAudioTrack ? track : null;
 }
 
 function snapshot(room: Room): VoiceParticipant[] {
@@ -100,6 +109,7 @@ export function useVoiceRoom() {
           connection: room.state,
           participants: snapshot(room),
           muted: !room.localParticipant.isMicrophoneEnabled,
+          micTrack: localMicTrack(room),
         }));
       };
 
@@ -168,7 +178,12 @@ export function useVoiceRoom() {
     } catch (err) {
       setState((s) => ({ ...s, error: `Microfone indisponível: ${(err as Error).message}` }));
     }
-    setState((s) => ({ ...s, muted: !lp.isMicrophoneEnabled, participants: snapshot(room) }));
+    setState((s) => ({
+      ...s,
+      muted: !lp.isMicrophoneEnabled,
+      participants: snapshot(room),
+      micTrack: localMicTrack(room),
+    }));
   }, []);
 
   const clearError = useCallback(() => setState((s) => ({ ...s, error: null })), []);

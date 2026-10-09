@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { ConnectionState } from "livekit-client";
+import { ConnectionState, type LocalAudioTrack } from "livekit-client";
 import { fetchRooms, type RoomInfo } from "./api";
 import type { UpdateState } from "../../shared/update";
 import { useVoiceRoom, type VoiceParticipant } from "./useVoiceRoom";
 import { useAppUpdate } from "./useAppUpdate";
+import { useMicLevel } from "./useMicLevel";
 import { HangUpIcon, MicIcon, MicOffIcon, SpeakerIcon } from "./icons";
 
 const NAME_KEY = "toca.name";
@@ -212,14 +213,12 @@ function VoiceApp({
                 trocar nome
               </button>
             </div>
-            <button
-              className={`icon-button ${voice.muted ? "danger" : ""}`}
-              onClick={() => void voice.toggleMute()}
+            <MicButton
+              track={voice.micTrack}
+              muted={voice.muted}
               disabled={!connected}
-              title={voice.muted ? "Desmutar" : "Mutar"}
-            >
-              {voice.muted ? <MicOffIcon /> : <MicIcon />}
-            </button>
+              onToggle={() => void voice.toggleMute()}
+            />
           </div>
         </footer>
       </aside>
@@ -262,6 +261,32 @@ function VoiceApp({
         )}
       </main>
     </div>
+  );
+}
+
+// Componente separado: o volume atualiza ~20x por segundo e só ele re-renderiza
+function MicButton({
+  track,
+  muted,
+  disabled,
+  onToggle,
+}: {
+  track: LocalAudioTrack | null;
+  muted: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  const { level, speaking } = useMicLevel(track, muted);
+  return (
+    <button
+      className={`icon-button mic ${muted ? "danger" : ""} ${speaking ? "speaking" : ""}`}
+      style={{ "--level": level } as React.CSSProperties}
+      onClick={onToggle}
+      disabled={disabled}
+      title={muted ? "Desmutar" : speaking ? "Seu microfone está captando som" : "Mutar"}
+    >
+      {muted ? <MicOffIcon /> : <MicIcon />}
+    </button>
   );
 }
 
