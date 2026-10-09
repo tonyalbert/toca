@@ -150,3 +150,22 @@ export function CrownIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function HeadphonesIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+    </svg>
+  );
+}
+
+export function HeadphonesOffIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M2 2l20 20" />
+      <path d="M3 18v-6a9 9 0 0 1 2.64-6.36M8.4 3.8A9 9 0 0 1 21 12v4" />
+      <path d="M21 19a2 2 0 0 1-.6 1.4M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+    </svg>
+  );
+}

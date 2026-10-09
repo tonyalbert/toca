@@ -12,6 +12,8 @@ import {
   CameraOffIcon,
   GearIcon,
   HangUpIcon,
+  HeadphonesIcon,
+  HeadphonesOffIcon,
   MicIcon,
   MicOffIcon,
   PlusIcon,
@@ -270,7 +272,9 @@ function MainApp({
                 </div>
                 <ul className="room-members">
                   {isCurrent && connected
-                    ? voice.participants.map((p) => <MemberRow key={p.identity} p={p} />)
+                    ? voice.participants.map((p) => (
+                        <MemberRow key={p.identity} p={p} deafened={p.isLocal && voice.deafened} />
+                      ))
                     : room.participants
                         .filter((p) => p.id !== me.id)
                         .map((p) => (
@@ -332,6 +336,13 @@ function MainApp({
               disabled={!connected}
               onToggle={() => void voice.toggleMute()}
             />
+            <button
+              className={`icon-button ${voice.deafened ? "danger" : ""}`}
+              onClick={() => void voice.toggleDeafen()}
+              title={voice.deafened ? "Voltar a ouvir a sala" : "Parar de ouvir a sala (muta o fone)"}
+            >
+              {voice.deafened ? <HeadphonesOffIcon /> : <HeadphonesIcon />}
+            </button>
             <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Configurações de voz e vídeo">
               <GearIcon />
             </button>
@@ -464,14 +475,15 @@ function MicButton({
   );
 }
 
-function MemberRow({ p }: { p: VoiceParticipant }) {
+function MemberRow({ p, deafened }: { p: VoiceParticipant; deafened: boolean }) {
   return (
     <li className={`member ${p.isSpeaking ? "speaking" : ""}`}>
       <Avatar name={p.name} size={22} />
       <span className="member-name">{p.name}</span>
       {p.screenTrack && <span className="live-badge">AO VIVO</span>}
       {p.cameraTrack && <CameraIcon className="member-icon camera" />}
-      {p.isMuted && <MicOffIcon className="member-icon" />}
+      {p.isMuted && !deafened && <MicOffIcon className="member-icon" />}
+      {deafened && <HeadphonesOffIcon className="member-icon" />}
     </li>
   );
 }

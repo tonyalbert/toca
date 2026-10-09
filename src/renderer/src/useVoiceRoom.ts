@@ -127,6 +127,19 @@ export function useVoiceRoom() {
   // Elementos <audio> dos participantes remotos
   const audioContainer = useRef<HTMLDivElement | null>(null);
 
+  // Fone mutado: não toca o áudio de ninguém e o microfone fica desligado.
+  // Vale entre salas (como uma preferência) até a pessoa desmutar.
+  const [deafened, setDeafened] = useState(false);
+  const deafenedRef = useRef(false);
+  // O microfone estava ligado quando mutou o fone? Ao desmutar, volta como estava.
+  const micOnBeforeDeafen = useRef(true);
+
+  const applyDeafen = (value: boolean) => {
+    deafenedRef.current = value;
+    setDeafened(value);
+    audioContainer.current?.querySelectorAll("audio").forEach((el) => (el.muted = value));
+  };
+
   useEffect(() => {
     const div = document.createElement("div");
     div.style.display = "none";
@@ -180,7 +193,9 @@ export function useVoiceRoom() {
       room
         .on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
           if (track.kind === Track.Kind.Audio) {
-            audioContainer.current?.appendChild(track.attach());
+            const el = track.attach();
+            el.muted = deafenedRef.current;
+            audioContainer.current?.appendChild(el);
           }
           sync();
         })
@@ -227,7 +242,9 @@ export function useVoiceRoom() {
       }
 
       try {
-        await room.localParticipant.setMicrophoneEnabled(true);
+        // Com o fone mutado, entra com o microfone desligado (liga ao desmutar)
+        if (deafenedRef.current) micOnBeforeDeafen.current = true;
+        else await room.localParticipant.setMicrophoneEnabled(true);
       } catch (err) {
         // Conectado, mas sem microfone (sem permissão ou sem dispositivo)
         setState((s) => ({ ...s, error: `Microfone indisponível: ${(err as Error).message}` }));
@@ -237,10 +254,44 @@ export function useVoiceRoom() {
     [leave],
   );
 
+  const setMic = async (room: Room, enabled: boolean) => {
+    const lp = room.localParticipant;
+    try {
+      await lp.setMicrophoneEnabled(enabled);
+      setState((s) => ({ ...s, error: null }));
+    } catch (err) {
+      setState((s) => ({ ...s, error: `Microfone indisponível: ${(err as Error).message}` }));
+    }
+    setState((s) => ({
+      ...s,
+      muted: !lp.isMicrophoneEnabled,
+      participants: snapshot(room),
+      micMediaTrack: localMicTrack(room),
+    }));
+  };
+
+  const toggleDeafen = useCallback(async () => {
+    const room = roomRef.current;
+    const connected = room?.state === ConnectionState.Connected;
+    if (!deafenedRef.current) {
+      micOnBeforeDeafen.current = connected ? room!.localParticipant.isMicrophoneEnabled : true;
+      applyDeafen(true);
+      if (connected && room!.localParticipant.isMicrophoneEnabled) await setMic(room!, false);
+    } else {
+      applyDeafen(false);
+      if (connected && micOnBeforeDeafen.current) await setMic(room!, true);
+    }
+  }, []);
+
   const toggleMute = useCallback(async () => {
     const room = roomRef.current;
     if (!room || room.state !== ConnectionState.Connected) return;
     const lp = room.localParticipant;
+    // Desmutar o microfone com o fone mutado desmuta os dois
+    if (deafenedRef.current && !lp.isMicrophoneEnabled) {
+      micOnBeforeDeafen.current = true;
+      return toggleDeafen();
+    }
     try {
       await lp.setMicrophoneEnabled(!lp.isMicrophoneEnabled);
       setState((s) => ({ ...s, error: null }));
@@ -253,7 +304,7 @@ export function useVoiceRoom() {
       participants: snapshot(room),
       micMediaTrack: localMicTrack(room),
     }));
-  }, []);
+  }, [toggleDeafen]);
 
   const toggleCamera = useCallback(async () => {
     const room = roomRef.current;
@@ -388,6 +439,8 @@ export function useVoiceRoom() {
     join,
     leave,
     toggleMute,
+    deafened,
+    toggleDeafen,
     toggleCamera,
     startScreenShare,
     stopScreenShare,
