@@ -18,6 +18,7 @@ import { Input } from "./components/Input";
 import { Modal } from "./components/Modal";
 import { PersonRow } from "./components/PersonRow";
 import { RoomIconPicker } from "./components/RoomIconPicker";
+import { FriendAction } from "./people";
 
 /** Nova sala: nome, ícone e os amigos que já entram nela */
 export function CreateRoomModal({
@@ -291,6 +292,9 @@ function MembersTab({
               username={m.username}
               detail={m.id === me.id ? "você" : undefined}
             >
+              {m.id !== me.id && (
+                <FriendAction hideFriend person={{ id: m.id, name: m.displayName, username: m.username, avatar: m.avatar }} />
+              )}
               {m.role === "owner" && <span className="badge accent">Criou a sala</span>}
               {isOwner && m.role !== "owner" && confirming === m.id && (
                 <>

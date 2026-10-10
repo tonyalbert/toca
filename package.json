@@ -1,7 +1,7 @@
 {
   "name": "toca-desktop",
   "productName": "Toca",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "private": true,
   "description": "Toca - chamadas de voz em grupo",
   "main": "./out/main/index.js",
@@ -40,7 +40,8 @@
     "electron-winstaller": false
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "uiohook-napi": "^1.5.5"
   },
   "author": "tonyalbert"
 }

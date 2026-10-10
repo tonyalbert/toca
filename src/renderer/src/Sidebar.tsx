@@ -17,6 +17,7 @@ import { useMicLevel } from "./useMicLevel";
 import { Avatar, avatarMap } from "./components/Avatar";
 import { Button, IconButton } from "./components/Button";
 import { RoomIcon } from "./components/RoomIcon";
+import { usePeople } from "./people";
 
 /** Alguém numa sala, como aparece na lista lateral */
 interface RoomPerson {
@@ -55,7 +56,8 @@ export function Sidebar({
   voice: VoiceRoom;
   version: string | null;
   update: UpdateState;
-  view: "friends" | "voice";
+  /** O que a área principal mostra (destaca o botão certo) */
+  view: "friends" | "voice" | "config";
   onOpenRoom: (room: RoomInfo) => void;
   onRoomSettings: (roomId: string) => void;
   onCreateRoom: () => void;
@@ -63,6 +65,7 @@ export function Sidebar({
   onSettings: () => void;
   onProfile: () => void;
 }) {
+  const { openPerson } = usePeople();
   const connected = voice.connection === ConnectionState.Connected;
   const callRoom = rooms.find((r) => r.id === voice.room);
 
@@ -145,10 +148,18 @@ export function Sidebar({
                     </span>
                   )}
                 </span>
-                {people.length > 0 ? (
-                  <span className="room-ppl">
-                    {people.map((p) => (
-                      <span key={p.id} className={`rp ${p.talking ? "talk" : ""}`}>
+                {people.length === 0 && <span className="room-empty">Ninguém aqui agora</span>}
+              </button>
+              {people.length > 0 && (
+                <div className="room-ppl">
+                  {people.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`rp ${p.talking ? "talk" : ""}`}
+                      aria-label={`${p.name}${p.id === me.id ? " (você)" : ": volume e amizade"}`}
+                      onClick={(e) => openPerson(p.id, e.currentTarget)}
+                    >
                         <Avatar kind={p.avatar} size={20} talking={p.talking} mine={p.id === me.id} />
                         <span className="rp-name">{p.name}</span>
                         <span className="flags">
@@ -163,13 +174,10 @@ export function Sidebar({
                           {p.muted && !p.deafened && <MicOff size={14} aria-label="microfone desligado" />}
                           {p.deafened && <HeadphoneOff size={14} aria-label="fone desligado" />}
                         </span>
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="room-empty">Ninguém aqui agora</span>
-                )}
-              </button>
+                    </button>
+                  ))}
+                </div>
+              )}
               <IconButton
                 size="sm"
                 className="room-gear"
@@ -240,7 +248,13 @@ export function Sidebar({
               </span>
             )}
           </IconButton>
-          <IconButton size="sm" label="Configurações de voz e vídeo" onClick={onSettings}>
+          <IconButton
+            size="sm"
+            solid={view === "config"}
+            label="Configurações"
+            aria-current={view === "config" ? "page" : undefined}
+            onClick={onSettings}
+          >
             <SlidersHorizontal size={18} aria-hidden="true" />
           </IconButton>
         </div>

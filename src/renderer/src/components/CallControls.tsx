@@ -15,6 +15,7 @@ export function CallControls({
   onToggleCamera,
   onShareScreen,
   onLeave,
+  ptt,
 }: {
   connected: boolean;
   muted: boolean;
@@ -28,10 +29,17 @@ export function CallControls({
   /** Abre o seletor (ou para, se já estiver compartilhando) */
   onShareScreen: () => void;
   onLeave: () => void;
+  /** Apertar para falar: qual tecla e se está segurada */
+  ptt?: { label: string; held: boolean } | null;
 }) {
   return (
     <div className="ctrl-wrap">
       <div className="ctrl" role="toolbar" aria-label="Controles da chamada">
+        {ptt && (
+          <span className={`ptt-pill ${ptt.held ? "on" : ""}`} role="status">
+            {ptt.held ? "Falando" : `Segure ${ptt.label} para falar`}
+          </span>
+        )}
         <MicControl track={micTrack} muted={muted} disabled={!connected} onToggle={onToggleMic} />
         <ControlButton
           label={deafened ? "Voltar a ouvir a sala" : "Parar de ouvir a sala"}

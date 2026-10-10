@@ -72,6 +72,7 @@ export function useTocaData(onEvent: (event: RealtimeEvent) => void): TocaData {
         case "friend_request_declined":
         case "friend_request_canceled":
         case "friend_removed":
+        case "friends_changed":
           void reloadFriends();
           break;
         case "user_updated":

@@ -10,6 +10,9 @@ import { ParticipantCard, type TileVariant } from "./components/ParticipantCard"
 import { RoomIcon } from "./components/RoomIcon";
 import { VideoView } from "./components/VideoView";
 import { VolumeControl } from "./components/VolumeControl";
+import { usePeople } from "./people";
+import { useFitGrid } from "./useFitGrid";
+import { useAudioSettings } from "./audioSettings";
 
 /** Um quadro da sala: a câmera (ou o bichinho) de alguém, ou uma tela compartilhada */
 interface Tile {
@@ -42,6 +45,8 @@ export function VoiceRoomView({
   /** Abre o seletor de tela */
   onShareScreen: () => void;
 }) {
+  const { openPerson } = usePeople();
+  const [audio] = useAudioSettings();
   const connected = voice.connection === ConnectionState.Connected;
   const people = voice.participants;
   const others = people.filter((p) => !p.isLocal);
@@ -76,6 +81,9 @@ export function VoiceRoomView({
   }, [remoteKeys, allScreenKeys]);
 
   const focused = tiles.find((t) => t.key === focusKey && zoomable(t));
+  // Grade 16:9 que cabe na área (o elemento só existe quando ninguém está em destaque)
+  const [gridEl, setGridEl] = useState<HTMLDivElement | null>(null);
+  const fit = useFitGrid(focused ? null : gridEl, tiles.length);
   // Câmera em destaque desligou (ou a pessoa saiu): volta para a grade
   useEffect(() => {
     if (focusKey && !focused) setFocusKey(null);
@@ -123,6 +131,7 @@ export function VoiceRoomView({
           key={t.key}
           p={p}
           variant={variant}
+          onScreenVolume={(v) => voice.setParticipantVolume(p.identity, v, "screen")}
           onActivate={variant === "main" ? undefined : () => focus(t.key)}
         />
       );
@@ -131,6 +140,7 @@ export function VoiceRoomView({
       <ParticipantCard
         key={t.key}
         variant={variant}
+        avatarSize={variant === "grid" && fit ? Math.round(Math.min(128, Math.max(40, fit.height * 0.42))) : undefined}
         name={p.name}
         avatar={avatars.get(p.identity) ?? "rabbit"}
         isLocal={p.isLocal}
@@ -139,8 +149,7 @@ export function VoiceRoomView({
         deafened={p.isLocal ? voice.deafened : p.isDeafened}
         video={p.cameraTrack}
         volume={p.volume}
-        maxVolume={MAX_VOLUME}
-        onVolume={p.isLocal ? undefined : (v) => voice.setParticipantVolume(p.identity, v)}
+        onPerson={(anchor) => openPerson(p.identity, anchor)}
         onActivate={variant !== "main" && p.cameraTrack ? () => focus(t.key) : undefined}
         activateLabel={p.isLocal ? "Ampliar sua câmera" : `Ampliar a câmera de ${p.name}`}
       />
@@ -192,16 +201,6 @@ export function VoiceRoomView({
           <div className="focus-main" ref={mainRef} onDoubleClick={toggleFullscreen}>
             {renderTile(focused, "main")}
             <div className="focus-tools">
-              {focused.kind === "screen" && !focused.p.isLocal && focused.p.hasScreenAudio && (
-                <VolumeControl
-                  className="screen-vol"
-                  name={focused.p.name}
-                  title={`Som da tela de ${focused.p.name}`}
-                  volume={focused.p.screenVolume}
-                  max={MAX_VOLUME}
-                  onChange={(v) => voice.setParticipantVolume(focused.p.identity, v, "screen")}
-                />
-              )}
               <IconButton label={fullscreen ? "Sair da tela cheia" : "Tela cheia"} onClick={toggleFullscreen}>
                 {fullscreen ? <Minimize size={18} aria-hidden="true" /> : <Maximize size={18} aria-hidden="true" />}
               </IconButton>
@@ -217,7 +216,17 @@ export function VoiceRoomView({
           </div>
         </div>
       ) : (
-        <div className={`stage ${tiles.length === 1 ? "solo" : ""}`}>{tiles.map((t) => renderTile(t, "grid"))}</div>
+        <div
+          ref={setGridEl}
+          className="stage"
+          style={
+            fit
+              ? { gridTemplateColumns: `repeat(${fit.columns}, ${fit.width}px)`, gridAutoRows: `${fit.height}px` }
+              : { visibility: "hidden" }
+          }
+        >
+          {tiles.map((t) => renderTile(t, "grid"))}
+        </div>
       )}
 
       <CallControls
@@ -232,6 +241,7 @@ export function VoiceRoomView({
         onToggleCamera={() => void voice.toggleCamera()}
         onShareScreen={() => (voice.screenSharing ? void voice.stopScreenShare() : onShareScreen())}
         onLeave={() => void voice.leave()}
+        ptt={audio.micMode === "ptt" && audio.pttLabel ? { label: audio.pttLabel, held: voice.pttHeld } : null}
       />
     </>
   );
@@ -248,10 +258,13 @@ function ScreenTile({
   p,
   variant,
   onActivate,
+  onScreenVolume,
 }: {
   p: VoiceParticipant;
   variant: TileVariant;
   onActivate?: () => void;
+  /** Volume do som do PC que vem junto com a tela */
+  onScreenVolume: (volume: number) => void;
 }) {
   const title = screenTitle(p);
   return (
@@ -262,6 +275,16 @@ function ScreenTile({
         <span className="who">
           {variant === "strip" ? (p.isLocal ? "Sua tela" : p.name) : title}
         </span>
+        {!p.isLocal && p.hasScreenAudio && variant !== "strip" && (
+          <VolumeControl
+            className="screen-vol"
+            name={p.name}
+            title={`Som da tela de ${p.name}`}
+            volume={p.screenVolume}
+            max={MAX_VOLUME}
+            onChange={onScreenVolume}
+          />
+        )}
       </div>
       <VideoView key={p.identity} track={p.screenTrack!} className="screen-video" />
     </div>

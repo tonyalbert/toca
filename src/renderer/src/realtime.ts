@@ -7,6 +7,8 @@ export type RealtimeEvent =
   | { type: "friend_request_declined"; requestId: string }
   | { type: "friend_request_canceled"; requestId: string }
   | { type: "friend_removed"; userId: string }
+  /** Você enviou, recusou ou cancelou um pedido em outro PC */
+  | { type: "friends_changed" }
   /** Amigo, colega de sala ou você mesmo (em outro PC) trocou o nome */
   | { type: "user_updated"; user: User }
   /** Amigo abriu ou fechou o app */

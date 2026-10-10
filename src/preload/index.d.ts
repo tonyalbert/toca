@@ -1,5 +1,6 @@
 import type { ScreenAudioStartResult, ScreenSource } from "../shared/screen";
 import type { UpdateState } from "../shared/update";
+import type { PushToTalkBinding } from "../shared/pushToTalk";
 
 declare global {
   interface Window {
@@ -17,6 +18,13 @@ declare global {
       isWindowMaximized(): Promise<boolean>;
       /** Retorna a função que cancela a inscrição */
       onWindowMaximized(callback: (maximized: boolean) => void): () => void;
+      /** Liga a tecla de apertar para falar (null desliga a escuta do teclado) */
+      setPushToTalk(binding: PushToTalkBinding | null): Promise<void>;
+      /** Espera a próxima tecla ou botão lateral do mouse (Esc cancela: null) */
+      recordPushToTalk(): Promise<{ binding: PushToTalkBinding; label: string } | null>;
+      cancelRecordPushToTalk(): Promise<void>;
+      /** Tecla apertada/solta; retorna a função que cancela a inscrição */
+      onPushToTalk(callback: (pressed: boolean) => void): () => void;
       /** Refresh token salvo (criptografado pelo Windows), ou null */
       loadSession(): Promise<string | null>;
       /** null apaga a sessão salva */

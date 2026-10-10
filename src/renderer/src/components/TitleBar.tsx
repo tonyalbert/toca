@@ -29,7 +29,7 @@ export function TitleBar({ update, onInstall }: { update: UpdateState; onInstall
         <button
           className="upd-pill"
           onClick={onInstall}
-          data-tip={`Versão ${update.version} pronta. O app reinicia e volta em seguida (a chamada atual é encerrada).`}
+          data-tip={`Versão ${update.version} pronta. O app reinicia em segundos e você volta para a mesma sala.`}
         >
           <Download size={14} aria-hidden="true" />
           Atualizar

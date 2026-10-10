@@ -14,6 +14,10 @@ import {
   type VideoTrack,
 } from "livekit-client";
 import { fetchRoomToken } from "./api";
+import { getAudioSettings, onAudioSettings } from "./audioSettings";
+import { MicProcessor } from "./micProcessor";
+import { getNotifyPrefs } from "./notifyPrefs";
+import { playCue } from "./sounds";
 import { startScreenAudio, type ScreenAudio } from "./screenAudio";
 import {
   DEFAULT_DEVICE,
@@ -159,6 +163,12 @@ export function useVoiceRoom() {
   const [state, setState] = useState<VoiceState>(initialState);
   const [micDeviceId, setMicDeviceIdState] = useState(() => loadDeviceId("audioinput"));
   const micDeviceRef = useRef(micDeviceId);
+  const [outputDeviceId, setOutputDeviceIdState] = useState(() => loadDeviceId("audiooutput"));
+  const outputDeviceRef = useRef(outputDeviceId);
+  const processorRef = useRef<MicProcessor | null>(null);
+  // Apertar para falar: tecla segurada agora
+  const [pttHeld, setPttHeld] = useState(false);
+  const pttHeldRef = useRef(false);
   const [cameraDeviceId, setCameraDeviceIdState] = useState(() => loadDeviceId("videoinput"));
   const cameraDeviceRef = useRef(cameraDeviceId);
   const roomRef = useRef<Room | null>(null);
@@ -185,14 +195,23 @@ export function useVoiceRoom() {
   const micOnBeforeDeafen = useRef(true);
 
   const volumesRef = useRef(loadVolumes());
+  // Quem já estava na sala ao entrar não conta como "entrou"
+  const connectedAt = useRef(0);
+
+  /** Som da sala (respeita a preferência e o fone desligado) */
+  const cue = (room: Room, kind: "join" | "leave" | "self") => {
+    if (roomRef.current !== room || deafenedRef.current || !getNotifyPrefs().roomSounds) return;
+    if (kind !== "self" && performance.now() - connectedAt.current < 1500) return;
+    void playCue(kind);
+  };
 
   /** Volume de cada pessoa da sala; com o fone desligado, tudo em 0 */
   const applyVolumes = (room: Room | null) => {
     if (!room) return;
+    const all = deafenedRef.current ? 0 : getAudioSettings().outputVolume;
     for (const p of room.remoteParticipants.values()) {
-      const off = deafenedRef.current;
-      p.setVolume(off ? 0 : (volumesRef.current.get(p.identity) ?? 1), Track.Source.Microphone);
-      p.setVolume(off ? 0 : (volumesRef.current.get(screenKey(p.identity)) ?? 1), Track.Source.ScreenShareAudio);
+      p.setVolume(all * (volumesRef.current.get(p.identity) ?? 1), Track.Source.Microphone);
+      p.setVolume(all * (volumesRef.current.get(screenKey(p.identity)) ?? 1), Track.Source.ScreenShareAudio);
     }
   };
 
@@ -216,6 +235,8 @@ export function useVoiceRoom() {
     roomRef.current = null;
     await stopScreenAudio(null);
     if (room) await room.disconnect();
+    await processorRef.current?.destroy();
+    processorRef.current = null;
     setState((s) => ({ ...initialState, error: s.error }));
   }, []);
 
@@ -236,9 +257,10 @@ export function useVoiceRoom() {
         audioCaptureDefaults: {
           deviceId: captureDeviceId(await availableDeviceId("audioinput", micDeviceRef.current)),
           echoCancellation: true,
-          noiseSuppression: true,
+          noiseSuppression: getAudioSettings().noiseSuppression,
           autoGainControl: true,
         },
+        audioOutput: { deviceId: await availableDeviceId("audiooutput", outputDeviceRef.current) },
       });
       roomRef.current = room;
 
@@ -269,9 +291,13 @@ export function useVoiceRoom() {
         })
         .on(RoomEvent.ParticipantConnected, () => {
           applyVolumes(room);
+          cue(room, "join");
           sync();
         })
-        .on(RoomEvent.ParticipantDisconnected, sync)
+        .on(RoomEvent.ParticipantDisconnected, () => {
+          cue(room, "leave");
+          sync();
+        })
         .on(RoomEvent.ParticipantNameChanged, sync)
         .on(RoomEvent.ParticipantAttributesChanged, sync)
         .on(RoomEvent.ActiveSpeakersChanged, sync)
@@ -279,7 +305,19 @@ export function useVoiceRoom() {
         .on(RoomEvent.TrackUnmuted, sync)
         .on(RoomEvent.TrackPublished, sync)
         .on(RoomEvent.TrackUnpublished, sync)
-        .on(RoomEvent.LocalTrackPublished, sync)
+        .on(RoomEvent.LocalTrackPublished, (pub) => {
+          if (pub.source === Track.Source.Microphone && pub.track instanceof LocalAudioTrack) {
+            const processor = new MicProcessor(getAudioSettings());
+            processor.setPushToTalk(pttHeldRef.current);
+            processorRef.current = processor;
+            pub.track.setProcessor(processor).catch((err: Error) => {
+              // Sem processador o microfone funciona igual, só sem volume/sensibilidade
+              console.warn("processador do microfone indisponível:", err.message);
+              processorRef.current = null;
+            });
+          }
+          sync();
+        })
         .on(RoomEvent.LocalTrackUnpublished, (pub) => {
           // Tela parou (pelo botão ou pelo sistema): o áudio dela para junto
           if (pub.source === Track.Source.ScreenShare) void stopScreenAudio(room);
@@ -300,6 +338,8 @@ export function useVoiceRoom() {
         const { token, url } = await fetchRoomToken(roomId);
         if (roomRef.current !== room) return; // usuário saiu/trocou de sala no meio
         await room.connect(url, token);
+        connectedAt.current = performance.now();
+        cue(room, "self");
       } catch (err) {
         if (roomRef.current === room) {
           roomRef.current = null;
@@ -505,6 +545,66 @@ export function useVoiceRoom() {
     if (room) setState((s) => ({ ...s, participants: snapshot(room, volumesRef.current) }));
   }, []);
 
+  // Preferências de áudio mudaram (página de Configurações): valem na hora
+  useEffect(() => {
+    let noise = getAudioSettings().noiseSuppression;
+    return onAudioSettings((settings) => {
+      processorRef.current?.update(settings);
+      const room = roomRef.current;
+      applyVolumes(room);
+      if (settings.noiseSuppression !== noise && room) {
+        noise = settings.noiseSuppression;
+        const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+        if (track instanceof LocalAudioTrack) {
+          void track
+            .restartTrack({
+              deviceId: captureDeviceId(micDeviceRef.current),
+              echoCancellation: true,
+              noiseSuppression: noise,
+              autoGainControl: true,
+            })
+            .then(() => setState((s) => ({ ...s, micMediaTrack: localMicTrack(room) })))
+            .catch((err: Error) => setState((s) => ({ ...s, error: `Não foi possível reiniciar o microfone: ${err.message}` })));
+        }
+      }
+      noise = settings.noiseSuppression;
+    });
+  }, []);
+
+  // Apertar para falar: a escuta global do teclado só fica ligada no modo
+  useEffect(() => {
+    const syncBinding = () => {
+      const s = getAudioSettings();
+      void window.toca.setPushToTalk(s.micMode === "ptt" ? s.pttBinding : null);
+    };
+    syncBinding();
+    const offSettings = onAudioSettings(syncBinding);
+    const offKey = window.toca.onPushToTalk((pressed) => {
+      pttHeldRef.current = pressed;
+      setPttHeld(pressed);
+      processorRef.current?.setPushToTalk(pressed);
+    });
+    return () => {
+      offSettings();
+      offKey();
+      void window.toca.setPushToTalk(null);
+    };
+  }, []);
+
+  /** Troca a saída de som (fone ou alto-falante); numa sala, a troca é na hora */
+  const setOutputDevice = useCallback(async (deviceId: string) => {
+    outputDeviceRef.current = deviceId;
+    setOutputDeviceIdState(deviceId);
+    saveDeviceId("audiooutput", deviceId);
+    const room = roomRef.current;
+    if (!room || room.state !== ConnectionState.Connected) return;
+    try {
+      await room.switchActiveDevice("audiooutput", deviceId);
+    } catch (err) {
+      setState((s) => ({ ...s, error: `Não foi possível trocar a saída de som: ${(err as Error).message}` }));
+    }
+  }, []);
+
   const clearError = useCallback(() => setState((s) => ({ ...s, error: null })), []);
   const showError = useCallback((error: string) => setState((s) => ({ ...s, error })), []);
 
@@ -532,6 +632,9 @@ export function useVoiceRoom() {
     stopScreenShare,
     setMicDevice,
     setCameraDevice,
+    outputDeviceId,
+    setOutputDevice,
+    pttHeld,
     setParticipantVolume,
     clearError,
     showError,

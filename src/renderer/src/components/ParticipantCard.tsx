@@ -1,10 +1,9 @@
-import { useState } from "react";
 import type { VideoTrack } from "livekit-client";
-import { HeadphoneOff, MicOff } from "lucide-react";
+import { HeadphoneOff, MicOff, MoreHorizontal, Volume1, VolumeX } from "lucide-react";
 import type { Avatar as AvatarKind } from "../api";
 import { Avatar } from "./Avatar";
 import { VideoView } from "./VideoView";
-import { VolumeControl } from "./VolumeControl";
+import { IconButton } from "./Button";
 
 /** grade: todos do mesmo tamanho · faixa: miniatura ao lado do destaque · destaque: grande */
 export type TileVariant = "grid" | "strip" | "main";
@@ -18,12 +17,13 @@ export interface ParticipantCardProps {
   deafened: boolean;
   /** Câmera ligada: o vídeo ocupa o cartão */
   video?: VideoTrack | null;
-  /** Volume com que você ouve a pessoa (1 = 100%) */
+  /** Volume com que você ouve a pessoa (1 = 100%); fora de 100% aparece no canto */
   volume?: number;
-  maxVolume?: number;
-  /** Só para os outros: muda o volume (o seu próprio cartão não tem) */
-  onVolume?: (volume: number) => void;
+  /** Abre o cartão da pessoa (volume e amizade) perto do elemento */
+  onPerson?: (anchor: Element) => void;
   variant?: TileVariant;
+  /** Tamanho do bichinho (a grade calcula pelo tamanho do quadro) */
+  avatarSize?: number;
   /** Clique no cartão (ex.: ampliar a câmera); o texto vai para leitores de tela */
   onActivate?: () => void;
   activateLabel?: string;
@@ -43,18 +43,18 @@ export function ParticipantCard({
   deafened,
   video,
   volume = 1,
-  maxVolume = 2,
-  onVolume,
+  onPerson,
   variant = "grid",
+  avatarSize: avatarSizeProp,
   onActivate,
   activateLabel,
 }: ParticipantCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const state = deafened ? "Fone desligado" : muted ? "Microfone desligado" : talking ? "Falando agora" : "";
-  const aria = [name, isLocal && "você", state.toLowerCase(), onVolume && volume !== 1 && `volume ${Math.round(volume * 100)}%`]
+  const percent = Math.round(volume * 100);
+  const aria = [name, isLocal && "você", state.toLowerCase(), !isLocal && percent !== 100 && `volume ${percent}%`]
     .filter(Boolean)
     .join(", ");
-  const avatarSize = variant === "strip" ? 44 : variant === "main" ? 128 : 104;
+  const avatarSize = avatarSizeProp ?? (variant === "strip" ? 44 : variant === "main" ? 128 : 104);
 
   return (
     <div
@@ -62,16 +62,22 @@ export function ParticipantCard({
       role="group"
       aria-label={aria}
       onContextMenu={
-        onVolume
+        onPerson
           ? (e) => {
               e.preventDefault();
-              setMenuOpen(true);
+              onPerson(e.currentTarget.querySelector(".pc-more") ?? e.currentTarget);
             }
           : undefined
       }
     >
-      {onActivate && (
-        <button type="button" className="pc-hit" aria-label={activateLabel ?? `Ampliar ${name}`} onClick={onActivate} />
+      {/* Clique no quadro: amplia a câmera; sem câmera, abre o cartão da pessoa */}
+      {(onActivate || onPerson) && (
+        <button
+          type="button"
+          className="pc-hit"
+          aria-label={onActivate ? (activateLabel ?? `Ampliar ${name}`) : `${name}: volume e amizade`}
+          onClick={(e) => (onActivate ? onActivate() : onPerson?.(e.currentTarget.parentElement?.querySelector(".pc-more") ?? e.currentTarget))}
+        />
       )}
       {isLocal && variant !== "strip" && <span className="you">você</span>}
       {video ? (
@@ -106,16 +112,24 @@ export function ParticipantCard({
           </span>
         )}
       </span>
-      {onVolume && (
-        <VolumeControl
-          className="pc-vol"
-          name={name}
-          volume={volume}
-          max={maxVolume}
-          open={menuOpen}
-          onOpenChange={setMenuOpen}
-          onChange={onVolume}
-        />
+      {onPerson && (
+        <div className={`pc-vol ${!isLocal && percent !== 100 ? "is-set" : ""}`}>
+          <IconButton
+            size="sm"
+            className="pc-more"
+            label={isLocal ? "Seu perfil" : `${name}: volume e amizade`}
+            onClick={(e) => onPerson(e.currentTarget)}
+          >
+            {!isLocal && percent !== 100 ? (
+              <>
+                {percent === 0 ? <VolumeX size={15} aria-hidden="true" /> : <Volume1 size={15} aria-hidden="true" />}
+                <span className="vol-pct num">{percent}%</span>
+              </>
+            ) : (
+              <MoreHorizontal size={16} aria-hidden="true" />
+            )}
+          </IconButton>
+        </div>
       )}
     </div>
   );

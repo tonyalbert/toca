@@ -82,6 +82,7 @@ export function VolumeControl({
             value={percent}
             aria-label={heading}
             aria-valuetext={`${percent}%`}
+            style={{ "--pct": `${percent / max}%` } as React.CSSProperties}
             onChange={(e) => onChange(Number(e.target.value) / 100)}
           />
           <div className="row" style={{ justifyContent: "space-between" }}>

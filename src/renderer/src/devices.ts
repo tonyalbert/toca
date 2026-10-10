@@ -1,11 +1,12 @@
-export type DeviceKind = "audioinput" | "videoinput";
+export type DeviceKind = "audioinput" | "audiooutput" | "videoinput";
 
 const STORAGE_KEY: Record<DeviceKind, string> = {
   audioinput: "toca.micDeviceId",
+  audiooutput: "toca.outputDeviceId",
   videoinput: "toca.cameraDeviceId",
 };
 
-/** "default" = deixa o Windows escolher (microfone padrão / primeira câmera) */
+/** "default" = deixa o Windows escolher (microfone/saída padrão, primeira câmera) */
 export const DEFAULT_DEVICE = "default";
 
 export function loadDeviceId(kind: DeviceKind): string {
@@ -29,8 +30,10 @@ export interface DeviceOption {
   label: string;
 }
 
+const GENERIC: Record<DeviceKind, string> = { audioinput: "Microfone", audiooutput: "Saída de som", videoinput: "Câmera" };
+
 /**
- * Microfones ou câmeras disponíveis. Os nomes só aparecem depois que o app já
+ * Microfones, saídas de som ou câmeras disponíveis. Os nomes só aparecem depois que o app já
  * usou o dispositivo uma vez (permissão concedida).
  */
 export async function listDevices(kind: DeviceKind): Promise<DeviceOption[]> {
@@ -42,8 +45,8 @@ export async function listDevices(kind: DeviceKind): Promise<DeviceOption[]> {
     deviceId: d.deviceId,
     label:
       d.deviceId === DEFAULT_DEVICE
-        ? `Padrão do Windows (${d.label.replace(/^Default - /, "") || "microfone"})`
-        : d.label || `${kind === "audioinput" ? "Microfone" : "Câmera"} ${i + 1}`,
+        ? `Padrão do Windows (${d.label.replace(/^Default - /, "") || GENERIC[kind].toLowerCase()})`
+        : d.label || `${GENERIC[kind]} ${i + 1}`,
   }));
   // Para câmeras o Chromium não tem um item "padrão"; criamos um
   if (kind === "videoinput") {

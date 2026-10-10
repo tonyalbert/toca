@@ -6,18 +6,20 @@ import "@fontsource-variable/manrope";
 import App from "./App";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { TooltipLayer } from "./components/Tooltip";
+import { ToastProvider } from "./components/Toasts";
 import { initTheme } from "./theme";
 import "./styles/tokens.css";
 import "./styles/components.css";
-import "./styles.css";
 
 initTheme();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ConfirmProvider>
-      <App />
-      <TooltipLayer />
+      <ToastProvider>
+        <App />
+        <TooltipLayer />
+      </ToastProvider>
     </ConfirmProvider>
   </StrictMode>,
 );

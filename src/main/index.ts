@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { appIcon, hideOnClose, setupTray, showWindow } from "./tray";
 import { setupScreenShare } from "./screenShare";
 import { setupSession } from "./session";
+import { setupPushToTalk } from "./pushToTalk";
 import { setupUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
@@ -93,6 +94,7 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     setupWindowControls();
+    setupPushToTalk();
     setupScreenShare();
     setupSession();
 

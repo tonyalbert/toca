@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { ScreenAudioStartResult, ScreenSource } from "../shared/screen";
 import type { UpdateState } from "../shared/update";
+import type { PushToTalkBinding } from "../shared/pushToTalk";
 
 // Ponte mínima com o processo principal. Push-to-talk global vai entrar aqui.
 contextBridge.exposeInMainWorld("toca", {
@@ -24,6 +25,16 @@ contextBridge.exposeInMainWorld("toca", {
     ipcRenderer.on("window:maximized", listener);
     return () => {
       ipcRenderer.removeListener("window:maximized", listener);
+    };
+  },
+  setPushToTalk: (binding: PushToTalkBinding | null): Promise<void> => ipcRenderer.invoke("ptt:set", binding),
+  recordPushToTalk: (): Promise<{ binding: PushToTalkBinding; label: string } | null> => ipcRenderer.invoke("ptt:record"),
+  cancelRecordPushToTalk: (): Promise<void> => ipcRenderer.invoke("ptt:cancel-record"),
+  onPushToTalk: (callback: (pressed: boolean) => void) => {
+    const listener = (_e: IpcRendererEvent, pressed: boolean) => callback(pressed);
+    ipcRenderer.on("ptt:state", listener);
+    return () => {
+      ipcRenderer.removeListener("ptt:state", listener);
     };
   },
   loadSession: (): Promise<string | null> => ipcRenderer.invoke("session:load"),
