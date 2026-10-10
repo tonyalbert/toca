@@ -5,6 +5,7 @@ import type { UpdateState } from "../shared/update";
 const CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 min
 
 let state: UpdateState = { status: "idle" };
+let pendingCheck: Promise<void> | null = null;
 
 function setState(next: UpdateState): void {
   state = next;
@@ -13,17 +14,23 @@ function setState(next: UpdateState): void {
   }
 }
 
-function check(): void {
+function check(): Promise<void> {
   // Depois de baixada, não há o que verificar até o usuário reiniciar
-  if (state.status === "downloading" || state.status === "downloaded") return;
-  autoUpdater.checkForUpdates().catch((err: Error) => {
+  if (!app.isPackaged || state.status === "downloading" || state.status === "downloaded") return Promise.resolve();
+  if (pendingCheck) return pendingCheck;
+  pendingCheck = autoUpdater.checkForUpdates().then(() => {}).catch((err: Error) => {
     console.error("[updater] falha ao verificar:", err.message);
+    setState({ status: "error", message: err.message });
+  }).finally(() => {
+    pendingCheck = null;
   });
+  return pendingCheck;
 }
 
 export function setupUpdater(): void {
   ipcMain.handle("app:version", () => app.getVersion());
   ipcMain.handle("update:state", () => state);
+  ipcMain.handle("update:check", () => check());
   ipcMain.handle("update:install", () => {
     if (state.status !== "downloaded") return;
     // isSilent=true: instala sem mostrar o assistente; isForceRunAfter=true: reabre o app
@@ -38,9 +45,9 @@ export function setupUpdater(): void {
 
   autoUpdater
     .on("checking-for-update", () => {
-      if (state.status === "idle" || state.status === "error") setState({ status: "checking" });
+      setState({ status: "checking" });
     })
-    .on("update-not-available", () => setState({ status: "idle" }))
+    .on("update-not-available", () => setState({ status: "up-to-date" }))
     .on("update-available", (info) =>
       setState({ status: "downloading", version: info.version, percent: 0 }),
     )
@@ -55,6 +62,7 @@ export function setupUpdater(): void {
       setState({ status: "error", message: err.message });
     });
 
-  check();
-  setInterval(check, CHECK_INTERVAL_MS);
+  void check();
+  const timer = setInterval(() => void check(), CHECK_INTERVAL_MS);
+  app.once("before-quit", () => clearInterval(timer));
 }

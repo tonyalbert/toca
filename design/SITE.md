@@ -5,8 +5,8 @@ Referência: `TocaSite.dc.html` (página) + `toca-site.css` (estilos da página)
 ## Seções
 
 1. Barra fixa: ícone + "toca", links (Como é, Começar, Perguntas) e botão Baixar.
-2. Topo: "A sala da turma, sempre aberta.", subtítulo, botão "Baixar para Windows", linha "Versão 0.9.2 · Windows 10 e 11 · atualiza sozinho" e a tela real do app (sala Sofá) com arcos âmbar ao fundo.
-3. Como é: 3 cartões (salas fixas, quem fala acende, tela compartilhada com som) + 4 menores (bichinhos, amigos por @usuário, atualiza sozinho, escuro e claro).
+2. Topo: "A sala da turma, sempre aberta.", subtítulo, botão "Baixar para Windows", linha "Versão 0.9.2 · Windows 10 e 11" e a tela real do app (sala Sofá) com arcos âmbar ao fundo.
+3. Como é: 3 cartões (salas fixas, som limpo e tela nítida, tela compartilhada com som) + 4 menores (bichinhos, amigos por @usuário, só entra quem você chamou, escuro e claro).
 4. Começar: 3 passos (baixar, criar conta com código, chamar a turma).
 5. Perguntas: Mac/celular, amigos precisam instalar, aviso do Windows (SmartScreen), som do PC.
 6. Chamada final e rodapé "Toca é um app da Rabbit".

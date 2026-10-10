@@ -8,6 +8,7 @@ declare global {
       platform: string;
       getVersion(): Promise<string>;
       getUpdateState(): Promise<UpdateState>;
+      checkForUpdates(): Promise<void>;
       /** Retorna a função que cancela a inscrição */
       onUpdateState(callback: (state: UpdateState) => void): () => void;
       installUpdate(): Promise<void>;

@@ -20,6 +20,19 @@ export function TitleBar({ update, onInstall }: { update: UpdateState; onInstall
       <TocaMark size={20} />
       <span>Toca</span>
       <span className="spacer" />
+      {(update.status === "idle" || update.status === "up-to-date" || update.status === "error") && (
+        <button
+          className="upd-pill"
+          onClick={() => void window.toca.checkForUpdates()}
+          title={update.status === "error" ? update.message : undefined}
+          data-tip={update.status === "error" ? "Falha ao atualizar. Clique para tentar novamente." : "Verificar atualizações"}
+        >
+          {update.status === "error" ? "Falha na atualização · Tentar novamente" : update.status === "up-to-date" ? "Toca atualizado · Verificar" : "Verificar atualizações"}
+        </button>
+      )}
+      {update.status === "checking" && (
+        <span className="xs muted" role="status">Verificando atualizações…</span>
+      )}
       {update.status === "downloading" && (
         <span className="xs muted num" role="status">
           Baixando a versão {update.version}… {update.percent}%

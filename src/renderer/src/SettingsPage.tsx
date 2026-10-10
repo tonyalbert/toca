@@ -7,7 +7,8 @@ import { useNotifyPrefs } from "./notifyPrefs";
 import { playCue } from "./sounds";
 import { useTheme, type ThemePreference } from "./theme";
 import type { VoiceRoom } from "./useVoiceRoom";
-import { AVATAR_LABELS, Avatar, AvatarShape } from "./components/Avatar";
+import { Avatar } from "./components/Avatar";
+import { AvatarEditor } from "./components/AvatarEditor";
 import { Button } from "./components/Button";
 import { useConfirm } from "./components/ConfirmDialog";
 import { Input } from "./components/Input";
@@ -89,11 +90,14 @@ function ProfileSection({ me, onMeChange }: { me: Profile; onMeChange: (me: Prof
     try {
       const updated = await updateProfile(changes);
       onMeChange({ ...me, ...updated, username: me.username, displayName: updated.displayName ?? me.displayName });
-      if (changes.displayName) setResult({ ok: true, text: "Nome salvo. Os amigos já veem o novo." });
+      setResult({ ok: true, text: changes.avatar ? "Avatar salvo. Os amigos já veem o novo." : "Nome salvo. Os amigos já veem o novo." });
+      return true;
     } catch (err) {
       setResult({ ok: false, text: err instanceof ApiError ? err.message : (err as Error).message });
+      return false;
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   return (
@@ -127,53 +131,11 @@ function ProfileSection({ me, onMeChange }: { me: Profile; onMeChange: (me: Prof
             <Input label="@usuário" prefix="@" value={me.username} disabled hint="Não dá para trocar." readOnly />
             <Input label="E-mail" value={me.email ?? "Não cadastrado"} disabled readOnly />
           </div>
-          <AvatarPicker value={me.avatar} disabled={busy} onChange={(avatar) => void save({ avatar })} />
+
         </div>
       </div>
+      <AvatarEditor value={me.avatar} disabled={busy} onSave={(avatar) => save({ avatar })} />
     </section>
-  );
-}
-
-function AvatarPicker({ value, disabled, onChange }: { value: AvatarKind; disabled: boolean; onChange: (a: AvatarKind) => void }) {
-  const kinds: AvatarKind[] = ["rabbit", "cat", "bear"];
-  const ref = useRef<HTMLDivElement>(null);
-  return (
-    <div className="field">
-      <span className="label" id="cfg-bicho">
-        Seu bichinho
-      </span>
-      <div
-        ref={ref}
-        className="pick"
-        role="radiogroup"
-        aria-labelledby="cfg-bicho"
-        onKeyDown={(e) => {
-          const step = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[e.key];
-          if (step === undefined || disabled) return;
-          e.preventDefault();
-          const next = kinds[(kinds.indexOf(value) + step + kinds.length) % kinds.length];
-          onChange(next);
-          ref.current?.querySelector<HTMLElement>(`[data-kind="${next}"]`)?.focus();
-        }}
-      >
-        {kinds.map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="radio"
-            data-kind={k}
-            aria-checked={k === value}
-            aria-label={AVATAR_LABELS[k]}
-            data-tip={AVATAR_LABELS[k]}
-            tabIndex={k === value ? 0 : -1}
-            disabled={disabled}
-            onClick={() => k !== value && onChange(k)}
-          >
-            <AvatarShape kind={k} size={40} mine={k === value} />
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }
 

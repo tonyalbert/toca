@@ -7,8 +7,19 @@ export function useAppUpdate() {
 
   useEffect(() => {
     void window.toca.getVersion().then(setVersion);
-    void window.toca.getUpdateState().then(setUpdate);
-    return window.toca.onUpdateState(setUpdate);
+    let receivedEvent = false;
+    let active = true;
+    const unsubscribe = window.toca.onUpdateState((next) => {
+      receivedEvent = true;
+      setUpdate(next);
+    });
+    void window.toca.getUpdateState().then((initial) => {
+      if (active && !receivedEvent) setUpdate(initial);
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   return { version, update, install: () => void window.toca.installUpdate() };

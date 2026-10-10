@@ -1,7 +1,8 @@
 export const API_URL = (import.meta.env.VITE_API_URL ?? "https://api-toca.rabbitapps.com.br").replace(/\/$/, "");
 
-/** Bichinho do avatar: orelhas de coelho, gato ou urso */
-export type Avatar = "rabbit" | "cat" | "bear";
+/** Espécie legada ou receita versionada de avatar personalizado. */
+import type { Avatar } from "./avatar";
+export type { Avatar } from "./avatar";
 
 export const ROOM_ICONS = ["sofa", "game", "film", "music", "book", "moon"] as const;
 export type RoomIcon = (typeof ROOM_ICONS)[number];

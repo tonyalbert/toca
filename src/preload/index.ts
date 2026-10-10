@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("toca", {
   platform: process.platform,
   getVersion: (): Promise<string> => ipcRenderer.invoke("app:version"),
   getUpdateState: (): Promise<UpdateState> => ipcRenderer.invoke("update:state"),
+  checkForUpdates: (): Promise<void> => ipcRenderer.invoke("update:check"),
   onUpdateState: (callback: (state: UpdateState) => void) => {
     const listener = (_e: IpcRendererEvent, state: UpdateState) => callback(state);
     ipcRenderer.on("update:state", listener);
