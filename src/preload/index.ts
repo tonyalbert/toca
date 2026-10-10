@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("toca", {
     };
   },
   installUpdate: (): Promise<void> => ipcRenderer.invoke("update:install"),
+  isWindowVisible: (): Promise<boolean> => ipcRenderer.invoke("window:is-visible"),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke("window:toggle-maximize"),
   closeWindow: (): Promise<void> => ipcRenderer.invoke("window:close"),

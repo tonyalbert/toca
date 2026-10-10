@@ -4,7 +4,7 @@ import { appIcon, hideOnClose, setupTray, showWindow } from "./tray";
 import { setupScreenShare } from "./screenShare";
 import { setupSession } from "./session";
 import { setupPushToTalk } from "./pushToTalk";
-import { setupUpdater } from "./updater";
+import { setupUpdater, takeRestartMode } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -34,7 +34,12 @@ function createWindow(): void {
   });
   mainWindow = win;
 
-  win.once("ready-to-show", () => win.show());
+  // Depois de uma atualização feita com o app na bandeja (ou minimizado), volta assim
+  const mode = takeRestartMode();
+  win.once("ready-to-show", () => {
+    if (mode === "minimized") win.minimize();
+    else if (mode === "shown") win.show();
+  });
   // O botão de maximizar troca de ícone conforme o estado da janela
   const sendMaximized = () => win.webContents.send("window:maximized", win.isMaximized());
   win.on("maximize", sendMaximized);

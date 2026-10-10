@@ -12,6 +12,8 @@ declare global {
       /** Retorna a função que cancela a inscrição */
       onUpdateState(callback: (state: UpdateState) => void): () => void;
       installUpdate(): Promise<void>;
+      /** Janela à vista (nem na bandeja, nem minimizada) */
+      isWindowVisible(): Promise<boolean>;
       minimizeWindow(): Promise<void>;
       toggleMaximizeWindow(): Promise<void>;
       /** Esconde na bandeja (o app continua rodando) */
