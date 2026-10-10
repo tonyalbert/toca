@@ -6,6 +6,10 @@ directories:
   buildResources: build
   output: dist
 
+# Módulos nativos (uiohook-napi) usam N-API e já vêm compilados: não recompilar
+# (recompilar exigiria o Visual Studio)
+npmRebuild: false
+
 # Só o código já compilado pelo electron-vite vai para o instalador
 files:
   - out/**/*
