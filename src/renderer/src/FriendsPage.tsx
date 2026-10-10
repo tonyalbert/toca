@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, CircleAlert, Copy, MoreHorizontal, UserMinus, UserPlus } from "lucide-react";
+import { Check, CircleAlert, Copy, MoreHorizontal, UserMinus, UserPlus, MessageSquare } from "lucide-react";
 import {
   acceptFriendRequest,
   cancelFriendRequest,
@@ -11,7 +11,7 @@ import {
   type RoomInfo,
 } from "./api";
 import type { Presence } from "./components/Avatar";
-import { Button } from "./components/Button";
+import { Button, IconButton } from "./components/Button";
 import { useConfirm } from "./components/ConfirmDialog";
 import { EmptyState } from "./components/EmptyState";
 import { Input } from "./components/Input";
@@ -37,6 +37,7 @@ export function FriendsPage({
   currentRoomId,
   onChanged,
   onJoinRoom,
+  onMessage,
 }: {
   myUsername: string;
   friends: Friend[];
@@ -49,6 +50,8 @@ export function FriendsPage({
   /** Recarrega amigos e pedidos depois de uma ação */
   onChanged: () => Promise<void>;
   onJoinRoom: (room: RoomInfo) => void;
+  /** Abre a conversa direta com o amigo */
+  onMessage: (userId: string) => void;
 }) {
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>(incoming.length > 0 ? "incoming" : "all");
@@ -142,6 +145,9 @@ export function FriendsPage({
                         Entrar na {room.name}
                       </Button>
                     )}
+                    <IconButton size="sm" label={`Mensagem para ${f.displayName}`} onClick={() => onMessage(f.id)}>
+                      <MessageSquare size={17} aria-hidden="true" />
+                    </IconButton>
                     <Menu
                       label={`Mais opções para ${f.displayName}`}
                       icon={<MoreHorizontal size={18} aria-hidden="true" />}

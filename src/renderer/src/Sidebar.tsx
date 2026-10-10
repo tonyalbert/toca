@@ -2,15 +2,17 @@ import { ConnectionState } from "livekit-client";
 import {
   Headphones,
   HeadphoneOff,
+  MessageSquare,
   Mic,
   MicOff,
   PhoneOff,
   Plus,
   Settings,
   SlidersHorizontal,
+  SquarePen,
   Users,
 } from "lucide-react";
-import type { Avatar as AvatarKind, Friend, Profile, RoomInfo } from "./api";
+import type { Avatar as AvatarKind, DmSummary, Friend, Profile, RoomInfo } from "./api";
 import type { UpdateState } from "../../shared/update";
 import type { VoiceRoom } from "./useVoiceRoom";
 import { useMicLevel } from "./useMicLevel";
@@ -18,6 +20,7 @@ import { Avatar, avatarMap } from "./components/Avatar";
 import { Button, IconButton } from "./components/Button";
 import { RoomIcon } from "./components/RoomIcon";
 import { usePeople } from "./people";
+import type { ChatTarget } from "./useChat";
 
 /** Alguém numa sala, como aparece na lista lateral */
 interface RoomPerson {
@@ -46,6 +49,11 @@ export function Sidebar({
   onFriends,
   onSettings,
   onProfile,
+  dms,
+  roomUnread,
+  activeChat,
+  onOpenChat,
+  onNewDm,
 }: {
   me: Profile;
   rooms: RoomInfo[];
@@ -57,13 +65,21 @@ export function Sidebar({
   version: string | null;
   update: UpdateState;
   /** O que a área principal mostra (destaca o botão certo) */
-  view: "friends" | "voice" | "config";
+  view: "friends" | "voice" | "config" | "chat";
   onOpenRoom: (room: RoomInfo) => void;
   onRoomSettings: (roomId: string) => void;
   onCreateRoom: () => void;
   onFriends: () => void;
   onSettings: () => void;
   onProfile: () => void;
+  /** Conversas diretas (a mais recente primeiro) */
+  dms: DmSummary[];
+  /** Mensagens não lidas no chat da sala */
+  roomUnread: (room: RoomInfo) => number;
+  /** Conversa aberta na área principal (destaca na lista) */
+  activeChat: ChatTarget | null;
+  onOpenChat: (target: ChatTarget) => void;
+  onNewDm: () => void;
 }) {
   const { openPerson } = usePeople();
   const connected = voice.connection === ConnectionState.Connected;
@@ -129,6 +145,8 @@ export function Sidebar({
         {rooms.map((room) => {
           const people = peopleIn(room);
           const isOn = room.id === voice.room;
+          const unread = roomUnread(room);
+          const chatOn = view === "chat" && activeChat?.kind === "room" && activeChat.roomId === room.id;
           return (
             <div key={room.id} className={`room ${isOn ? "is-on" : ""}`}>
               <button
@@ -178,17 +196,71 @@ export function Sidebar({
                   ))}
                 </div>
               )}
-              <IconButton
-                size="sm"
-                className="room-gear"
-                label={room.role === "owner" ? `Configurações de ${room.name}` : `Membros de ${room.name}`}
-                onClick={() => onRoomSettings(room.id)}
-              >
-                <Settings size={15} aria-hidden="true" />
-              </IconButton>
+              <div className={`room-tools ${unread > 0 ? "has-unread" : ""}`}>
+                <IconButton
+                  size="sm"
+                  className={`room-chat with-badge ${chatOn ? "solid" : ""}`}
+                  label={unread > 0 ? `Chat de ${room.name} (${unread} não ${unread === 1 ? "lida" : "lidas"})` : `Chat de ${room.name}`}
+                  aria-current={chatOn ? "page" : undefined}
+                  onClick={() => onOpenChat({ kind: "room", roomId: room.id })}
+                >
+                  <MessageSquare size={15} aria-hidden="true" />
+                  {unread > 0 && (
+                    <span className="badge count" aria-hidden="true">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </IconButton>
+                <IconButton
+                  size="sm"
+                  className="room-gear"
+                  label={room.role === "owner" ? `Configurações de ${room.name}` : `Membros de ${room.name}`}
+                  onClick={() => onRoomSettings(room.id)}
+                >
+                  <Settings size={15} aria-hidden="true" />
+                </IconButton>
+              </div>
             </div>
           );
         })}
+
+        <div className="side-sub">
+          <h3>Mensagens</h3>
+          <IconButton label="Nova mensagem" size="sm" onClick={onNewDm}>
+            <SquarePen size={15} aria-hidden="true" />
+          </IconButton>
+        </div>
+        {dms.length === 0 ? (
+          <p className="side-hint">Converse com um amigo: clique no lápis ou no nome dele.</p>
+        ) : (
+          dms.map((d) => {
+            const on = view === "chat" && activeChat?.kind === "dm" && activeChat.userId === d.user.id;
+            const friend = friends.find((f) => f.id === d.user.id);
+            const last = d.lastMessage;
+            const preview = (last.author.id === me.id ? "Você: " : "") + last.body.replace(/\s+/g, " ");
+            return (
+              <button
+                key={d.user.id}
+                type="button"
+                className={`dm ${on ? "is-on" : ""} ${d.unread > 0 ? "unread" : ""}`}
+                aria-current={on ? "page" : undefined}
+                aria-label={`Conversa com ${d.user.displayName}${d.unread > 0 ? `, ${d.unread} não ${d.unread === 1 ? "lida" : "lidas"}` : ""}`}
+                onClick={() => onOpenChat({ kind: "dm", userId: d.user.id })}
+              >
+                <Avatar kind={d.user.avatar} size={30} presence={friend ? (friend.online ? "online" : "offline") : undefined} />
+                <span className="dm-text">
+                  <strong>{d.user.displayName}</strong>
+                  <span>{preview}</span>
+                </span>
+                {d.unread > 0 && (
+                  <span className="badge count" aria-hidden="true">
+                    {d.unread > 99 ? "99+" : d.unread}
+                  </span>
+                )}
+              </button>
+            );
+          })
+        )}
       </div>
 
       {voice.room && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, WifiOff, X } from "lucide-react";
+import { Download, LoaderCircle, WifiOff } from "lucide-react";
 import {
   acceptFriendRequest,
   isProfileComplete,
@@ -16,10 +16,11 @@ import { getNotifyPrefs } from "./notifyPrefs";
 import { useVoiceRoom } from "./useVoiceRoom";
 import { useTocaData } from "./useTocaData";
 import { useAppUpdate } from "./useAppUpdate";
+import { UpdateGate } from "./UpdateGate";
 import { AuthScreen } from "./AuthScreen";
 import { AuthHeading, AuthLayout } from "./components/AuthLayout";
 import { Avatar, avatarMap } from "./components/Avatar";
-import { Button, IconButton } from "./components/Button";
+import { Button } from "./components/Button";
 import { RoomIcon } from "./components/RoomIcon";
 import { TitleBar } from "./components/TitleBar";
 import { useToast, type ToastOptions } from "./components/Toasts";
@@ -30,6 +31,9 @@ import { CreateRoomModal, RoomModal, type RoomModalTab } from "./RoomModals";
 import { ScreenSharePicker } from "./ScreenSharePicker";
 import { SettingsPage, type SettingsSection } from "./SettingsPage";
 import { VoiceRoomView } from "./VoiceRoomView";
+import { ChatView } from "./ChatView";
+import { NewDmModal } from "./NewDmModal";
+import { conversationTarget, targetKey, useChat, type ChatTarget } from "./useChat";
 import { PersonPopover } from "./components/PersonPopover";
 import { PeopleProvider, findPerson, type People } from "./people";
 import { MAX_VOLUME } from "./useVoiceRoom";
@@ -70,10 +74,16 @@ type Auth =
 
 export default function App() {
   const [auth, setAuth] = useState<Auth>({ status: "loading" });
+  // Em chamada, a atualização espera ela acabar (UpdateGate)
+  const [inCall, setInCall] = useState(false);
   const { version, update, install: installNow } = useAppUpdate();
+  // Fechando para atualizar: aviso na tela até o app sair
+  const [installing, setInstalling] = useState(false);
   const install = () => {
     markRejoin();
-    installNow();
+    setInstalling(true);
+    // Dá tempo do aviso aparecer antes de o app fechar
+    setTimeout(installNow, 600);
   };
 
   // Retoma a sessão salva; sem internet, tenta de novo sozinho
@@ -103,6 +113,18 @@ export default function App() {
   return (
     <div className="win">
       <TitleBar update={update} onInstall={install} />
+      {!installing && <UpdateGate update={update} inCall={inCall && auth.status === "signedIn"} onInstall={install} />}
+      {installing && (
+        <div className="update-ov" role="status">
+          <div className="dialog update-gate">
+            <span className="update-gate-ico" aria-hidden="true">
+              <LoaderCircle size={22} className="spin" />
+            </span>
+            <h2>Atualizando o Toca…</h2>
+            <p className="muted">O app fecha e abre de novo sozinho em alguns segundos.</p>
+          </div>
+        </div>
+      )}
       <div className="app-body">
         {auth.status === "signedIn" && isProfileComplete(auth.account) ? (
           <MainApp
@@ -111,6 +133,7 @@ export default function App() {
             version={version}
             update={update}
             onInstall={install}
+            onInCallChange={setInCall}
             onMeChange={(account) => setAuth({ status: "signedIn", account })}
             onLogout={() => setAuth({ status: "signedOut" })}
           />
@@ -157,13 +180,14 @@ function windowsNotification(title: string, body: string) {
   }
 }
 
-type View = "friends" | "voice" | "config";
+type View = "friends" | "voice" | "config" | "chat";
 
 function MainApp({
   me,
   version,
   update,
   onInstall,
+  onInCallChange,
   onMeChange,
   onLogout,
 }: {
@@ -171,6 +195,7 @@ function MainApp({
   version: string | null;
   update: UpdateState;
   onInstall: () => void;
+  onInCallChange: (inCall: boolean) => void;
   onMeChange: (me: Profile) => void;
   onLogout: () => void;
 }) {
@@ -183,11 +208,21 @@ function MainApp({
   const [createOpen, setCreateOpen] = useState(false);
   // Janela da sala aberta (Membros pelo botão da sala, Sala pela engrenagem)
   const [roomModal, setRoomModal] = useState<{ id: string; tab: RoomModalTab } | null>(null);
-  const [hiddenUpdate, setHiddenUpdate] = useState<string | null>(null);
   const [rejoinRoom, setRejoinRoom] = useState(takeRejoinRoom);
   // Cartão da pessoa aberto (volume e amizade)
   const [personCard, setPersonCard] = useState<{ userId: string; anchor: Element } | null>(null);
   const closePerson = useCallback(() => setPersonCard(null), []);
+  // Chat: conversa aberta na área principal, painel ao lado da chamada e "nova mensagem"
+  const chat = useChat(me.id);
+  const [chatTarget, setChatTarget] = useState<ChatTarget | null>(null);
+  const [roomChatOpen, setRoomChatOpen] = useState(false);
+  const [newDmOpen, setNewDmOpen] = useState(false);
+  const roomNamesRef = useRef(new Map<string, string>());
+  const openChat = useCallback((target: ChatTarget) => {
+    setChatTarget(target);
+    setView("chat");
+    setNewDmOpen(false);
+  }, []);
 
   const { leave, showError } = voice;
   const currentRoomId = voice.room;
@@ -215,7 +250,23 @@ function MainApp({
   const handleEvent = useCallback(
     (event: RealtimeEvent) => {
       const prefs = getNotifyPrefs();
+      chat.onEvent(event);
       switch (event.type) {
+        case "message_created": {
+          const m = event.message;
+          if (m.author.id === me.id || chat.isShown(m)) break;
+          const isDm = m.conversation.kind === "dm";
+          if (isDm ? !prefs.dmMessages : !prefs.roomMessages) break;
+          const roomName = m.conversation.kind === "room" ? roomNamesRef.current.get(m.conversation.roomId) : null;
+          const text = m.body.replace(/\s+/g, " ");
+          alert({
+            art: <Avatar kind={m.author.avatar} size={40} />,
+            title: isDm ? m.author.displayName : `${m.author.displayName} em ${roomName ?? "uma sala"}`,
+            sub: text.length > 120 ? text.slice(0, 117) + "…" : text,
+            actions: [{ label: "Responder", primary: true, onClick: () => openChat(conversationTarget(m.conversation, me.id)) }],
+          });
+          break;
+        }
         case "friend_request_received": {
           if (!prefs.friendRequests) break;
           const { user, id } = event.request;
@@ -274,13 +325,25 @@ function MainApp({
           break;
       }
     },
-    [alert, toast, goToRoom, currentRoomId, leave, showError, me, onMeChange],
+    [alert, toast, goToRoom, currentRoomId, leave, showError, me, onMeChange, chat, openChat],
   );
 
   const data = useTocaData(handleEvent);
   const { reloadRooms, reloadFriends } = data;
   reloadFriendsRef.current = reloadFriends;
   friendsRef.current = new Map(data.friends.map((f) => [f.id, f.displayName]));
+  roomNamesRef.current = new Map(data.rooms.map((r) => [r.id, r.name]));
+
+  // Lista de salas recarregada: as não lidas do servidor já contam tudo
+  const { roomsReloaded } = chat;
+  useEffect(() => roomsReloaded(), [data.rooms, roomsReloaded]);
+
+  // Em chamada, a atualização espera (UpdateGate)
+  const inCall = !!voice.room;
+  useEffect(() => {
+    onInCallChange(inCall);
+    return () => onInCallChange(false);
+  }, [inCall, onInCallChange]);
 
   // Guarda a sala atual (para voltar a ela depois de uma atualização)
   useEffect(() => {
@@ -321,7 +384,9 @@ function MainApp({
   const currentRoom = data.rooms.find((r) => r.id === voice.room);
   const modalRoom = roomModal && data.rooms.find((r) => r.id === roomModal.id);
   // O que aparece na área principal
-  const shown: View = view === "voice" && !voice.room ? "friends" : view;
+  const chatRoom = chatTarget?.kind === "room" ? data.rooms.find((r) => r.id === chatTarget.roomId) : undefined;
+  const chatGone = view === "chat" && (!chatTarget || (chatTarget.kind === "room" && data.roomsLoaded && !chatRoom));
+  const shown: View = (view === "voice" && !voice.room) || chatGone ? "friends" : view;
 
   const joinRoom = (room: RoomInfo) => goToRoom(room.id);
   const openSettings = (s: SettingsSection) => {
@@ -336,10 +401,22 @@ function MainApp({
     outgoing: data.outgoing,
     rooms: data.rooms,
     reloadFriends,
+    openChat,
     openPerson: (userId, anchor) =>
       setPersonCard((open) => (open?.userId === userId && open.anchor === anchor ? null : { userId, anchor })),
   };
   const cardPerson = personCard && findPerson(people, personCard.userId);
+  const chatPerson =
+    chatTarget?.kind === "dm"
+      ? (findPerson(people, chatTarget.userId) ??
+        (() => {
+          const u = chat.dms.find((d) => d.user.id === chatTarget.userId)?.user;
+          return u ? { id: u.id, name: u.displayName, username: u.username, avatar: u.avatar } : null;
+        })())
+      : null;
+  const chatPersonName = chatPerson?.name ?? "…";
+  const chatFriend = chatTarget?.kind === "dm" ? data.friends.find((f) => f.id === chatTarget.userId) : undefined;
+  const chatPersonPresence = chatFriend ? (chatFriend.online ? "online" : "offline") : undefined;
   const cardInCall = personCard && voice.participants.find((p) => p.identity === personCard.userId && !p.isLocal);
 
   const signOut = async () => {
@@ -366,32 +443,87 @@ function MainApp({
         onFriends={() => setView("friends")}
         onSettings={() => openSettings("voice")}
         onProfile={() => openSettings("profile")}
+        dms={chat.dms}
+        roomUnread={chat.roomUnread}
+        activeChat={shown === "chat" ? chatTarget : null}
+        onOpenChat={openChat}
+        onNewDm={() => setNewDmOpen(true)}
       />
 
       <main className="main">
-        {update.status === "downloaded" && hiddenUpdate !== update.version && (
+        {update.status === "downloaded" && inCall && (
           <div className="banner" role="status">
             <Download size={18} aria-hidden="true" className="banner-ico" />
             <span className="grow">
-              <strong>Nova versão disponível: {update.version}.</strong>{" "}
-              <span className="muted">Leva uns segundos{voice.room ? " e você volta para a mesma sala" : ""}.</span>
+              <strong>Versão {update.version} pronta.</strong>{" "}
+              <span className="muted">O Toca atualiza quando você sair da chamada, ou agora: leva uns segundos e você volta para a mesma sala.</span>
             </span>
             <Button variant="primary" size="sm" onClick={onInstall}>
-              Atualizar
+              Atualizar agora
             </Button>
-            <IconButton size="sm" label="Lembrar depois" onClick={() => setHiddenUpdate(update.version)}>
-              <X size={16} aria-hidden="true" />
-            </IconButton>
           </div>
         )}
 
         {shown === "voice" ? (
-          <VoiceRoomView
-            room={currentRoom}
-            voice={voice}
-            avatars={avatarMap(me, data.friends, data.rooms)}
-            onMembers={() => currentRoom && setRoomModal({ id: currentRoom.id, tab: "members" })}
-            onShareScreen={() => setPickerOpen(true)}
+          <div className="room-split">
+            <div className="room-split-main">
+              <VoiceRoomView
+                room={currentRoom}
+                voice={voice}
+                avatars={avatarMap(me, data.friends, data.rooms)}
+                onMembers={() => currentRoom && setRoomModal({ id: currentRoom.id, tab: "members" })}
+                onShareScreen={() => setPickerOpen(true)}
+                chatOpen={roomChatOpen}
+                chatUnread={currentRoom ? chat.roomUnread(currentRoom) : 0}
+                onToggleChat={() => setRoomChatOpen((o) => !o)}
+              />
+            </div>
+            {roomChatOpen && currentRoom && (
+              <ChatView
+                key={currentRoom.id}
+                compact
+                chat={chat}
+                target={{ kind: "room", roomId: currentRoom.id }}
+                placeholder={`Mensagem para ${currentRoom.name}`}
+                header={<strong className="chat-title-sm">Chat da sala</strong>}
+                onClose={() => setRoomChatOpen(false)}
+              />
+            )}
+          </div>
+        ) : shown === "chat" && chatTarget ? (
+          <ChatView
+            key={targetKey(chatTarget)}
+            chat={chat}
+            target={chatTarget}
+            placeholder={chatTarget.kind === "room" ? `Mensagem para ${chatRoom?.name ?? "a sala"}` : `Mensagem para ${chatPersonName}`}
+            header={
+              chatTarget.kind === "room" ? (
+                <div className="row" style={{ gap: 12 }}>
+                  <span className="room-ico big" aria-hidden="true">
+                    {chatRoom && <RoomIcon icon={chatRoom.icon} size={20} />}
+                  </span>
+                  <div className="grow">
+                    <h1>{chatRoom?.name ?? "…"}</h1>
+                    <span className="sub">
+                      Chat da sala · {chatRoom?.members.length ?? 0} {chatRoom?.members.length === 1 ? "membro" : "membros"}
+                    </span>
+                  </div>
+                  {chatRoom && (
+                    <Button size="sm" onClick={() => joinRoom(chatRoom)}>
+                      {voice.room === chatRoom.id ? "Ver a chamada" : "Entrar na sala"}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="row" style={{ gap: 12 }}>
+                  {chatPerson && <Avatar kind={chatPerson.avatar} size={40} presence={chatPersonPresence} />}
+                  <div className="grow">
+                    <h1>{chatPersonName}</h1>
+                    <span className="sub">{chatPerson ? `@${chatPerson.username}` : ""}</span>
+                  </div>
+                </div>
+              )
+            }
           />
         ) : shown === "config" ? (
           <SettingsPage
@@ -412,6 +544,7 @@ function MainApp({
             currentRoomId={voice.room}
             onChanged={reloadFriends}
             onJoinRoom={joinRoom}
+            onMessage={(userId) => openChat({ kind: "dm", userId })}
           />
         )}
 
@@ -468,9 +601,14 @@ function MainApp({
               setPersonCard(null);
               openSettings("profile");
             }}
+            onMessage={() => {
+              setPersonCard(null);
+              openChat({ kind: "dm", userId: personCard.userId });
+            }}
             onClose={closePerson}
           />
         )}
+        {newDmOpen && <NewDmModal onPick={(userId) => openChat({ kind: "dm", userId })} onClose={() => setNewDmOpen(false)} />}
       </main>
     </PeopleProvider>
   );

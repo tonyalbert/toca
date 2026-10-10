@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 export interface NotifyPrefs {
   friendRequests: boolean;
   roomAdded: boolean;
+  /** Aviso de mensagem direta nova */
+  dmMessages: boolean;
+  /** Aviso de mensagem nova no chat das salas (sem isso, só o contador) */
+  roomMessages: boolean;
   /** Aviso do Windows quando o Toca está minimizado ou na bandeja */
   windowsWhenHidden: boolean;
   /** Som quando alguém entra ou sai da sala em que você está */
   roomSounds: boolean;
 }
 
-const DEFAULTS: NotifyPrefs = { friendRequests: true, roomAdded: true, windowsWhenHidden: true, roomSounds: true };
+const DEFAULTS: NotifyPrefs = { friendRequests: true, roomAdded: true, dmMessages: true, roomMessages: false, windowsWhenHidden: true, roomSounds: true };
 const STORAGE_KEY = "toca.notify";
 const listeners = new Set<(p: NotifyPrefs) => void>();
 

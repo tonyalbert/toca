@@ -10,6 +10,7 @@ import {
   type RoomInfo,
 } from "./api";
 import { Button } from "./components/Button";
+import type { ChatTarget } from "./useChat";
 
 /** Alguém que aparece no app (amigo, membro de sala, você) */
 export interface Person {
@@ -33,6 +34,8 @@ export interface People {
   outgoing: FriendRequest[];
   rooms: RoomInfo[];
   reloadFriends: () => Promise<void>;
+  /** Abre uma conversa (chat da sala ou conversa direta) */
+  openChat: (target: ChatTarget) => void;
   /** Abre o cartão da pessoa perto do elemento clicado */
   openPerson: (userId: string, anchor: Element) => void;
 }

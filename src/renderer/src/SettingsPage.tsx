@@ -486,6 +486,20 @@ function NotifySection() {
         />
         <div className="sep-line" />
         <Switch
+          checked={prefs.dmMessages}
+          onChange={(v) => setPrefs({ dmMessages: v })}
+          label="Mensagens diretas"
+          description="Quando alguém te mandar uma mensagem."
+        />
+        <div className="sep-line" />
+        <Switch
+          checked={prefs.roomMessages}
+          onChange={(v) => setPrefs({ roomMessages: v })}
+          label="Mensagens das salas"
+          description="Avisa cada mensagem nova no chat das suas salas. Desligado, só aparece o número de não lidas."
+        />
+        <div className="sep-line" />
+        <Switch
           checked={prefs.roomSounds}
           onChange={(v) => setPrefs({ roomSounds: v })}
           label="Sons da sala"

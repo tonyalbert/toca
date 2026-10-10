@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ConnectionState } from "livekit-client";
-import { LayoutGrid, Maximize, Minimize, ScreenShareOff, Users } from "lucide-react";
+import { LayoutGrid, Maximize, Minimize, ScreenShareOff, Users, MessageSquare } from "lucide-react";
 import type { Avatar as AvatarKind, RoomInfo } from "./api";
 import { MAX_VOLUME, type VoiceParticipant, type VoiceRoom } from "./useVoiceRoom";
 import { connectionLabel } from "./Sidebar";
@@ -36,6 +36,9 @@ export function VoiceRoomView({
   avatars,
   onMembers,
   onShareScreen,
+  chatOpen,
+  chatUnread,
+  onToggleChat,
 }: {
   room: RoomInfo | undefined;
   voice: VoiceRoom;
@@ -44,6 +47,10 @@ export function VoiceRoomView({
   onMembers: () => void;
   /** Abre o seletor de tela */
   onShareScreen: () => void;
+  /** Chat da sala aberto ao lado */
+  chatOpen: boolean;
+  chatUnread: number;
+  onToggleChat: () => void;
 }) {
   const { openPerson } = usePeople();
   const [audio] = useAudioSettings();
@@ -190,6 +197,21 @@ export function VoiceRoomView({
             Membros · {room.members.length}
           </Button>
         )}
+        <Button
+          size="sm"
+          className="with-badge"
+          variant={chatOpen ? "primary" : "secondary"}
+          aria-pressed={chatOpen}
+          icon={<MessageSquare size={15} aria-hidden="true" />}
+          onClick={onToggleChat}
+        >
+          Chat
+          {!chatOpen && chatUnread > 0 && (
+            <span className="badge count" aria-label={`${chatUnread} não lidas`}>
+              {chatUnread > 99 ? "99+" : chatUnread}
+            </span>
+          )}
+        </Button>
       </div>
 
       {!connected ? (

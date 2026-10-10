@@ -62,6 +62,8 @@ export interface RoomInfo {
   role: RoomRole;
   members: RoomMember[];
   participants: RoomParticipant[];
+  /** Mensagens não lidas no chat da sala */
+  unread: number;
 }
 
 export interface TokenResponse {
@@ -269,3 +271,54 @@ export const removeRoomMember = (id: string, userId: string) =>
   authed<void>(`/rooms/${id}/members/${userId}`, { method: "DELETE" });
 
 export const fetchRoomToken = (id: string) => authed<TokenResponse>(`/rooms/${id}/token`, { method: "POST" });
+
+// ---------- chat ----------
+
+/** Onde a mensagem está: chat de uma sala ou conversa direta entre duas pessoas */
+export type Conversation = { kind: "room"; roomId: string } | { kind: "dm"; userIds: [string, string] };
+
+export interface ChatMessage {
+  id: string;
+  conversation: Conversation;
+  author: User;
+  body: string;
+  createdAt: string;
+}
+
+export interface MessagePage {
+  /** Da mais antiga para a mais nova */
+  messages: ChatMessage[];
+  /** Ainda há mensagens mais antigas */
+  hasMore: boolean;
+}
+
+/** Uma conversa direta na lista: a outra pessoa, a última mensagem e as não lidas */
+export interface DmSummary {
+  user: User;
+  lastMessage: ChatMessage;
+  unread: number;
+}
+
+export const MAX_MESSAGE = 2000;
+
+const pageQuery = (before?: string) => (before ? `?before=${before}` : "");
+
+export const fetchRoomMessages = (roomId: string, before?: string) =>
+  authed<MessagePage>(`/rooms/${roomId}/messages${pageQuery(before)}`);
+
+export const sendRoomMessage = async (roomId: string, body: string) =>
+  (await authed<{ message: ChatMessage }>(`/rooms/${roomId}/messages`, json("POST", { body }))).message;
+
+export const markRoomRead = (roomId: string) => authed<void>(`/rooms/${roomId}/read`, { method: "POST" });
+
+export const fetchDms = async () => (await authed<{ conversations: DmSummary[] }>("/dms")).conversations;
+
+export const fetchDmMessages = (userId: string, before?: string) =>
+  authed<MessagePage>(`/dms/${userId}/messages${pageQuery(before)}`);
+
+export const sendDm = async (userId: string, body: string) =>
+  (await authed<{ message: ChatMessage }>(`/dms/${userId}/messages`, json("POST", { body }))).message;
+
+export const markDmRead = (userId: string) => authed<void>(`/dms/${userId}/read`, { method: "POST" });
+
+export const deleteMessage = (id: string) => authed<void>(`/messages/${id}`, { method: "DELETE" });

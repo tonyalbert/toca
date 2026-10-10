@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, Volume1, Volume2, VolumeX } from "lucide-react";
+import { MessageSquare, Pencil, Volume1, Volume2, VolumeX } from "lucide-react";
 import { FriendAction, type Person } from "../people";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
@@ -23,6 +23,7 @@ export function PersonPopover({
   screenVolume,
   onScreenVolume,
   onEditProfile,
+  onMessage,
   onClose,
 }: {
   person: Person;
@@ -36,6 +37,8 @@ export function PersonPopover({
   screenVolume?: number;
   onScreenVolume?: (volume: number) => void;
   onEditProfile: () => void;
+  /** Abre a conversa direta com a pessoa */
+  onMessage: () => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -97,7 +100,10 @@ export function PersonPopover({
           Editar perfil
         </Button>
       ) : (
-        <div className="row" style={{ justifyContent: "flex-end" }}>
+        <div className="row" style={{ justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+          <Button size="sm" icon={<MessageSquare size={14} aria-hidden="true" />} onClick={onMessage}>
+            Mensagem
+          </Button>
           <FriendAction person={person} />
         </div>
       )}

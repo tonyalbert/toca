@@ -29,7 +29,23 @@ export function PersonRow({
   children?: ReactNode;
 }) {
   return (
-    <li className={`li ${small ? "small" : ""} ${onClick ? "clickable" : ""}`} onClick={onClick}>
+    <li
+      className={`li ${small ? "small" : ""} ${onClick ? "clickable" : ""}`}
+      onClick={onClick}
+      // Linha inteira clicável também pelo teclado (com caixa de marcar, o foco fica nela)
+      {...(onClick && !lead
+        ? {
+            role: "button",
+            tabIndex: 0,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            },
+          }
+        : {})}
+    >
       {lead}
       <Avatar kind={avatar} size={small ? 32 : 42} presence={presence} />
       <div className="li-text">
