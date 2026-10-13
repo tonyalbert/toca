@@ -301,7 +301,7 @@ function CopyHandle({ username }: { username: string }) {
     <Button
       icon={copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
       onClick={() => {
-        void navigator.clipboard.writeText(`@${username}`).then(() => {
+        void window.toca.copyText(`@${username}`).then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         });

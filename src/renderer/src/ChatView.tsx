@@ -143,6 +143,15 @@ export function ChatView({
   useEffect(
     () =>
       chat.subscribe((e) => {
+        // Trocou nome ou foto: as mensagens já na tela mostram o novo
+        if (e.type === "user") {
+          setMessages((list) =>
+            list.some((m) => m.author.id === e.user.id)
+              ? list.map((m) => (m.author.id === e.user.id ? { ...m, author: { ...m.author, ...e.user } } : m))
+              : list,
+          );
+          return;
+        }
         if (e.key !== key) return;
         if (e.type === "deleted") {
           forgetImage(e.messageId);

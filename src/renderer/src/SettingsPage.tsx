@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Check, CircleAlert, ImageOff, ImagePlus, LogOut, Mic, Moon, Play, Sparkles, User, Video } from "lucide-react";
+import { Bell, Check, CircleAlert, ImageOff, ImagePlus, Keyboard, LogOut, Mic, Moon, Play, User, Video, X } from "lucide-react";
 import { ApiError, removePhoto, updateProfile, uploadPhoto, type Account, type Avatar as AvatarKind, type Profile } from "./api";
 import { GATE_MAX_DB, GATE_MIN_DB, MAX_GAIN, rmsToDb, useAudioSettings } from "./audioSettings";
 import { DEFAULT_DEVICE, captureDeviceId, listDevices, type DeviceKind, type DeviceOption } from "./devices";
-import { releasesUpTo } from "./changelog";
 import { toBase64 } from "./chatImage";
 import { PHOTO_ACCEPT, preparePhoto } from "./profilePhoto";
+import { SHORTCUT_INFO, safeForToggle, sameBinding, setShortcut, useShortcuts, type SavedShortcut } from "./shortcuts";
+import type { ShortcutAction, ShortcutBinding } from "../../shared/pushToTalk";
 import { useNotifyPrefs } from "./notifyPrefs";
 import { playCue } from "./sounds";
 import { usePalette, useTheme, type Palette, type ThemePreference } from "./theme";
@@ -19,17 +20,17 @@ import { Select } from "./components/Select";
 import { Slider } from "./components/Slider";
 import { Switch } from "./components/Switch";
 
-export type SettingsSection = "profile" | "voice" | "notify" | "look" | "news";
+export type SettingsSection = "profile" | "voice" | "keys" | "notify" | "look";
 
 const SECTIONS: { id: SettingsSection; label: string; icon: React.ReactNode }[] = [
   { id: "profile", label: "Perfil", icon: <User size={16} aria-hidden="true" /> },
   { id: "voice", label: "Voz e vídeo", icon: <Mic size={16} aria-hidden="true" /> },
+  { id: "keys", label: "Atalhos", icon: <Keyboard size={16} aria-hidden="true" /> },
   { id: "notify", label: "Notificações", icon: <Bell size={16} aria-hidden="true" /> },
   { id: "look", label: "Aparência", icon: <Moon size={16} aria-hidden="true" /> },
-  { id: "news", label: "Novidades", icon: <Sparkles size={16} aria-hidden="true" /> },
 ];
 
-/** Configurações: perfil, voz e vídeo, notificações, aparência, novidades e sair */
+/** Configurações: perfil, voz e vídeo, atalhos, notificações, aparência e sair */
 export function SettingsPage({
   me,
   voice,
@@ -37,8 +38,6 @@ export function SettingsPage({
   onSection,
   onMeChange,
   onSignOut,
-  version,
-  newsUnseen,
 }: {
   me: Profile;
   voice: VoiceRoom;
@@ -46,10 +45,6 @@ export function SettingsPage({
   onSection: (section: SettingsSection) => void;
   onMeChange: (me: Profile) => void;
   onSignOut: () => void;
-  /** Versão instalada */
-  version: string | null;
-  /** Atualizou e ainda não abriu as novidades */
-  newsUnseen: boolean;
 }) {
   const confirm = useConfirm();
   return (
@@ -59,7 +54,6 @@ export function SettingsPage({
           <button key={s.id} aria-current={section === s.id ? "page" : undefined} onClick={() => onSection(s.id)}>
             {s.icon}
             {s.label}
-            {s.id === "news" && newsUnseen && <span className="badge accent cfg-new">Novo</span>}
           </button>
         ))}
         <span style={{ flex: 1 }} />
@@ -82,9 +76,9 @@ export function SettingsPage({
       <div className="cfg-b">
         {section === "profile" && <ProfileSection me={me} onMeChange={onMeChange} />}
         {section === "voice" && <VoiceSection voice={voice} />}
+        {section === "keys" && <ShortcutsSection />}
         {section === "notify" && <NotifySection />}
         {section === "look" && <LookSection />}
-        {section === "news" && <NewsSection version={version} />}
       </div>
     </div>
   );
@@ -650,34 +644,139 @@ function LookSection() {
   );
 }
 
-const newsDate = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+/** Atalhos dentro do app (fixos, só para consulta) */
+const APP_KEYS: [string[], string][] = [
+  [["Enter"], "Envia a mensagem no chat"],
+  [["Shift", "Enter"], "Pula linha na mensagem"],
+  [["Ctrl", "V"], "Cola uma imagem (print ou imagem copiada) no chat"],
+  [["Esc"], "Fecha janelas, menus e a imagem em tela cheia"],
+];
 
-/** O que mudou em cada versão, da mais nova para a mais antiga */
-function NewsSection({ version }: { version: string | null }) {
-  const releases = version ? releasesUpTo(version) : [];
-  return (
-    <section className="sect news" aria-labelledby="cfg-n">
-      <div>
-        <h3 id="cfg-n">Novidades</h3>
-        <p className="sm muted">{version ? `Você está na versão ${version}.` : "Carregando…"} O Toca se atualiza sozinho.</p>
+/**
+ * Atalhos globais: funcionam com outro programa em foco (um jogo, por exemplo).
+ * O Windows não deixa o Toca "segurar" a tecla: o outro programa também a recebe.
+ */
+function ShortcutsSection() {
+  const shortcuts = useShortcuts();
+  const [audio, setAudio] = useAudioSettings();
+  const [recording, setRecording] = useState<ShortcutAction | "ptt" | null>(null);
+  const [error, setError] = useState<{ id: ShortcutAction | "ptt"; text: string } | null>(null);
+
+  // Saiu da tela no meio da escolha: para de escutar o teclado
+  useEffect(() => () => void window.toca.cancelRecordShortcut(), []);
+
+  /** Nome da outra ação que já usa este atalho */
+  const usedBy = (b: ShortcutBinding, except: ShortcutAction | "ptt"): string | null => {
+    for (const info of SHORTCUT_INFO) {
+      const s = shortcuts[info.id];
+      if (info.id !== except && s && sameBinding(s.binding, b)) return info.title;
+    }
+    if (except !== "ptt" && audio.pttBinding && sameBinding(audio.pttBinding, b)) return "Apertar para falar";
+    return null;
+  };
+
+  const record = async (id: ShortcutAction | "ptt") => {
+    if (recording) {
+      await window.toca.cancelRecordShortcut();
+      if (recording === id) return;
+    }
+    setError(null);
+    setRecording(id);
+    const result: SavedShortcut | null = id === "ptt" ? await window.toca.recordPushToTalk() : await window.toca.recordShortcut();
+    setRecording((r) => (r === id ? null : r));
+    if (!result) return;
+    if (id !== "ptt" && !safeForToggle(result)) {
+      setError({ id, text: "Use junto com Ctrl, Alt ou Win (ou F1–F24, ou um botão lateral do mouse), para não disparar enquanto você digita." });
+      return;
+    }
+    const other = usedBy(result.binding, id);
+    if (other) {
+      setError({ id, text: `${result.label} já é o atalho de "${other}".` });
+      return;
+    }
+    if (id === "ptt") setAudio({ pttBinding: result.binding as typeof audio.pttBinding, pttLabel: result.label });
+    else setShortcut(id, result);
+  };
+
+  const row = (id: ShortcutAction | "ptt", title: string, hint: React.ReactNode, label: string | null, onClear: () => void) => (
+    <div className="sc-row" key={id}>
+      <div className="grow col" style={{ gap: 2 }}>
+        <strong className="sm">{title}</strong>
+        <span className="xs muted">{hint}</span>
+        {error?.id === id && (
+          <span className="xs sc-err" role="alert">
+            <CircleAlert size={13} aria-hidden="true" /> {error.text}
+          </span>
+        )}
       </div>
-      {releases.map((r) => (
-        <article key={r.version} className="news-rel">
-          <header>
-            <strong>Versão {r.version}</strong>
-            {r.version === version && <span className="badge accent">Atual</span>}
-            <time className="xs faint" dateTime={r.date}>
-              {newsDate.format(new Date(`${r.date}T12:00:00`))}
-            </time>
-          </header>
-          <ul>
-            {r.items.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </article>
-      ))}
-    </section>
+      <button type="button" className={`sc-key ${recording === id ? "rec" : ""} ${label ? "set" : ""}`} onClick={() => void record(id)}>
+        {recording === id ? "Aperte o atalho… (Esc cancela)" : (label ?? "Definir atalho")}
+      </button>
+      {label && recording !== id ? (
+        <IconButtonX label={`Remover o atalho de ${title.toLowerCase()}`} onClick={onClear} />
+      ) : (
+        <span className="sc-clear-space" />
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      <section className="sect" aria-labelledby="cfg-k">
+        <div>
+          <h3 id="cfg-k">Atalhos</h3>
+          <p className="sm muted">
+            Funcionam mesmo com outro programa em foco, como um jogo. Clique em um atalho e aperte as teclas. O outro programa também
+            recebe a tecla, então escolha uma combinação que ele não use.
+          </p>
+        </div>
+        <div className="panel sc-list">
+          {row(
+            "ptt",
+            "Apertar para falar",
+            audio.micMode === "ptt" ? (
+              "Segure para falar. Pode ser uma tecla sozinha ou um botão lateral do mouse."
+            ) : (
+              <>
+                Só vale no modo Apertar para falar.{" "}
+                <button type="button" className="link-btn" onClick={() => setAudio({ micMode: "ptt" })}>
+                  Usar este modo
+                </button>
+              </>
+            ),
+            audio.pttLabel,
+            () => setAudio({ pttBinding: null, pttLabel: null, micMode: "voice" }),
+          )}
+          {SHORTCUT_INFO.map((info) => row(info.id, info.title, info.hint, shortcuts[info.id]?.label ?? null, () => setShortcut(info.id, null)))}
+        </div>
+      </section>
+      <section className="sect" aria-labelledby="cfg-k2">
+        <h3 id="cfg-k2">No Toca</h3>
+        <div className="panel sc-list">
+          {APP_KEYS.map(([keys, text]) => (
+            <div className="sc-row" key={text}>
+              <span className="grow sm">{text}</span>
+              <span className="sc-keys">
+                {keys.map((k, i) => (
+                  <span key={k}>
+                    {i > 0 && <span className="xs faint"> + </span>}
+                    <kbd>{k}</kbd>
+                  </span>
+                ))}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function IconButtonX({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="ib ib-sm" aria-label={label} data-tip={label} onClick={onClick}>
+      <X size={15} aria-hidden="true" />
+    </button>
   );
 }
 

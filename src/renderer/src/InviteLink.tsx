@@ -89,10 +89,13 @@ export function InviteLink({ room }: { room: RoomInfo }) {
 
   const copy = () => {
     if (!active) return;
-    void navigator.clipboard.writeText(inviteLink(active.token)).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    window.toca
+      .copyText(inviteLink(active.token))
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => setError("Não deu para copiar. Selecione o link e use Ctrl+C."));
   };
 
   return (

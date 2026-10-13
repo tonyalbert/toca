@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type { ScreenAudioStartResult, ScreenSource } from "../shared/screen";
 import type { UpdateState } from "../shared/update";
-import type { PushToTalkBinding } from "../shared/pushToTalk";
+import type { PushToTalkBinding, ShortcutAction, ShortcutBinding } from "../shared/pushToTalk";
 
 // Ponte mínima com o processo principal. Push-to-talk global vai entrar aqui.
 contextBridge.exposeInMainWorld("toca", {
@@ -32,6 +32,16 @@ contextBridge.exposeInMainWorld("toca", {
   setPushToTalk: (binding: PushToTalkBinding | null): Promise<void> => ipcRenderer.invoke("ptt:set", binding),
   recordPushToTalk: (): Promise<{ binding: PushToTalkBinding; label: string } | null> => ipcRenderer.invoke("ptt:record"),
   cancelRecordPushToTalk: (): Promise<void> => ipcRenderer.invoke("ptt:cancel-record"),
+  setShortcuts: (list: [ShortcutAction, ShortcutBinding][]): Promise<void> => ipcRenderer.invoke("shortcuts:set", list),
+  recordShortcut: (): Promise<{ binding: ShortcutBinding; label: string } | null> => ipcRenderer.invoke("shortcut:record"),
+  cancelRecordShortcut: (): Promise<void> => ipcRenderer.invoke("shortcut:cancel-record"),
+  onShortcut: (callback: (action: ShortcutAction) => void) => {
+    const listener = (_e: IpcRendererEvent, action: ShortcutAction) => callback(action);
+    ipcRenderer.on("shortcut:fire", listener);
+    return () => {
+      ipcRenderer.removeListener("shortcut:fire", listener);
+    };
+  },
   onPushToTalk: (callback: (pressed: boolean) => void) => {
     const listener = (_e: IpcRendererEvent, pressed: boolean) => callback(pressed);
     ipcRenderer.on("ptt:state", listener);
@@ -39,6 +49,7 @@ contextBridge.exposeInMainWorld("toca", {
       ipcRenderer.removeListener("ptt:state", listener);
     };
   },
+  copyText: (text: string): Promise<void> => ipcRenderer.invoke("clipboard:write", text),
   takeInvite: (): Promise<string | null> => ipcRenderer.invoke("invite:take"),
   onInvitePending: (callback: () => void) => {
     const listener = () => callback();

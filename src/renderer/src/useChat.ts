@@ -7,6 +7,7 @@ import {
   type Conversation,
   type DmSummary,
   type RoomInfo,
+  type User,
 } from "./api";
 import type { RealtimeEvent } from "./realtime";
 
@@ -23,7 +24,9 @@ export function conversationTarget(c: Conversation, meId: string): ChatTarget {
 
 export type ChatEvent =
   | { type: "created"; key: string; message: ChatMessage }
-  | { type: "deleted"; key: string; messageId: string };
+  | { type: "deleted"; key: string; messageId: string }
+  /** Alguém trocou nome, bichinho ou foto: vale para todas as conversas */
+  | { type: "user"; user: User };
 
 /** A conversa está na tela agora (aberta, com a janela em foco)? */
 const onScreen = (open: string | null, key: string) => open === key && document.hasFocus() && !document.hidden;
@@ -120,6 +123,17 @@ export function useChat(meId: string) {
         listeners.current.forEach((l) => l({ type: "deleted", key, messageId: event.messageId }));
         // A última mensagem de uma conversa direta pode ter sumido
         if (event.conversation.kind === "dm") void reloadDms();
+        return;
+      }
+      if (event.type === "user_updated") {
+        const { user } = event;
+        const fresh = <T extends User>(u: T): T => (u.id === user.id ? { ...u, ...user } : u);
+        setDms((list) =>
+          list.some((d) => d.user.id === user.id || d.lastMessage.author.id === user.id)
+            ? list.map((d) => ({ ...d, user: fresh(d.user), lastMessage: { ...d.lastMessage, author: fresh(d.lastMessage.author) } }))
+            : list,
+        );
+        listeners.current.forEach((l) => l({ type: "user", user }));
         return;
       }
       if (event.type === "chat_read") {

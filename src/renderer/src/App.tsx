@@ -32,7 +32,7 @@ import { CreateRoomModal, RoomModal, type RoomModalTab } from "./RoomModals";
 import { JoinInviteModal } from "./JoinInviteModal";
 import { ScreenSharePicker } from "./ScreenSharePicker";
 import { SettingsPage, type SettingsSection } from "./SettingsPage";
-import { compareVersions, markSeen, releasesUpTo, seenVersion } from "./changelog";
+import { NewsModal, useNews } from "./News";
 import { VoiceRoomView } from "./VoiceRoomView";
 import { ChatView } from "./ChatView";
 import { NewDmModal } from "./NewDmModal";
@@ -80,6 +80,7 @@ export default function App() {
   // Em chamada, a atualização espera ela acabar (UpdateGate)
   const [inCall, setInCall] = useState(false);
   const { version, update, install: installNow } = useAppUpdate();
+  const news = useNews(version);
   // Fechando para atualizar: aviso na tela até o app sair
   const [installing, setInstalling] = useState(false);
   const install = () => {
@@ -115,7 +116,8 @@ export default function App() {
 
   return (
     <div className="win">
-      <TitleBar update={update} onInstall={install} />
+      <TitleBar update={update} onInstall={install} newsUnseen={news.unseen} onNews={news.show} />
+      {news.open && <NewsModal version={version} onClose={news.close} />}
       {!installing && <UpdateGate update={update} inCall={inCall && auth.status === "signedIn"} onInstall={install} />}
       {installing && (
         <div className="update-ov" role="status">
@@ -209,9 +211,6 @@ function MainApp({
   const [section, setSection] = useState<SettingsSection>("profile");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  // Ainda não viu as novidades da versão instalada
-  const [newsUnseen, setNewsUnseen] = useState(false);
-  const openSettingsRef = useRef<(s: SettingsSection) => void>(() => {});
   // Entrar por link de convite: com o código (o link abriu o app) ou colando o link
   const [inviteJoin, setInviteJoin] = useState<{ token: string | null } | null>(null);
   // Janela da sala aberta (Membros pelo botão da sala, Sala pela engrenagem)
@@ -339,32 +338,24 @@ function MainApp({
   const data = useTocaData(handleEvent);
   const { reloadRooms, reloadFriends } = data;
 
-  // Atualizou o Toca: avisa uma vez e marca "Novo" nas novidades até a pessoa abrir.
-  // Primeira vez que abre (instalação nova): só guarda a versão, sem aviso.
-  useEffect(() => {
-    if (!version) return;
-    const seen = seenVersion();
-    if (!seen) {
-      markSeen(version);
-      return;
-    }
-    if (compareVersions(version, seen) <= 0) return;
-    const fresh = releasesUpTo(version).filter((r) => compareVersions(r.version, seen) > 0);
-    if (fresh.length === 0) {
-      markSeen(version); // versão sem novidades escritas
-      return;
-    }
-    setNewsUnseen(true);
-    toast({
-      title: `O Toca foi atualizado para a ${version}`,
-      sub: (() => {
-        const n = fresh.reduce((sum, r) => sum + r.items.length, 0);
-        return n === 1 ? fresh[0].items[0] : `${n} novidades para ver.`;
-      })(),
-      kind: "ok",
-      actions: [{ label: "Ver novidades", primary: true, onClick: () => openSettingsRef.current("news") }],
-    });
-  }, [version]);
+  // Atalhos globais (Configurações → Atalhos): só agem durante uma chamada
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
+  useEffect(
+    () =>
+      window.toca.onShortcut((action) => {
+        const v = voiceRef.current;
+        if (!v.room) return;
+        if (action === "toggleMute") void v.toggleMute();
+        else if (action === "toggleDeafen") void v.toggleDeafen();
+        else if (action === "toggleCamera") void v.toggleCamera();
+        else if (action === "toggleScreen") {
+          if (v.screenSharing) void v.stopScreenShare();
+          else setPickerOpen(true);
+        } else if (action === "leaveCall") void v.leave();
+      }),
+    [],
+  );
 
   // Link de convite que abriu o app, ou que chegou com ele já aberto
   useEffect(() => {
@@ -435,15 +426,6 @@ function MainApp({
     setSection(s);
     setView("config");
   };
-  openSettingsRef.current = openSettings;
-
-  // Abriu as novidades: some o "Novo"
-  useEffect(() => {
-    if (shown === "config" && section === "news" && version && newsUnseen) {
-      markSeen(version);
-      setNewsUnseen(false);
-    }
-  }, [shown, section, version, newsUnseen]);
 
   const people: People = {
     me,
@@ -587,8 +569,6 @@ function MainApp({
             onSection={setSection}
             onMeChange={onMeChange}
             onSignOut={() => void signOut()}
-            version={version}
-            newsUnseen={newsUnseen}
           />
         ) : (
           <FriendsPage

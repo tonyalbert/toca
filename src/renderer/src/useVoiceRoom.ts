@@ -18,6 +18,7 @@ import { getAudioSettings, onAudioSettings } from "./audioSettings";
 import { MicProcessor } from "./micProcessor";
 import { getNotifyPrefs } from "./notifyPrefs";
 import { playCue } from "./sounds";
+import { useSpeaking } from "./useSpeaking";
 import { startScreenAudio, type ScreenAudio } from "./screenAudio";
 import {
   DEFAULT_DEVICE,
@@ -48,6 +49,8 @@ export interface VoiceParticipant {
   hasScreenAudio: boolean;
   /** Volume do som da tela dessa pessoa (1 = 100%) */
   screenVolume: number;
+  /** Áudio do microfone (o seu já processado), para medir quem fala no próprio app */
+  audioTrack: MediaStreamTrack | null;
 }
 
 export interface VoiceState {
@@ -123,7 +126,15 @@ function toVoiceParticipant(p: Participant, isLocal: boolean, volumes: Map<strin
     screenVolume: isLocal ? 1 : (volumes.get(screenKey(p.identity)) ?? 1),
     cameraTrack: videoTrackOf(p, Track.Source.Camera),
     screenTrack: videoTrackOf(p, Track.Source.ScreenShare),
+    audioTrack: audioTrackOf(p),
   };
+}
+
+/** Microfone ligado e recebido: o track para medir o volume aqui */
+function audioTrackOf(p: Participant): MediaStreamTrack | null {
+  const pub = p.getTrackPublication(Track.Source.Microphone);
+  if (!pub || pub.isMuted) return null;
+  return pub.track?.mediaStreamTrack ?? null;
 }
 
 function videoTrackOf(p: Participant, source: Track.Source): VideoTrack | null {
@@ -618,8 +629,17 @@ export function useVoiceRoom() {
     };
   }, []);
 
+  // "Falando" medido aqui (acende junto com o ícone do microfone); sem áudio
+  // medido, fica o do servidor
+  const speaking = useSpeaking(new Map(state.participants.map((p) => [p.identity, p.audioTrack])));
+  const participants = state.participants.map((p) => {
+    const here = speaking.get(p.identity);
+    return here === undefined || here === p.isSpeaking ? p : { ...p, isSpeaking: here };
+  });
+
   return {
     ...state,
+    participants,
     micDeviceId,
     cameraDeviceId,
     join,

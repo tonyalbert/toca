@@ -1,6 +1,6 @@
 import type { ScreenAudioStartResult, ScreenSource } from "../shared/screen";
 import type { UpdateState } from "../shared/update";
-import type { PushToTalkBinding } from "../shared/pushToTalk";
+import type { PushToTalkBinding, ShortcutAction, ShortcutBinding } from "../shared/pushToTalk";
 
 declare global {
   interface Window {
@@ -12,6 +12,8 @@ declare global {
       /** Retorna a função que cancela a inscrição */
       onUpdateState(callback: (state: UpdateState) => void): () => void;
       installUpdate(): Promise<void>;
+      /** Copia o texto para a área de transferência do Windows */
+      copyText(text: string): Promise<void>;
       /** Código de um link de convite (toca://convite/...) que abriu o app; vem uma vez só */
       takeInvite(): Promise<string | null>;
       /** Chegou um link de convite com o app aberto: chame takeInvite. Retorna a função que cancela. */
@@ -30,6 +32,13 @@ declare global {
       /** Espera a próxima tecla ou botão lateral do mouse (Esc cancela: null) */
       recordPushToTalk(): Promise<{ binding: PushToTalkBinding; label: string } | null>;
       cancelRecordPushToTalk(): Promise<void>;
+      /** Atalhos globais (funcionam com outro programa em foco) */
+      setShortcuts(list: [ShortcutAction, ShortcutBinding][]): Promise<void>;
+      /** Espera a próxima tecla com Ctrl/Alt/Shift (ou botão lateral do mouse); null se cancelou */
+      recordShortcut(): Promise<{ binding: ShortcutBinding; label: string } | null>;
+      cancelRecordShortcut(): Promise<void>;
+      /** Um atalho global foi apertado. Retorna a função que cancela. */
+      onShortcut(callback: (action: ShortcutAction) => void): () => void;
       /** Tecla apertada/solta; retorna a função que cancela a inscrição */
       onPushToTalk(callback: (pressed: boolean) => void): () => void;
       /** Refresh token salvo (criptografado pelo Windows), ou null */

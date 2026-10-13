@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, shell } from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, session, shell } from "electron";
 import { join } from "node:path";
 import { appIcon, hideOnClose, setupTray, showWindow } from "./tray";
 import { setupScreenShare } from "./screenShare";
@@ -100,6 +100,11 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     setupWindowControls();
+    // Copiar (link de convite, @): pelo clipboard do Electron. O navigator.clipboard
+    // depende da permissão clipboard-sanitized-write, que o handler acima nega.
+    ipcMain.handle("clipboard:write", (_e, text: unknown) => {
+      if (typeof text === "string" && text.length <= 10_000) clipboard.writeText(text);
+    });
     setupPushToTalk();
     setupScreenShare();
     setupSession();

@@ -12,6 +12,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.6.1",
+    date: "2026-10-13",
+    items: [
+      "Aba Atalhos nas configurações: ligar/desligar microfone, fone e câmera, compartilhar a tela e sair da chamada com uma tecla, mesmo com o jogo em foco.",
+      "Quem está falando aparece na hora no card e na lista da sala, junto com o ícone do microfone.",
+      "O botão Copiar do link de convite (e do seu @) voltou a funcionar.",
+      "Quando alguém troca o nome ou a foto, a lista de mensagens e o chat aberto atualizam na hora.",
+      "Novidades agora ficam no botão lá em cima, ao lado de verificar atualizações.",
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-10-13",
     items: [

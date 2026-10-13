@@ -8,11 +8,14 @@ import { ConfirmProvider } from "./components/ConfirmDialog";
 import { TooltipLayer } from "./components/Tooltip";
 import { ToastProvider } from "./components/Toasts";
 import { initTheme } from "./theme";
+import { syncShortcuts } from "./shortcuts";
 import "./styles/tokens.css";
 import "./styles/palettes.css";
 import "./styles/components.css";
 
 initTheme();
+// Atalhos globais salvos: o processo principal começa a escutar o teclado
+syncShortcuts();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

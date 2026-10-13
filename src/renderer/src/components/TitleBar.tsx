@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, Download, Minus, Square, X } from "lucide-react";
+import { Copy, Download, Gift, Minus, Square, X } from "lucide-react";
 import type { UpdateState } from "../../../shared/update";
 import { TocaMark } from "./TocaMark";
 
@@ -7,7 +7,18 @@ import { TocaMark } from "./TocaMark";
  * Barra de título própria (a janela não tem moldura). Arrastar por ela move a
  * janela; clique duplo maximiza (o Windows faz isso nas áreas de arrastar).
  */
-export function TitleBar({ update, onInstall }: { update: UpdateState; onInstall: () => void }) {
+export function TitleBar({
+  update,
+  onInstall,
+  newsUnseen,
+  onNews,
+}: {
+  update: UpdateState;
+  onInstall: () => void;
+  /** Atualizou e ainda não viu as novidades */
+  newsUnseen: boolean;
+  onNews: () => void;
+}) {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
@@ -20,6 +31,15 @@ export function TitleBar({ update, onInstall }: { update: UpdateState; onInstall
       <TocaMark size={20} />
       <span>Toca</span>
       <span className="spacer" />
+      <button
+        className={`upd-pill news-pill ${newsUnseen ? "unseen" : ""}`}
+        onClick={onNews}
+        data-tip={newsUnseen ? "O Toca foi atualizado: veja o que mudou" : "O que mudou em cada versão"}
+      >
+        <Gift size={13} aria-hidden="true" />
+        Novidades
+        {newsUnseen && <span className="news-dot" aria-label="(novo)" />}
+      </button>
       {(update.status === "idle" || update.status === "up-to-date" || update.status === "error") && (
         <button
           className="upd-pill"

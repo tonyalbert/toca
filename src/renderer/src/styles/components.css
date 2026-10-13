@@ -404,7 +404,6 @@
 .cfg-nav button { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: var(--r-md); color: var(--muted); font-weight: 600; text-align: left; }
 .cfg-nav button:hover { background: var(--card); color: var(--text); }
 .cfg-nav button[aria-current="page"] { background: var(--card-2); color: var(--text); }
-.cfg-nav .cfg-new { margin-left: auto; height: 18px; padding: 0 6px; font-size: 11px; }
 .cfg-nav .danger { color: var(--danger); }
 .cfg-nav .danger:hover { background: var(--danger-soft); color: var(--danger); }
 .cfg-b { overflow: auto; padding: 28px 36px; display: flex; flex-direction: column; gap: 28px; max-width: 920px; }
@@ -643,4 +642,38 @@
 .avatar-photo { background: var(--card-2); }
 .avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 999px; object-fit: cover; pointer-events: none; user-select: none; }
 .profile-photo { flex: none; width: 120px; }
+
+/* botão Novidades na barra de cima (TitleBar) */
+.upd-pill.news-pill { position: relative; overflow: hidden; isolation: isolate; background: var(--card-2); color: var(--muted); border: 1px solid var(--line-2); }
+/* Brilho de "embalagem nova": um feixe de luz cruza o botão de vez em quando (bem de leve) */
+.upd-pill.news-pill::after {
+  content: ""; position: absolute; inset: -2px auto -2px 0; width: 45%; z-index: -1; pointer-events: none;
+  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, .07) 35%, rgba(255, 255, 255, .22) 50%, rgba(255, 255, 255, .07) 65%, transparent 100%);
+  transform: translateX(-120%) skewX(-18deg);
+  animation: news-shine 7s ease-in-out infinite 1.5s;
+}
+.upd-pill.news-pill.unseen::after { animation-duration: 4s; background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, .1) 35%, rgba(255, 255, 255, .3) 50%, rgba(255, 255, 255, .1) 65%, transparent 100%); }
+:root[data-theme="light"] .upd-pill.news-pill::after { background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, .35) 35%, rgba(255, 255, 255, .9) 50%, rgba(255, 255, 255, .35) 65%, transparent 100%); }
+@keyframes news-shine {
+  0%, 75% { transform: translateX(-130%) skewX(-18deg); }
+  100% { transform: translateX(260%) skewX(-18deg); }
+}
+@media (prefers-reduced-motion: reduce) { .upd-pill.news-pill::after { animation: none; display: none; } }
+.upd-pill.news-pill:hover { background: var(--card-3); color: var(--text); }
+.upd-pill.news-pill.unseen { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-ring); }
+.news-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* atalhos (Configurações → Atalhos) */
+.sc-list { padding: 4px 16px; gap: 0; }
+.sc-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.sc-row:last-child { border-bottom: 0; }
+.sc-key { min-width: 150px; height: 34px; padding: 0 12px; border-radius: var(--r-md); border: 1px dashed var(--line-2); background: var(--bg); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.sc-key:hover { border-color: var(--faint); color: var(--text); }
+.sc-key.set { border-style: solid; color: var(--text); background: var(--card-2); font-family: inherit; }
+.sc-key.rec { border-style: solid; border-color: var(--accent); color: var(--accent-text); box-shadow: 0 0 0 3px var(--accent-soft); }
+.sc-clear-space { width: 30px; flex: none; }
+.sc-err { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--danger); }
+.sc-keys { display: inline-flex; align-items: center; flex: none; }
+kbd { display: inline-flex; align-items: center; height: 24px; min-width: 24px; justify-content: center; padding: 0 7px; border-radius: 6px; border: 1px solid var(--line-2); border-bottom-width: 2px; background: var(--card-2); color: var(--text); font: 700 12px var(--font-body); }
+.link-btn { padding: 0; color: var(--accent-text); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; font-size: inherit; }
 
