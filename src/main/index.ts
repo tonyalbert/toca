@@ -6,6 +6,7 @@ import { setupSession } from "./session";
 import { setupPushToTalk } from "./pushToTalk";
 import { setupUpdater, takeRestartMode } from "./updater";
 import { setupInvites } from "./invite";
+import { setupYouTube } from "./youtube";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -109,6 +110,7 @@ if (!app.requestSingleInstanceLock()) {
     setupScreenShare();
     setupSession();
     setupInvites(() => mainWindow, showWindow);
+    setupYouTube();
 
     setupUpdater();
     setupTray(() => mainWindow);

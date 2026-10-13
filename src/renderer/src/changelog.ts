@@ -12,6 +12,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.7.0",
+    date: "2026-10-13",
+    items: [
+      "Sessão de cinema: na chamada, clique em Cinema e assistam juntos um vídeo do YouTube ou um arquivo do PC. Play, pausa e pulos valem para todo mundo, e quem entra no meio cai no ponto certo.",
+      "No arquivo do PC, cada um abre a própria cópia: nada passa pela internet e a qualidade fica máxima.",
+    ],
+  },
+  {
     version: "1.6.1",
     date: "2026-10-13",
     items: [

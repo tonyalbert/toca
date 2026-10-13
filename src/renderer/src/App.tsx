@@ -33,6 +33,7 @@ import { JoinInviteModal } from "./JoinInviteModal";
 import { ScreenSharePicker } from "./ScreenSharePicker";
 import { SettingsPage, type SettingsSection } from "./SettingsPage";
 import { NewsModal, useNews } from "./News";
+import { useCinema } from "./cinema";
 import { VoiceRoomView } from "./VoiceRoomView";
 import { ChatView } from "./ChatView";
 import { NewDmModal } from "./NewDmModal";
@@ -205,6 +206,8 @@ function MainApp({
   onLogout: () => void;
 }) {
   const voice = useVoiceRoom();
+  // Sessão de cinema: fica aqui para seguir valendo fora da tela da chamada
+  const cinema = useCinema(voice);
   const toast = useToast();
   // A tela inicial é a de amigos (também ao sair de uma sala)
   const [view, setView] = useState<View>("friends");
@@ -337,6 +340,19 @@ function MainApp({
 
   const data = useTocaData(handleEvent);
   const { reloadRooms, reloadFriends } = data;
+
+  // Alguém começou uma sessão de cinema e você está em outra tela
+  const cinemaId = cinema.session?.id;
+  useEffect(() => {
+    const s = cinema.session;
+    if (!s || s.rev !== 1 || s.host === cinema.me || view === "voice") return;
+    const who = voice.participants.find((p) => p.identity === s.host)?.name ?? "Alguém";
+    toast({
+      title: `${who} começou uma sessão de cinema`,
+      sub: s.source.kind === "youtube" ? "Vídeo do YouTube" : s.source.name,
+      actions: [{ label: "Assistir", primary: true, onClick: () => setView("voice") }],
+    });
+  }, [cinemaId]);
 
   // Atalhos globais (Configurações → Atalhos): só agem durante uma chamada
   const voiceRef = useRef(voice);
@@ -510,6 +526,7 @@ function MainApp({
                 chatOpen={roomChatOpen}
                 chatUnread={currentRoom ? chat.roomUnread(currentRoom) : 0}
                 onToggleChat={() => setRoomChatOpen((o) => !o)}
+                cinema={cinema}
               />
             </div>
             {roomChatOpen && currentRoom && (

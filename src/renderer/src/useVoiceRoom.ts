@@ -51,6 +51,8 @@ export interface VoiceParticipant {
   screenVolume: number;
   /** Áudio do microfone (o seu já processado), para medir quem fala no próprio app */
   audioTrack: MediaStreamTrack | null;
+  /** Sessão de cinema que essa pessoa está conduzindo (JSON do cinema.ts), se houver */
+  cinema: string | null;
 }
 
 export interface VoiceState {
@@ -79,6 +81,8 @@ const initialState: VoiceState = {
 
 // Atributo do LiveKit em que cada app publica se está com o fone desligado
 const DEAFENED_ATTR = "deafened";
+// Atributo com a sessão de cinema de quem a conduz (para quem entra no meio)
+const CINEMA_ATTR = "cinema";
 
 /** Conta aos outros da sala se estamos com o fone desligado */
 function publishDeafened(room: Room | null, value: boolean) {
@@ -127,6 +131,7 @@ function toVoiceParticipant(p: Participant, isLocal: boolean, volumes: Map<strin
     cameraTrack: videoTrackOf(p, Track.Source.Camera),
     screenTrack: videoTrackOf(p, Track.Source.ScreenShare),
     audioTrack: audioTrackOf(p),
+    cinema: p.attributes[CINEMA_ATTR] || null,
   };
 }
 
@@ -195,6 +200,8 @@ export function useVoiceRoom() {
     }
     audio.stop();
   };
+  // Mensagens de dados da sala (ex.: comandos do cinema), por quem se inscreveu
+  const dataListeners = useRef(new Set<(topic: string, data: unknown, from: string) => void>());
   // Elementos <audio> dos participantes remotos
   const audioContainer = useRef<HTMLDivElement | null>(null);
 
@@ -311,6 +318,16 @@ export function useVoiceRoom() {
         })
         .on(RoomEvent.ParticipantNameChanged, sync)
         .on(RoomEvent.ParticipantAttributesChanged, sync)
+        .on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+          if (!participant || !topic) return;
+          let data: unknown;
+          try {
+            data = JSON.parse(new TextDecoder().decode(payload));
+          } catch {
+            return;
+          }
+          dataListeners.current.forEach((l) => l(topic, data, participant.identity));
+        })
         .on(RoomEvent.ActiveSpeakersChanged, sync)
         .on(RoomEvent.TrackMuted, sync)
         .on(RoomEvent.TrackUnmuted, sync)
@@ -629,6 +646,30 @@ export function useVoiceRoom() {
     };
   }, []);
 
+  /** Manda uma mensagem para todos da chamada (entrega garantida, na ordem) */
+  const sendData = useCallback((topic: string, data: unknown) => {
+    const room = roomRef.current;
+    if (room?.state !== ConnectionState.Connected) return;
+    void room.localParticipant
+      .publishData(new TextEncoder().encode(JSON.stringify(data)), { reliable: true, topic })
+      .catch((err: Error) => console.warn("falha ao enviar dados para a sala:", err.message));
+  }, []);
+
+  /** Recebe as mensagens de dados da sala; retorna a função que cancela */
+  const onData = useCallback((listener: (topic: string, data: unknown, from: string) => void) => {
+    dataListeners.current.add(listener);
+    return () => void dataListeners.current.delete(listener);
+  }, []);
+
+  /** Publica (ou tira, com null) a sessão de cinema que você conduz */
+  const setCinemaAttr = useCallback((value: string | null) => {
+    const room = roomRef.current;
+    if (room?.state !== ConnectionState.Connected) return;
+    room.localParticipant.setAttributes({ [CINEMA_ATTR]: value ?? "" }).catch(() => {
+      // Sem permissão no ingresso: quem entrar no meio só pega a sessão no próximo aviso
+    });
+  }, []);
+
   // "Falando" medido aqui (acende junto com o ícone do microfone); sem áudio
   // medido, fica o do servidor
   const speaking = useSpeaking(new Map(state.participants.map((p) => [p.identity, p.audioTrack])));
@@ -655,6 +696,9 @@ export function useVoiceRoom() {
     outputDeviceId,
     setOutputDevice,
     pttHeld,
+    sendData,
+    onData,
+    setCinemaAttr,
     setParticipantVolume,
     clearError,
     showError,

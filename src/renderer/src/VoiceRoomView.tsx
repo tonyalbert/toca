@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ConnectionState } from "livekit-client";
-import { LayoutGrid, Maximize, Minimize, ScreenShareOff, Users, MessageSquare } from "lucide-react";
+import { Clapperboard, LayoutGrid, Maximize, Minimize, ScreenShareOff, Users, MessageSquare } from "lucide-react";
 import type { RoomInfo } from "./api";
 import type { Look } from "./components/Avatar";
 import { MAX_VOLUME, type VoiceParticipant, type VoiceRoom } from "./useVoiceRoom";
@@ -14,6 +14,8 @@ import { VolumeControl } from "./components/VolumeControl";
 import { usePeople } from "./people";
 import { useFitGrid } from "./useFitGrid";
 import { useAudioSettings } from "./audioSettings";
+import type { Cinema } from "./cinema";
+import { CinemaStartModal, CinemaView } from "./CinemaView";
 
 /** Um quadro da sala: a câmera (ou o bichinho) de alguém, ou uma tela compartilhada */
 interface Tile {
@@ -40,6 +42,7 @@ export function VoiceRoomView({
   chatOpen,
   chatUnread,
   onToggleChat,
+  cinema,
 }: {
   room: RoomInfo | undefined;
   voice: VoiceRoom;
@@ -52,7 +55,11 @@ export function VoiceRoomView({
   chatOpen: boolean;
   chatUnread: number;
   onToggleChat: () => void;
+  /** Sessão de cinema da chamada */
+  cinema: Cinema;
 }) {
+  // Escolher o vídeo (começar ou trocar)
+  const [cinemaPick, setCinemaPick] = useState(false);
   const { openPerson } = usePeople();
   const [audio] = useAudioSettings();
   const connected = voice.connection === ConnectionState.Connected;
@@ -194,6 +201,18 @@ export function VoiceRoomView({
             Parar de compartilhar
           </Button>
         )}
+        {connected && (
+          <Button
+            size="sm"
+            variant={cinema.session ? "primary" : "secondary"}
+            aria-pressed={!!cinema.session}
+            icon={<Clapperboard size={15} aria-hidden="true" />}
+            onClick={() => setCinemaPick(true)}
+            data-tip={cinema.session ? "Trocar o vídeo da sessão" : "Assistir junto: YouTube ou arquivo do PC"}
+          >
+            Cinema
+          </Button>
+        )}
         {room && (
           <Button size="sm" icon={<Users size={15} aria-hidden="true" />} onClick={onMembers}>
             Membros · {room.members.length}
@@ -219,6 +238,21 @@ export function VoiceRoomView({
       {!connected ? (
         <div className="empty">
           <h2>{connectionLabel(voice.connection)}</h2>
+        </div>
+      ) : cinema.session ? (
+        <div className="focus-layout cinema-layout">
+          <div className="focus-main">
+            <CinemaView
+              cinema={cinema}
+              hostName={
+                cinema.session.host === cinema.me ? "você" : (people.find((p) => p.identity === cinema.session!.host)?.name ?? "alguém")
+              }
+              onChange={() => setCinemaPick(true)}
+            />
+          </div>
+          <div className="focus-strip" aria-label="Pessoas na sala">
+            {tiles.map((t) => renderTile(t, "strip"))}
+          </div>
         </div>
       ) : focused ? (
         <div className="focus-layout">
@@ -251,6 +285,16 @@ export function VoiceRoomView({
         >
           {tiles.map((t) => renderTile(t, "grid"))}
         </div>
+      )}
+
+      {cinemaPick && (
+        <CinemaStartModal
+          onClose={() => setCinemaPick(false)}
+          onStart={(source, file) => {
+            setCinemaPick(false);
+            cinema.start(source, file);
+          }}
+        />
       )}
 
       <CallControls
