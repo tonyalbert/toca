@@ -511,7 +511,7 @@
 @media (max-width: 1080px) { .avatar-studio-layout { grid-template-columns: 1fr; } .avatar-studio-preview { padding: 12px; } .avatar-stage { min-height: 186px; } }
 
 /* ---------- chat (ChatView.tsx) ---------- */
-.chat { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+.chat { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
 .chat-h { display: flex; align-items: center; gap: 12px; padding: 16px 28px; border-bottom: 1px solid var(--line); min-height: 72px; }
 .chat-h h1 { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.025em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-h .sub { font-size: 13px; color: var(--muted); }
@@ -543,15 +543,30 @@
 .msg-del:hover { color: var(--danger); }
 
 .chat-compose { padding: 0 20px 16px; display: flex; flex-direction: column; gap: 6px; }
-.chat-input { display: flex; align-items: flex-end; gap: 6px; padding: 6px 6px 6px 14px; border-radius: var(--r-lg); border: 1px solid var(--line-2); background: var(--card); }
+.chat-input { display: flex; align-items: flex-end; gap: 6px; padding: 6px; border-radius: var(--r-lg); border: 1px solid var(--line-2); background: var(--card); }
 .chat-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.chat-input textarea { flex: 1; min-width: 0; resize: none; border: 0; outline: none; background: transparent; color: var(--text); font-size: 14px; line-height: 21px; padding: 7px 0; max-height: 146px; overflow-y: auto; }
+.chat-input textarea { flex: 1; min-width: 0; resize: none; border: 0; outline: none; background: transparent; color: var(--text); font-size: 14px; line-height: 21px; padding: 7px 2px; max-height: 146px; overflow-y: auto; }
 .chat-input textarea::placeholder { color: var(--faint); }
 .chat-send { color: var(--accent-text); }
 .chat-send:disabled { color: var(--faint); }
 .chat-count { font-size: 11px; color: var(--muted); align-self: center; }
 .chat-count.over { color: var(--danger); font-weight: 700; }
 .chat-hint { padding-left: 4px; }
+
+/* imagens no chat (chatImage.tsx) */
+.msg-image { display: block; margin-top: 4px; padding: 0; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--card-2); overflow: hidden; cursor: zoom-in; }
+.msg-image:disabled { cursor: default; }
+.msg-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.msg-image-fail { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.chat-attach { align-self: flex-start; max-width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 6px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--card); }
+.chat-attach img, .chat-attach-wait { width: 56px; height: 56px; flex: none; border-radius: var(--r-sm); object-fit: cover; background: var(--card-2); }
+.chat-drop { position: absolute; inset: 8px; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 2px dashed var(--accent); border-radius: var(--r-lg); background: color-mix(in srgb, var(--bg) 85%, transparent); color: var(--accent-text); font-weight: 700; pointer-events: none; }
+/* tela cheia: abaixo da barra de título (que arrasta a janela), acima de tudo menos os diálogos */
+.img-viewer { position: fixed; inset: 36px 0 0 0; z-index: 150; display: grid; place-items: center; padding: 56px 32px 32px; background: rgba(6, 7, 9, .9); }
+.img-viewer > img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-md); box-shadow: var(--shadow-3); cursor: zoom-out; }
+.img-viewer-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; }
+.img-viewer-bar .ib { color: #fff; background: rgba(255, 255, 255, .1); }
+.img-viewer-bar .ib:hover { background: rgba(255, 255, 255, .2); }
 
 /* painel do chat ao lado da chamada */
 .room-split { flex: 1; min-height: 0; display: flex; }

@@ -4,6 +4,7 @@ import {
   acceptFriendRequest,
   isProfileComplete,
   logout,
+  messagePreview,
   onSessionLost,
   restoreSession,
   type Account,
@@ -258,7 +259,7 @@ function MainApp({
           const isDm = m.conversation.kind === "dm";
           if (isDm ? !prefs.dmMessages : !prefs.roomMessages) break;
           const roomName = m.conversation.kind === "room" ? roomNamesRef.current.get(m.conversation.roomId) : null;
-          const text = m.body.replace(/\s+/g, " ");
+          const text = messagePreview(m).replace(/\s+/g, " ");
           alert({
             art: <Avatar kind={m.author.avatar} size={40} />,
             title: isDm ? m.author.displayName : `${m.author.displayName} em ${roomName ?? "uma sala"}`,

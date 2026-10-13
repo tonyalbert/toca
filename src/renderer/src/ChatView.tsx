@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { CircleAlert, MessageSquare, SendHorizontal, Trash2, X } from "lucide-react";
+import { CircleAlert, ImagePlus, MessageSquare, SendHorizontal, Trash2, X } from "lucide-react";
 import {
   deleteMessage,
   fetchDmMessages,
@@ -9,6 +9,7 @@ import {
   sendRoomMessage,
   type ChatMessage,
 } from "./api";
+import { ChatImage, firstImage, forgetImage, IMAGE_ACCEPT, prepareImage, rememberImage, toBase64, type PreparedImage } from "./chatImage";
 import { Avatar } from "./components/Avatar";
 import { IconButton } from "./components/Button";
 import { useConfirm } from "./components/ConfirmDialog";
@@ -29,6 +30,9 @@ function dayLabel(d: Date): string {
   if (dayKey(d) === dayKey(yesterday)) return "Ontem";
   return dayFmt.format(d) + (d.getFullYear() !== today.getFullYear() ? ` de ${d.getFullYear()}` : "");
 }
+
+const formatSize = (bytes: number) =>
+  bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
 
 /** Texto com os links clicáveis (abrem no navegador) */
 function withLinks(text: string): ReactNode[] {
@@ -76,6 +80,11 @@ export function ChatView({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  // Imagem anexada, esperando o envio (url: a miniatura)
+  const [attachment, setAttachment] = useState<(PreparedImage & { url: string }) | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -96,6 +105,7 @@ export function ChatView({
     setLoading(true);
     setLoadError(null);
     setSendError(null);
+    setAttachment(null);
     stickToBottom.current = true;
     fetchPage()
       .then((page) => {
@@ -132,6 +142,7 @@ export function ChatView({
       chat.subscribe((e) => {
         if (e.key !== key) return;
         if (e.type === "deleted") {
+          forgetImage(e.messageId);
           setMessages((list) => list.filter((m) => m.id !== e.messageId));
           return;
         }
@@ -181,9 +192,26 @@ export function ChatView({
     return () => observer.disconnect();
   }, [hasMore, loadingOlder, messages, fetchPage]);
 
+  // A miniatura do anexo sai da memória quando ele é trocado ou enviado
+  useEffect(() => (attachment ? () => URL.revokeObjectURL(attachment.url) : undefined), [attachment]);
+
+  const attach = async (file: File | null) => {
+    if (!file) return;
+    setSendError(null);
+    setPreparing(true);
+    try {
+      const image = await prepareImage(file);
+      setAttachment({ ...image, url: URL.createObjectURL(image.blob) });
+    } catch (err) {
+      setSendError((err as Error).message);
+    }
+    setPreparing(false);
+    inputRef.current?.focus();
+  };
+
   const send = async () => {
     const body = text.trim();
-    if (!body || sending) return;
+    if ((!body && !attachment) || sending || preparing) return;
     if (body.length > MAX_MESSAGE) {
       setSendError(`A mensagem passou de ${MAX_MESSAGE} caracteres.`);
       return;
@@ -191,10 +219,14 @@ export function ChatView({
     setSending(true);
     setSendError(null);
     try {
-      const message = target.kind === "room" ? await sendRoomMessage(target.roomId, body) : await sendDm(target.userId, body);
+      const image = attachment ? { data: await toBase64(attachment.blob) } : undefined;
+      const message =
+        target.kind === "room" ? await sendRoomMessage(target.roomId, body, image) : await sendDm(target.userId, body, image);
+      if (attachment && message.image) rememberImage(message.id, attachment.blob);
       stickToBottom.current = true;
       setMessages((list) => (list.some((m) => m.id === message.id) ? list : [...list, message]));
       setText("");
+      setAttachment(null);
     } catch (err) {
       setSendError((err as Error).message);
     }
@@ -212,6 +244,7 @@ export function ChatView({
     if (!ok) return;
     try {
       await deleteMessage(message.id);
+      forgetImage(message.id);
       setMessages((list) => list.filter((m) => m.id !== message.id));
     } catch (err) {
       setSendError((err as Error).message);
@@ -227,7 +260,34 @@ export function ChatView({
   }, [text]);
 
   return (
-    <section className={`chat ${compact ? "compact" : ""}`} aria-label="Conversa">
+    <section
+      className={`chat ${compact ? "compact" : ""} ${dragging ? "dragging" : ""}`}
+      aria-label="Conversa"
+      // Arrastar uma imagem para cima da conversa anexa
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        setDragging(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        setDragging(false);
+        const file = firstImage(e.dataTransfer.files);
+        if (file) void attach(file);
+        else setSendError("Só dá para anexar imagens.");
+      }}
+    >
+      {dragging && (
+        <div className="chat-drop" aria-hidden="true">
+          <ImagePlus size={28} />
+          Solte para anexar a imagem
+        </div>
+      )}
       <div className="chat-h">
         <div className="grow">{header}</div>
         {onClose && (
@@ -294,7 +354,8 @@ export function ChatView({
                       </time>
                     </div>
                   )}
-                  <div className="msg-text">{withLinks(m.body)}</div>
+                  {m.body && <div className="msg-text">{withLinks(m.body)}</div>}
+                  {m.image && <ChatImage message={m} compact={compact} />}
                 </div>
                 {mine && (
                   <IconButton size="sm" className="msg-del" label="Apagar mensagem" onClick={() => void remove(m)}>
@@ -320,7 +381,31 @@ export function ChatView({
             {sendError}
           </span>
         )}
+        {(attachment || preparing) && (
+          <div className="chat-attach">
+            {attachment ? <img src={attachment.url} alt="" /> : <span className="chat-attach-wait" />}
+            <span className="sm muted">{attachment ? `Imagem · ${formatSize(attachment.blob.size)}` : "Preparando a imagem…"}</span>
+            {attachment && (
+              <IconButton size="sm" label="Tirar a imagem" onClick={() => setAttachment(null)}>
+                <X size={14} aria-hidden="true" />
+              </IconButton>
+            )}
+          </div>
+        )}
         <div className="chat-input">
+          <IconButton label="Anexar imagem" className="chat-attach-btn" disabled={sending || preparing} onClick={() => fileRef.current?.click()}>
+            <ImagePlus size={18} aria-hidden="true" />
+          </IconButton>
+          <input
+            ref={fileRef}
+            type="file"
+            accept={IMAGE_ACCEPT}
+            hidden
+            onChange={(e) => {
+              void attach(firstImage(e.target.files));
+              e.target.value = "";
+            }}
+          />
           <textarea
             ref={inputRef}
             rows={1}
@@ -331,6 +416,13 @@ export function ChatView({
             onChange={(e) => {
               setText(e.target.value);
               setSendError(null);
+            }}
+            onPaste={(e) => {
+              // Ctrl+V com uma imagem (print, imagem copiada) anexa
+              const file = firstImage(e.clipboardData.files);
+              if (!file) return;
+              e.preventDefault();
+              void attach(file);
             }}
             onKeyDown={(e) => {
               // Enter envia; Shift+Enter quebra a linha
@@ -343,11 +435,11 @@ export function ChatView({
           {text.length > MAX_MESSAGE - 200 && (
             <span className={`chat-count num ${text.length > MAX_MESSAGE ? "over" : ""}`}>{MAX_MESSAGE - text.length}</span>
           )}
-          <IconButton type="submit" label="Enviar (Enter)" className="chat-send" disabled={!text.trim() || sending}>
+          <IconButton type="submit" label="Enviar (Enter)" className="chat-send" disabled={(!text.trim() && !attachment) || sending || preparing}>
             <SendHorizontal size={18} aria-hidden="true" />
           </IconButton>
         </div>
-        {!compact && <span className="chat-hint xs faint">Enter envia · Shift+Enter pula linha</span>}
+        {!compact && <span className="chat-hint xs faint">Enter envia · Shift+Enter pula linha · Ctrl+V cola imagem</span>}
       </form>
     </section>
   );

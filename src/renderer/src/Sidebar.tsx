@@ -12,7 +12,7 @@ import {
   SquarePen,
   Users,
 } from "lucide-react";
-import type { Avatar as AvatarKind, DmSummary, Friend, Profile, RoomInfo } from "./api";
+import { messagePreview, type Avatar as AvatarKind, type DmSummary, type Friend, type Profile, type RoomInfo } from "./api";
 import type { UpdateState } from "../../shared/update";
 import type { VoiceRoom } from "./useVoiceRoom";
 import { useMicLevel } from "./useMicLevel";
@@ -237,7 +237,7 @@ export function Sidebar({
             const on = view === "chat" && activeChat?.kind === "dm" && activeChat.userId === d.user.id;
             const friend = friends.find((f) => f.id === d.user.id);
             const last = d.lastMessage;
-            const preview = (last.author.id === me.id ? "Você: " : "") + last.body.replace(/\s+/g, " ");
+            const preview = (last.author.id === me.id ? "Você: " : "") + messagePreview(last).replace(/\s+/g, " ");
             return (
               <button
                 key={d.user.id}

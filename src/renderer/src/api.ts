@@ -281,7 +281,10 @@ export interface ChatMessage {
   id: string;
   conversation: Conversation;
   author: User;
+  /** Vazio quando a mensagem é só uma imagem */
   body: string;
+  /** Imagem anexada (os bytes vêm de fetchMessageImage) */
+  image: { width: number; height: number } | null;
   createdAt: string;
 }
 
@@ -300,14 +303,20 @@ export interface DmSummary {
 }
 
 export const MAX_MESSAGE = 2000;
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** Imagem para enviar: os bytes em base64 */
+export interface ImageUpload {
+  data: string;
+}
 
 const pageQuery = (before?: string) => (before ? `?before=${before}` : "");
 
 export const fetchRoomMessages = (roomId: string, before?: string) =>
   authed<MessagePage>(`/rooms/${roomId}/messages${pageQuery(before)}`);
 
-export const sendRoomMessage = async (roomId: string, body: string) =>
-  (await authed<{ message: ChatMessage }>(`/rooms/${roomId}/messages`, json("POST", { body }))).message;
+export const sendRoomMessage = async (roomId: string, body: string, image?: ImageUpload) =>
+  (await authed<{ message: ChatMessage }>(`/rooms/${roomId}/messages`, json("POST", { body, image }))).message;
 
 export const markRoomRead = (roomId: string) => authed<void>(`/rooms/${roomId}/read`, { method: "POST" });
 
@@ -316,9 +325,31 @@ export const fetchDms = async () => (await authed<{ conversations: DmSummary[] }
 export const fetchDmMessages = (userId: string, before?: string) =>
   authed<MessagePage>(`/dms/${userId}/messages${pageQuery(before)}`);
 
-export const sendDm = async (userId: string, body: string) =>
-  (await authed<{ message: ChatMessage }>(`/dms/${userId}/messages`, json("POST", { body }))).message;
+export const sendDm = async (userId: string, body: string, image?: ImageUpload) =>
+  (await authed<{ message: ChatMessage }>(`/dms/${userId}/messages`, json("POST", { body, image }))).message;
 
 export const markDmRead = (userId: string) => authed<void>(`/dms/${userId}/read`, { method: "POST" });
 
 export const deleteMessage = (id: string) => authed<void>(`/messages/${id}`, { method: "DELETE" });
+
+/** Bytes da imagem de uma mensagem (precisa do token, então não dá para usar a URL direto no <img>) */
+export async function fetchMessageImage(messageId: string): Promise<Blob> {
+  const get = async () =>
+    fetch(`${API_URL}/messages/${messageId}/image`, { headers: { authorization: `Bearer ${await getAccessToken()}` } });
+  let res: Response;
+  try {
+    res = await get();
+    if (res.status === 401) {
+      accessExpiresAt = 0;
+      res = await get();
+    }
+  } catch {
+    throw new ApiError("Sem conexão com o servidor", 0);
+  }
+  if (!res.ok) throw new ApiError(res.status === 404 ? "Imagem não encontrada" : `Erro ${res.status}`, res.status);
+  return res.blob();
+}
+
+/** Texto curto da mensagem para listas e avisos */
+export const messagePreview = (m: ChatMessage) =>
+  m.image ? (m.body ? `📷 ${m.body}` : "📷 Imagem") : m.body;
