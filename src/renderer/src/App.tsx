@@ -29,8 +29,10 @@ import { Sidebar } from "./Sidebar";
 import { FriendsPage } from "./FriendsPage";
 import { ProfileSetup } from "./ProfileSetup";
 import { CreateRoomModal, RoomModal, type RoomModalTab } from "./RoomModals";
+import { JoinInviteModal } from "./JoinInviteModal";
 import { ScreenSharePicker } from "./ScreenSharePicker";
 import { SettingsPage, type SettingsSection } from "./SettingsPage";
+import { compareVersions, markSeen, releasesUpTo, seenVersion } from "./changelog";
 import { VoiceRoomView } from "./VoiceRoomView";
 import { ChatView } from "./ChatView";
 import { NewDmModal } from "./NewDmModal";
@@ -207,6 +209,11 @@ function MainApp({
   const [section, setSection] = useState<SettingsSection>("profile");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  // Ainda não viu as novidades da versão instalada
+  const [newsUnseen, setNewsUnseen] = useState(false);
+  const openSettingsRef = useRef<(s: SettingsSection) => void>(() => {});
+  // Entrar por link de convite: com o código (o link abriu o app) ou colando o link
+  const [inviteJoin, setInviteJoin] = useState<{ token: string | null } | null>(null);
   // Janela da sala aberta (Membros pelo botão da sala, Sala pela engrenagem)
   const [roomModal, setRoomModal] = useState<{ id: string; tab: RoomModalTab } | null>(null);
   const [rejoinRoom, setRejoinRoom] = useState(takeRejoinRoom);
@@ -255,13 +262,13 @@ function MainApp({
       switch (event.type) {
         case "message_created": {
           const m = event.message;
-          if (m.author.id === me.id || chat.isShown(m)) break;
+          if (m.author.id === me.id || m.kind === "joined" || chat.isShown(m)) break;
           const isDm = m.conversation.kind === "dm";
           if (isDm ? !prefs.dmMessages : !prefs.roomMessages) break;
           const roomName = m.conversation.kind === "room" ? roomNamesRef.current.get(m.conversation.roomId) : null;
           const text = messagePreview(m).replace(/\s+/g, " ");
           alert({
-            art: <Avatar kind={m.author.avatar} size={40} />,
+            art: <Avatar kind={m.author.avatar} photo={m.author.photo} size={40} />,
             title: isDm ? m.author.displayName : `${m.author.displayName} em ${roomName ?? "uma sala"}`,
             sub: text.length > 120 ? text.slice(0, 117) + "…" : text,
             actions: [{ label: "Responder", primary: true, onClick: () => openChat(conversationTarget(m.conversation, me.id)) }],
@@ -272,7 +279,7 @@ function MainApp({
           if (!prefs.friendRequests) break;
           const { user, id } = event.request;
           alert({
-            art: <Avatar kind={user.avatar} size={40} />,
+            art: <Avatar kind={user.avatar} photo={user.photo} size={40} />,
             title: `${user.displayName} quer ser seu amigo`,
             sub: `@${user.username}`,
             actions: [
@@ -292,7 +299,7 @@ function MainApp({
         case "friend_request_accepted":
           if (prefs.friendRequests) {
             alert({
-              art: <Avatar kind={event.friend.avatar} size={40} />,
+              art: <Avatar kind={event.friend.avatar} photo={event.friend.photo} size={40} />,
               title: `Você e ${event.friend.displayName} agora são amigos`,
               sub: `@${event.friend.username}`,
             });
@@ -331,6 +338,40 @@ function MainApp({
 
   const data = useTocaData(handleEvent);
   const { reloadRooms, reloadFriends } = data;
+
+  // Atualizou o Toca: avisa uma vez e marca "Novo" nas novidades até a pessoa abrir.
+  // Primeira vez que abre (instalação nova): só guarda a versão, sem aviso.
+  useEffect(() => {
+    if (!version) return;
+    const seen = seenVersion();
+    if (!seen) {
+      markSeen(version);
+      return;
+    }
+    if (compareVersions(version, seen) <= 0) return;
+    const fresh = releasesUpTo(version).filter((r) => compareVersions(r.version, seen) > 0);
+    if (fresh.length === 0) {
+      markSeen(version); // versão sem novidades escritas
+      return;
+    }
+    setNewsUnseen(true);
+    toast({
+      title: `O Toca foi atualizado para a ${version}`,
+      sub: (() => {
+        const n = fresh.reduce((sum, r) => sum + r.items.length, 0);
+        return n === 1 ? fresh[0].items[0] : `${n} novidades para ver.`;
+      })(),
+      kind: "ok",
+      actions: [{ label: "Ver novidades", primary: true, onClick: () => openSettingsRef.current("news") }],
+    });
+  }, [version]);
+
+  // Link de convite que abriu o app, ou que chegou com ele já aberto
+  useEffect(() => {
+    const take = () => void window.toca.takeInvite().then((token) => token && setInviteJoin({ token }));
+    take();
+    return window.toca.onInvitePending(take);
+  }, []);
   reloadFriendsRef.current = reloadFriends;
   friendsRef.current = new Map(data.friends.map((f) => [f.id, f.displayName]));
   roomNamesRef.current = new Map(data.rooms.map((r) => [r.id, r.name]));
@@ -394,6 +435,15 @@ function MainApp({
     setSection(s);
     setView("config");
   };
+  openSettingsRef.current = openSettings;
+
+  // Abriu as novidades: some o "Novo"
+  useEffect(() => {
+    if (shown === "config" && section === "news" && version && newsUnseen) {
+      markSeen(version);
+      setNewsUnseen(false);
+    }
+  }, [shown, section, version, newsUnseen]);
 
   const people: People = {
     me,
@@ -412,7 +462,7 @@ function MainApp({
       ? (findPerson(people, chatTarget.userId) ??
         (() => {
           const u = chat.dms.find((d) => d.user.id === chatTarget.userId)?.user;
-          return u ? { id: u.id, name: u.displayName, username: u.username, avatar: u.avatar } : null;
+          return u ? { id: u.id, name: u.displayName, username: u.username, avatar: u.avatar, photo: u.photo } : null;
         })())
       : null;
   const chatPersonName = chatPerson?.name ?? "…";
@@ -441,6 +491,7 @@ function MainApp({
         onOpenRoom={joinRoom}
         onRoomSettings={(id) => setRoomModal({ id, tab: "room" })}
         onCreateRoom={() => setCreateOpen(true)}
+        onJoinInvite={() => setInviteJoin({ token: null })}
         onFriends={() => setView("friends")}
         onSettings={() => openSettings("voice")}
         onProfile={() => openSettings("profile")}
@@ -485,6 +536,7 @@ function MainApp({
                 compact
                 chat={chat}
                 target={{ kind: "room", roomId: currentRoom.id }}
+                canModerate={currentRoom.role !== "member"}
                 placeholder={`Mensagem para ${currentRoom.name}`}
                 header={<strong className="chat-title-sm">Chat da sala</strong>}
                 onClose={() => setRoomChatOpen(false)}
@@ -496,6 +548,7 @@ function MainApp({
             key={targetKey(chatTarget)}
             chat={chat}
             target={chatTarget}
+            canModerate={!!chatRoom && chatRoom.role !== "member"}
             placeholder={chatTarget.kind === "room" ? `Mensagem para ${chatRoom?.name ?? "a sala"}` : `Mensagem para ${chatPersonName}`}
             header={
               chatTarget.kind === "room" ? (
@@ -517,7 +570,7 @@ function MainApp({
                 </div>
               ) : (
                 <div className="row" style={{ gap: 12 }}>
-                  {chatPerson && <Avatar kind={chatPerson.avatar} size={40} presence={chatPersonPresence} />}
+                  {chatPerson && <Avatar kind={chatPerson.avatar} photo={chatPerson.photo} size={40} presence={chatPersonPresence} />}
                   <div className="grow">
                     <h1>{chatPersonName}</h1>
                     <span className="sub">{chatPerson ? `@${chatPerson.username}` : ""}</span>
@@ -534,6 +587,8 @@ function MainApp({
             onSection={setSection}
             onMeChange={onMeChange}
             onSignOut={() => void signOut()}
+            version={version}
+            newsUnseen={newsUnseen}
           />
         ) : (
           <FriendsPage
@@ -556,6 +611,20 @@ function MainApp({
               void voice.startScreenShare(sourceId, withAudio, sourceName);
             }}
             onClose={() => setPickerOpen(false)}
+          />
+        )}
+
+        {inviteJoin && (
+          <JoinInviteModal
+            key={inviteJoin.token ?? "colar"}
+            initialToken={inviteJoin.token}
+            onClose={() => setInviteJoin(null)}
+            onJoined={(room) => {
+              setInviteJoin(null);
+              void reloadRooms();
+              openChat({ kind: "room", roomId: room.id });
+              if ("name" in room) toast({ title: `Você entrou em ${room.name}`, sub: "Entre na chamada quando quiser." });
+            }}
           />
         )}
 

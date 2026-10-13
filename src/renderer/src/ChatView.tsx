@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { CircleAlert, ImagePlus, MessageSquare, SendHorizontal, Trash2, X } from "lucide-react";
+import { CircleAlert, ImagePlus, MessageSquare, SendHorizontal, Trash2, UserPlus, X } from "lucide-react";
 import {
   deleteMessage,
   fetchDmMessages,
@@ -59,6 +59,7 @@ export function ChatView({
   compact,
   onClose,
   placeholder,
+  canModerate,
 }: {
   target: ChatTarget;
   chat: Chat;
@@ -68,6 +69,8 @@ export function ChatView({
   compact?: boolean;
   onClose?: () => void;
   placeholder: string;
+  /** Dono ou adm da sala: apaga mensagens dos outros também */
+  canModerate?: boolean;
 }) {
   const { me, openPerson } = usePeople();
   const confirm = useConfirm();
@@ -236,7 +239,12 @@ export function ChatView({
 
   const remove = async (message: ChatMessage) => {
     const ok = await confirm({
-      title: "Apagar mensagem?",
+      title:
+        message.kind === "joined"
+          ? "Apagar este aviso?"
+          : message.author.id === me.id
+            ? "Apagar mensagem?"
+            : `Apagar a mensagem de ${message.author.displayName}?`,
       message: "Ela some para todo mundo na conversa. Não dá para desfazer.",
       confirmLabel: "Apagar",
       danger: true,
@@ -319,8 +327,41 @@ export function ChatView({
           const prev = messages[i - 1];
           const prevAt = prev ? new Date(prev.createdAt) : null;
           const newDay = !prevAt || dayKey(prevAt) !== dayKey(at);
-          const grouped = !newDay && !!prev && prev.author.id === m.author.id && at.getTime() - prevAt!.getTime() < GROUP_MS;
+          const grouped =
+            !newDay &&
+            !!prev &&
+            prev.kind !== "joined" &&
+            prev.author.id === m.author.id &&
+            at.getTime() - prevAt!.getTime() < GROUP_MS;
           const mine = m.author.id === me.id;
+          if (m.kind === "joined") {
+            return (
+              <Fragment key={m.id}>
+                {newDay && (
+                  <div className="chat-day" role="separator">
+                    <span>{dayLabel(at)}</span>
+                  </div>
+                )}
+                <div className="msg-system">
+                  <UserPlus size={14} aria-hidden="true" />
+                  <span>
+                    <button type="button" className="msg-author" onClick={(e) => openPerson(m.author.id, e.currentTarget)}>
+                      {mine ? "Você" : m.author.displayName}
+                    </button>{" "}
+                    entrou na toca
+                  </span>
+                  <time className="msg-time num" dateTime={m.createdAt}>
+                    {timeFmt.format(at)}
+                  </time>
+                  {canModerate && (
+                    <IconButton size="sm" className="msg-del" label="Apagar aviso" onClick={() => void remove(m)}>
+                      <Trash2 size={14} aria-hidden="true" />
+                    </IconButton>
+                  )}
+                </div>
+              </Fragment>
+            );
+          }
           return (
             <Fragment key={m.id}>
               {newDay && (
@@ -340,7 +381,7 @@ export function ChatView({
                     aria-label={`${m.author.displayName}: ver cartão`}
                     onClick={(e) => openPerson(m.author.id, e.currentTarget)}
                   >
-                    <Avatar kind={m.author.avatar} size={36} mine={mine} />
+                    <Avatar kind={m.author.avatar} photo={m.author.photo} size={36} mine={mine} />
                   </button>
                 )}
                 <div className="msg-body">
@@ -357,7 +398,7 @@ export function ChatView({
                   {m.body && <div className="msg-text">{withLinks(m.body)}</div>}
                   {m.image && <ChatImage message={m} compact={compact} />}
                 </div>
-                {mine && (
+                {(mine || (canModerate && target.kind === "room")) && (
                   <IconButton size="sm" className="msg-del" label="Apagar mensagem" onClick={() => void remove(m)}>
                     <Trash2 size={14} aria-hidden="true" />
                   </IconButton>

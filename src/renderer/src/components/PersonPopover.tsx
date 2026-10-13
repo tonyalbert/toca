@@ -88,7 +88,7 @@ export function PersonPopover({
       style={{ width: WIDTH, left: pos?.left ?? -9999, top: pos?.top ?? 0 }}
     >
       <div className="row" style={{ gap: 12 }}>
-        <Avatar kind={person.avatar} size={52} mine={isMe} />
+        <Avatar kind={person.avatar} photo={person.photo} size={52} mine={isMe} />
         <div className="grow">
           <strong className="person-pop-name">{person.name}</strong>
           <span className="xs muted">@{person.username}</span>

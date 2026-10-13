@@ -12,6 +12,10 @@ declare global {
       /** Retorna a função que cancela a inscrição */
       onUpdateState(callback: (state: UpdateState) => void): () => void;
       installUpdate(): Promise<void>;
+      /** Código de um link de convite (toca://convite/...) que abriu o app; vem uma vez só */
+      takeInvite(): Promise<string | null>;
+      /** Chegou um link de convite com o app aberto: chame takeInvite. Retorna a função que cancela. */
+      onInvitePending(callback: () => void): () => void;
       /** Janela à vista (nem na bandeja, nem minimizada) */
       isWindowVisible(): Promise<boolean>;
       minimizeWindow(): Promise<void>;

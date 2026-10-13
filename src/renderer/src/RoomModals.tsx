@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { CircleAlert, LogOut, Search, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { CircleAlert, Crown, LogOut, MoreHorizontal, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, UserPlus } from "lucide-react";
 import {
   addRoomMember,
+  canManageRoom,
   createRoom,
   deleteRoom,
   removeRoomMember,
+  setRoomMemberRole,
+  transferRoom,
   updateRoom,
   type Friend,
+  type RoomRole,
   type RoomIcon as RoomIconKind,
   type RoomInfo,
   type User,
@@ -15,10 +19,12 @@ import { Button, IconButton } from "./components/Button";
 import { Checkbox } from "./components/Checkbox";
 import { useConfirm } from "./components/ConfirmDialog";
 import { Input } from "./components/Input";
+import { Menu, type MenuItem } from "./components/Menu";
 import { Modal } from "./components/Modal";
 import { PersonRow } from "./components/PersonRow";
 import { RoomIconPicker } from "./components/RoomIconPicker";
 import { FriendAction } from "./people";
+import { InviteLink } from "./InviteLink";
 
 /** Nova sala: nome, ícone e os amigos que já entram nela */
 export function CreateRoomModal({
@@ -104,7 +110,7 @@ export function CreateRoomModal({
               <PersonRow
                 key={f.id}
                 small
-                avatar={f.avatar}
+                avatar={f.avatar} photo={f.photo}
                 name={f.displayName}
                 username={f.username}
                 onClick={() => toggle(f.id)}
@@ -149,7 +155,7 @@ export function RoomModal({
   onLeft: () => void;
   onClose: () => void;
 }) {
-  const isOwner = room.role === "owner";
+  const role = room.role;
   const owner = room.members.find((m) => m.role === "owner");
   const [tab, setTab] = useState<RoomModalTab>(initialTab);
   const [busy, setBusy] = useState<string | null>(null);
@@ -172,9 +178,11 @@ export function RoomModal({
     <Modal
       title={room.name}
       description={
-        isOwner
-          ? "Quem pode entrar nesta sala. Só você, que criou, pode mudar."
-          : `Quem pode entrar nesta sala. Só ${owner?.displayName ?? "o dono"}, que criou, pode mudar.`
+        role === "owner"
+          ? "Você é o dono: cuida dos membros, do link de convite e do nome e ícone da sala."
+          : role === "admin"
+            ? "Você é adm: cuida dos membros, do link de convite e do nome e ícone da sala."
+            : `Quem cuida desta sala: ${owner?.displayName ?? "o dono"} (dono) e os adms.`
       }
       onClose={onClose}
       footer={
@@ -203,9 +211,9 @@ export function RoomModal({
       )}
 
       {tab === "members" ? (
-        <MembersTab room={room} me={me} friends={friends} isOwner={isOwner} busy={busy} act={act} />
+        <MembersTab room={room} me={me} friends={friends} role={role} busy={busy} act={act} />
       ) : (
-        <RoomTab room={room} me={me} isOwner={isOwner} busy={busy} act={act} onLeft={onLeft} />
+        <RoomTab room={room} me={me} role={role} busy={busy} act={act} onLeft={onLeft} />
       )}
     </Modal>
   );
@@ -217,17 +225,19 @@ function MembersTab({
   room,
   me,
   friends,
-  isOwner,
+  role,
   busy,
   act,
 }: {
   room: RoomInfo;
   me: User;
   friends: Friend[];
-  isOwner: boolean;
+  role: RoomRole;
   busy: string | null;
   act: Act;
 }) {
+  const confirm = useConfirm();
+  const isOwner = role === "owner";
   const [query, setQuery] = useState("");
   // Remoção pede confirmação na própria linha
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -238,10 +248,49 @@ function MembersTab({
     .filter((f) => !memberIds.has(f.id))
     .filter((f) => !q || f.displayName.toLowerCase().includes(q) || f.username.includes(q));
 
+  // O dono remove qualquer um; o adm, só membros comuns
+  const canRemove = (m: RoomInfo["members"][number]) =>
+    m.id !== me.id && (isOwner ? m.role !== "owner" : role === "admin" && m.role === "member");
+
+  const roleItems = (m: RoomInfo["members"][number]): MenuItem[] => {
+    if (m.id === me.id) return [];
+    const items: MenuItem[] = [];
+    if (m.role === "member" && canManageRoom(role)) {
+      items.push({
+        label: "Tornar adm",
+        icon: <ShieldCheck size={15} aria-hidden="true" />,
+        onSelect: () => void act(m.id, () => setRoomMemberRole(room.id, m.id, "admin")),
+      });
+    }
+    if (m.role === "admin" && isOwner) {
+      items.push({
+        label: "Tirar de adm",
+        icon: <ShieldOff size={15} aria-hidden="true" />,
+        onSelect: () => void act(m.id, () => setRoomMemberRole(room.id, m.id, "member")),
+      });
+    }
+    if (isOwner) {
+      items.push({
+        label: "Passar a sala",
+        icon: <Crown size={15} aria-hidden="true" />,
+        onSelect: async () => {
+          const ok = await confirm({
+            title: `Passar a sala para ${m.displayName}?`,
+            message: `A sala passa a ser de ${m.displayName}. Você continua como adm, mas só ${m.displayName} vai poder excluir a sala ou passá-la adiante.`,
+            confirmLabel: "Passar a sala",
+          });
+          if (ok) void act(m.id, () => transferRoom(room.id, m.id));
+        },
+      });
+    }
+    return items;
+  };
+
   return (
     <>
-      {isOwner && (
+      {canManageRoom(role) && (
         <>
+          <InviteLink room={room} />
           <Input
             label="Adicionar amigo"
             prefix={<Search size={15} aria-hidden="true" />}
@@ -263,7 +312,7 @@ function MembersTab({
             ) : (
               <ul className="list">
                 {outside.map((f) => (
-                  <PersonRow key={f.id} small avatar={f.avatar} name={f.displayName} username={f.username}>
+                  <PersonRow key={f.id} small avatar={f.avatar} photo={f.photo} name={f.displayName} username={f.username}>
                     <Button
                       size="sm"
                       icon={<UserPlus size={15} aria-hidden="true" />}
@@ -287,7 +336,7 @@ function MembersTab({
             <PersonRow
               key={m.id}
               small
-              avatar={m.avatar}
+              avatar={m.avatar} photo={m.photo}
               name={m.displayName}
               username={m.username}
               detail={m.id === me.id ? "você" : undefined}
@@ -295,8 +344,9 @@ function MembersTab({
               {m.id !== me.id && (
                 <FriendAction hideFriend person={{ id: m.id, name: m.displayName, username: m.username, avatar: m.avatar }} />
               )}
-              {m.role === "owner" && <span className="badge accent">Criou a sala</span>}
-              {isOwner && m.role !== "owner" && confirming === m.id && (
+              {m.role === "owner" && <span className="badge accent">Dono</span>}
+              {m.role === "admin" && <span className="badge">Adm</span>}
+              {canRemove(m) && confirming === m.id && (
                 <>
                   <span className="xs muted">Remover {m.displayName}?</span>
                   <Button
@@ -312,10 +362,13 @@ function MembersTab({
                   </Button>
                 </>
               )}
-              {isOwner && m.role !== "owner" && confirming !== m.id && (
+              {canRemove(m) && confirming !== m.id && (
                 <IconButton size="sm" label={`Remover ${m.displayName} da sala`} onClick={() => setConfirming(m.id)}>
                   <UserMinus size={16} aria-hidden="true" />
                 </IconButton>
+              )}
+              {confirming !== m.id && roleItems(m).length > 0 && (
+                <Menu label={`Mais opções para ${m.displayName}`} icon={<MoreHorizontal size={16} aria-hidden="true" />} items={roleItems(m)} />
               )}
             </PersonRow>
           ))}
@@ -328,19 +381,20 @@ function MembersTab({
 function RoomTab({
   room,
   me,
-  isOwner,
+  role,
   busy,
   act,
   onLeft,
 }: {
   room: RoomInfo;
   me: User;
-  isOwner: boolean;
+  role: RoomRole;
   busy: string | null;
   act: Act;
   onLeft: () => void;
 }) {
   const confirm = useConfirm();
+  const isOwner = role === "owner";
   const [name, setName] = useState(room.name);
   const [icon, setIcon] = useState<RoomIconKind>(room.icon);
   const changed = (name.trim() && name.trim() !== room.name) || icon !== room.icon;
@@ -355,7 +409,7 @@ function RoomTab({
 
   return (
     <>
-      {isOwner && (
+      {canManageRoom(role) && (
         <form className="col" style={{ gap: 16 }} onSubmit={save}>
           <Input label="Nome da sala" maxLength={50} value={name} onChange={(e) => setName(e.target.value)} />
           <RoomIconPicker value={icon} onChange={setIcon} />
@@ -370,7 +424,10 @@ function RoomTab({
           <div className="row" style={{ gap: 16 }}>
             <div className="grow">
               <strong className="sm">Excluir a sala</strong>
-              <p className="xs muted">Some para todos os membros e quem estiver nela sai na hora.</p>
+              <p className="xs muted">
+                Some para todos os membros e quem estiver nela sai na hora. Para sair sem excluir, passe a sala para alguém
+                em Membros.
+              </p>
             </div>
             <Button
               variant="danger-soft"
@@ -391,29 +448,47 @@ function RoomTab({
             </Button>
           </div>
         ) : (
-          <div className="row" style={{ gap: 16 }}>
-            <div className="grow">
-              <strong className="sm">Sair da sala</strong>
-              <p className="xs muted">Ela some da sua lista. Para voltar, o dono precisa te adicionar de novo.</p>
+          <>
+            {role === "admin" && (
+              <div className="row" style={{ gap: 16 }}>
+                <div className="grow">
+                  <strong className="sm">Deixar de ser adm</strong>
+                  <p className="xs muted">Você continua na sala, como membro comum.</p>
+                </div>
+                <Button
+                  size="sm"
+                  icon={<ShieldOff size={15} aria-hidden="true" />}
+                  disabled={busy === "unadmin"}
+                  onClick={() => void act("unadmin", () => setRoomMemberRole(room.id, me.id, "member"))}
+                >
+                  Deixar de ser adm
+                </Button>
+              </div>
+            )}
+            <div className="row" style={{ gap: 16 }}>
+              <div className="grow">
+                <strong className="sm">Sair da sala</strong>
+                <p className="xs muted">Ela some da sua lista. Para voltar, o dono ou um adm precisa te adicionar de novo.</p>
+              </div>
+              <Button
+                variant="danger-soft"
+                size="sm"
+                icon={<LogOut size={15} aria-hidden="true" />}
+                disabled={busy === "leave"}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Sair da sala ${room.name}?`,
+                    message: "Ela some da sua lista. Para voltar, o dono ou um adm precisa te adicionar de novo.",
+                    confirmLabel: "Sair da sala",
+                    danger: true,
+                  });
+                  if (ok) void act("leave", () => removeRoomMember(room.id, me.id), onLeft);
+                }}
+              >
+                Sair da sala
+              </Button>
             </div>
-            <Button
-              variant="danger-soft"
-              size="sm"
-              icon={<LogOut size={15} aria-hidden="true" />}
-              disabled={busy === "leave"}
-              onClick={async () => {
-                const ok = await confirm({
-                  title: `Sair da sala ${room.name}?`,
-                  message: "Ela some da sua lista. Para voltar, o dono precisa te adicionar de novo.",
-                  confirmLabel: "Sair da sala",
-                  danger: true,
-                });
-                if (ok) void act("leave", () => removeRoomMember(room.id, me.id), onLeft);
-              }}
-            >
-              Sair da sala
-            </Button>
-          </div>
+          </>
         )}
       </div>
     </>

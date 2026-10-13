@@ -89,7 +89,8 @@ export function useChat(meId: string) {
         const target = conversationTarget(message.conversation, meId);
         const key = targetKey(target);
         const mine = message.author.id === meId;
-        const counts = !mine && !onScreen(openKey.current, key);
+        // O aviso "entrou na toca" aparece no chat, mas não conta como não lida
+        const counts = !mine && message.kind !== "joined" && !onScreen(openKey.current, key);
         if (target.kind === "room") {
           if (counts) {
             setRoomRead((s) => {

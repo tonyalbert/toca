@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ConnectionState } from "livekit-client";
 import { LayoutGrid, Maximize, Minimize, ScreenShareOff, Users, MessageSquare } from "lucide-react";
-import type { Avatar as AvatarKind, RoomInfo } from "./api";
+import type { RoomInfo } from "./api";
+import type { Look } from "./components/Avatar";
 import { MAX_VOLUME, type VoiceParticipant, type VoiceRoom } from "./useVoiceRoom";
 import { connectionLabel } from "./Sidebar";
 import { Button, IconButton } from "./components/Button";
@@ -42,7 +43,7 @@ export function VoiceRoomView({
 }: {
   room: RoomInfo | undefined;
   voice: VoiceRoom;
-  avatars: Map<string, AvatarKind>;
+  avatars: Map<string, Look>;
   /** Abre a janela de membros da sala */
   onMembers: () => void;
   /** Abre o seletor de tela */
@@ -149,7 +150,8 @@ export function VoiceRoomView({
         variant={variant}
         avatarSize={variant === "grid" && fit ? Math.round(Math.min(128, Math.max(40, fit.height * 0.42))) : undefined}
         name={p.name}
-        avatar={avatars.get(p.identity) ?? "rabbit"}
+        avatar={avatars.get(p.identity)?.avatar ?? "rabbit"}
+        photo={avatars.get(p.identity)?.photo}
         isLocal={p.isLocal}
         talking={p.isSpeaking}
         muted={p.isMuted}

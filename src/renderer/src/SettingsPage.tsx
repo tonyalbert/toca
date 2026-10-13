@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Check, CircleAlert, LogOut, Mic, Moon, Play, User, Video } from "lucide-react";
-import { ApiError, updateProfile, type Avatar as AvatarKind, type Profile } from "./api";
+import { Bell, Check, CircleAlert, ImageOff, ImagePlus, LogOut, Mic, Moon, Play, Sparkles, User, Video } from "lucide-react";
+import { ApiError, removePhoto, updateProfile, uploadPhoto, type Account, type Avatar as AvatarKind, type Profile } from "./api";
 import { GATE_MAX_DB, GATE_MIN_DB, MAX_GAIN, rmsToDb, useAudioSettings } from "./audioSettings";
 import { DEFAULT_DEVICE, captureDeviceId, listDevices, type DeviceKind, type DeviceOption } from "./devices";
+import { releasesUpTo } from "./changelog";
+import { toBase64 } from "./chatImage";
+import { PHOTO_ACCEPT, preparePhoto } from "./profilePhoto";
 import { useNotifyPrefs } from "./notifyPrefs";
 import { playCue } from "./sounds";
-import { useTheme, type ThemePreference } from "./theme";
+import { usePalette, useTheme, type Palette, type ThemePreference } from "./theme";
 import type { VoiceRoom } from "./useVoiceRoom";
 import { Avatar } from "./components/Avatar";
 import { AvatarEditor } from "./components/AvatarEditor";
@@ -16,16 +19,17 @@ import { Select } from "./components/Select";
 import { Slider } from "./components/Slider";
 import { Switch } from "./components/Switch";
 
-export type SettingsSection = "profile" | "voice" | "notify" | "look";
+export type SettingsSection = "profile" | "voice" | "notify" | "look" | "news";
 
 const SECTIONS: { id: SettingsSection; label: string; icon: React.ReactNode }[] = [
   { id: "profile", label: "Perfil", icon: <User size={16} aria-hidden="true" /> },
   { id: "voice", label: "Voz e vídeo", icon: <Mic size={16} aria-hidden="true" /> },
   { id: "notify", label: "Notificações", icon: <Bell size={16} aria-hidden="true" /> },
   { id: "look", label: "Aparência", icon: <Moon size={16} aria-hidden="true" /> },
+  { id: "news", label: "Novidades", icon: <Sparkles size={16} aria-hidden="true" /> },
 ];
 
-/** Configurações: perfil, voz e vídeo, notificações, aparência e sair */
+/** Configurações: perfil, voz e vídeo, notificações, aparência, novidades e sair */
 export function SettingsPage({
   me,
   voice,
@@ -33,6 +37,8 @@ export function SettingsPage({
   onSection,
   onMeChange,
   onSignOut,
+  version,
+  newsUnseen,
 }: {
   me: Profile;
   voice: VoiceRoom;
@@ -40,6 +46,10 @@ export function SettingsPage({
   onSection: (section: SettingsSection) => void;
   onMeChange: (me: Profile) => void;
   onSignOut: () => void;
+  /** Versão instalada */
+  version: string | null;
+  /** Atualizou e ainda não abriu as novidades */
+  newsUnseen: boolean;
 }) {
   const confirm = useConfirm();
   return (
@@ -49,6 +59,7 @@ export function SettingsPage({
           <button key={s.id} aria-current={section === s.id ? "page" : undefined} onClick={() => onSection(s.id)}>
             {s.icon}
             {s.label}
+            {s.id === "news" && newsUnseen && <span className="badge accent cfg-new">Novo</span>}
           </button>
         ))}
         <span style={{ flex: 1 }} />
@@ -73,6 +84,7 @@ export function SettingsPage({
         {section === "voice" && <VoiceSection voice={voice} />}
         {section === "notify" && <NotifySection />}
         {section === "look" && <LookSection />}
+        {section === "news" && <NewsSection version={version} />}
       </div>
     </div>
   );
@@ -82,14 +94,49 @@ function ProfileSection({ me, onMeChange }: { me: Profile; onMeChange: (me: Prof
   const [name, setName] = useState(me.displayName);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  // Passar o mouse na foto mostra o GIF se mexendo (como quando você fala)
+  const [hover, setHover] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const trimmed = name.trim();
+
+  const applyAccount = (updated: Account) =>
+    onMeChange({ ...me, ...updated, username: me.username, displayName: updated.displayName ?? me.displayName });
+
+  const changePhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setResult(null);
+    try {
+      const { still, gif } = await preparePhoto(file);
+      applyAccount(await uploadPhoto(await toBase64(still), gif ? await toBase64(gif) : undefined));
+      setResult({
+        ok: true,
+        text: gif ? "GIF salvo. Ele fica parado e só se mexe quando você fala." : "Foto salva. Os amigos já veem a nova.",
+      });
+    } catch (err) {
+      setResult({ ok: false, text: (err as Error).message });
+    }
+    setBusy(false);
+  };
+
+  const dropPhoto = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      applyAccount(await removePhoto());
+      setResult({ ok: true, text: "Foto removida. Volta a aparecer o seu bichinho." });
+    } catch (err) {
+      setResult({ ok: false, text: (err as Error).message });
+    }
+    setBusy(false);
+  };
 
   const save = async (changes: { displayName?: string; avatar?: AvatarKind }) => {
     setBusy(true);
     setResult(null);
     try {
       const updated = await updateProfile(changes);
-      onMeChange({ ...me, ...updated, username: me.username, displayName: updated.displayName ?? me.displayName });
+      applyAccount(updated);
       setResult({ ok: true, text: changes.avatar ? "Avatar salvo. Os amigos já veem o novo." : "Nome salvo. Os amigos já veem o novo." });
       return true;
     } catch (err) {
@@ -104,7 +151,29 @@ function ProfileSection({ me, onMeChange }: { me: Profile; onMeChange: (me: Prof
     <section className="sect" aria-labelledby="cfg-p">
       <h3 id="cfg-p">Perfil</h3>
       <div className="panel" style={{ flexDirection: "row", gap: 24, alignItems: "flex-start" }}>
-        <Avatar kind={me.avatar} size={96} mine />
+        <div className="col profile-photo" style={{ gap: 8, alignItems: "center" }}>
+          <span onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+            <Avatar kind={me.avatar} photo={me.photo} size={96} mine talking={hover && !!me.photo?.animated} />
+          </span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept={PHOTO_ACCEPT}
+            hidden
+            onChange={(e) => {
+              void changePhoto(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <Button size="sm" icon={<ImagePlus size={15} aria-hidden="true" />} disabled={busy} onClick={() => fileRef.current?.click()}>
+            {me.photo ? "Trocar foto" : "Foto ou GIF"}
+          </Button>
+          {me.photo && (
+            <Button size="sm" variant="ghost" icon={<ImageOff size={15} aria-hidden="true" />} disabled={busy} onClick={() => void dropPhoto()}>
+              Tirar foto
+            </Button>
+          )}
+        </div>
         <div className="col grow" style={{ gap: 16 }}>
           <form
             className="row"
@@ -134,7 +203,16 @@ function ProfileSection({ me, onMeChange }: { me: Profile; onMeChange: (me: Prof
 
         </div>
       </div>
-      <AvatarEditor value={me.avatar} disabled={busy} onSave={(avatar) => save({ avatar })} />
+      {me.photo ? (
+        <p className="sm muted">
+          {me.photo.animated
+            ? "Seu GIF fica parado e só se mexe quando você fala (passe o mouse nele para ver). "
+            : ""}
+          Com foto, o bichinho fica guardado: tire a foto para ele voltar.
+        </p>
+      ) : (
+        <AvatarEditor value={me.avatar} disabled={busy} onSave={(avatar) => save({ avatar })} />
+      )}
     </section>
   );
 }
@@ -523,12 +601,26 @@ const THEMES: { id: ThemePreference; label: string; hint: string }[] = [
   { id: "system", label: "Sistema", hint: "Igual ao Windows" },
 ];
 
+/** Cada cor: nome e a amostra (fundo escuro, fundo claro e o destaque) */
+const PALETTE_OPTIONS: { id: Palette; label: string; dark: string; light: string; accent: string }[] = [
+  { id: "amber", label: "Meia-noite", dark: "#08090b", light: "#f6f5f1", accent: "#ffc83a" },
+  { id: "ocean", label: "Oceano", dark: "#070a10", light: "#f2f5f9", accent: "#5aa9ff" },
+  { id: "forest", label: "Floresta", dark: "#070b09", light: "#f2f6f3", accent: "#4fd68f" },
+  { id: "lavender", label: "Lavanda", dark: "#0a0910", light: "#f5f3fa", accent: "#b18cff" },
+  { id: "rose", label: "Morango", dark: "#0f080a", light: "#fbf3f5", accent: "#ff7aa2" },
+  { id: "sunset", label: "Pôr do sol", dark: "#0e0907", light: "#fbf5f0", accent: "#ff9a4a" },
+];
+
 function LookSection() {
   const [theme, setTheme] = useTheme();
+  const [palette, setPalette] = usePalette();
   return (
     <section className="sect" aria-labelledby="cfg-a">
       <h3 id="cfg-a">Aparência</h3>
-      <div className="theme-pick" role="radiogroup" aria-labelledby="cfg-a">
+      <span className="label" id="cfg-modo-cor">
+        Modo
+      </span>
+      <div className="theme-pick" role="radiogroup" aria-labelledby="cfg-modo-cor">
         {THEMES.map((t) => (
           <button key={t.id} type="button" role="radio" aria-checked={theme === t.id} onClick={() => setTheme(t.id)}>
             <span className={`theme-sw ${t.id}`} aria-hidden="true">
@@ -541,6 +633,51 @@ function LookSection() {
           </button>
         ))}
       </div>
+      <span className="label" id="cfg-cor">
+        Cor
+      </span>
+      <div className="palette-pick" role="radiogroup" aria-labelledby="cfg-cor">
+        {PALETTE_OPTIONS.map((p) => (
+          <button key={p.id} type="button" role="radio" aria-checked={palette === p.id} onClick={() => setPalette(p.id)}>
+            <span className="palette-sw" aria-hidden="true" style={{ background: `linear-gradient(135deg, ${p.dark} 50%, ${p.light} 50%)` }}>
+              <i style={{ background: p.accent }} />
+            </span>
+            <strong className="sm">{p.label}</strong>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
+
+const newsDate = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+
+/** O que mudou em cada versão, da mais nova para a mais antiga */
+function NewsSection({ version }: { version: string | null }) {
+  const releases = version ? releasesUpTo(version) : [];
+  return (
+    <section className="sect news" aria-labelledby="cfg-n">
+      <div>
+        <h3 id="cfg-n">Novidades</h3>
+        <p className="sm muted">{version ? `Você está na versão ${version}.` : "Carregando…"} O Toca se atualiza sozinho.</p>
+      </div>
+      {releases.map((r) => (
+        <article key={r.version} className="news-rel">
+          <header>
+            <strong>Versão {r.version}</strong>
+            {r.version === version && <span className="badge accent">Atual</span>}
+            <time className="xs faint" dateTime={r.date}>
+              {newsDate.format(new Date(`${r.date}T12:00:00`))}
+            </time>
+          </header>
+          <ul>
+            {r.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </article>
+      ))}
+    </section>
+  );
+}
+

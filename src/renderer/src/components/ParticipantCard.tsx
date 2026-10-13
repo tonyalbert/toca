@@ -1,6 +1,6 @@
 import type { VideoTrack } from "livekit-client";
 import { HeadphoneOff, MicOff, MoreHorizontal, Volume1, VolumeX } from "lucide-react";
-import type { Avatar as AvatarKind } from "../api";
+import type { Avatar as AvatarKind, Photo } from "../api";
 import { Avatar } from "./Avatar";
 import { VideoView } from "./VideoView";
 import { IconButton } from "./Button";
@@ -11,6 +11,7 @@ export type TileVariant = "grid" | "strip" | "main";
 export interface ParticipantCardProps {
   name: string;
   avatar: AvatarKind;
+  photo?: Photo | null;
   isLocal: boolean;
   talking: boolean;
   muted: boolean;
@@ -37,6 +38,7 @@ export interface ParticipantCardProps {
 export function ParticipantCard({
   name,
   avatar,
+  photo,
   isLocal,
   talking,
   muted,
@@ -84,7 +86,7 @@ export function ParticipantCard({
         // A própria câmera aparece espelhada, como num espelho (os outros te veem normal)
         <VideoView track={video} mirror={isLocal} className="pc-video" />
       ) : (
-        <Avatar kind={avatar} size={avatarSize} mine={isLocal} talking={talking} />
+        <Avatar kind={avatar} photo={photo} size={avatarSize} mine={isLocal} talking={talking} />
       )}
       <span className="pc-text">
         <span className="name">

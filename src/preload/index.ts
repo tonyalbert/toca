@@ -39,6 +39,14 @@ contextBridge.exposeInMainWorld("toca", {
       ipcRenderer.removeListener("ptt:state", listener);
     };
   },
+  takeInvite: (): Promise<string | null> => ipcRenderer.invoke("invite:take"),
+  onInvitePending: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("invite:pending", listener);
+    return () => {
+      ipcRenderer.removeListener("invite:pending", listener);
+    };
+  },
   loadSession: (): Promise<string | null> => ipcRenderer.invoke("session:load"),
   saveSession: (refreshToken: string | null): Promise<void> => ipcRenderer.invoke("session:save", refreshToken),
   getScreenSources: (): Promise<ScreenSource[]> => ipcRenderer.invoke("screen:sources"),

@@ -45,7 +45,7 @@ export function NewDmModal({ onPick, onClose }: { onPick: (userId: string) => vo
             <PersonRow
               key={p.id}
               small
-              avatar={p.avatar}
+              avatar={p.avatar} photo={p.photo}
               name={p.name}
               username={p.username}
               detail={p.detail}

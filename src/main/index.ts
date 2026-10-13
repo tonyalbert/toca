@@ -5,6 +5,7 @@ import { setupScreenShare } from "./screenShare";
 import { setupSession } from "./session";
 import { setupPushToTalk } from "./pushToTalk";
 import { setupUpdater, takeRestartMode } from "./updater";
+import { setupInvites } from "./invite";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -102,6 +103,7 @@ if (!app.requestSingleInstanceLock()) {
     setupPushToTalk();
     setupScreenShare();
     setupSession();
+    setupInvites(() => mainWindow, showWindow);
 
     setupUpdater();
     setupTray(() => mainWindow);

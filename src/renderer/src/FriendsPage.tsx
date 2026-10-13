@@ -134,7 +134,7 @@ export function FriendsPage({
                 return (
                   <PersonRow
                     key={f.id}
-                    avatar={f.avatar}
+                    avatar={f.avatar} photo={f.photo}
                     name={f.displayName}
                     username={f.username}
                     presence={presence}
@@ -183,7 +183,7 @@ export function FriendsPage({
               {incoming.map((r) => (
                 <PersonRow
                   key={r.id}
-                  avatar={r.user.avatar}
+                  avatar={r.user.avatar} photo={r.user.photo}
                   name={r.user.displayName}
                   username={r.user.username}
                   detail={`quer ser seu amigo · ${since(r.createdAt)}`}
@@ -213,7 +213,7 @@ export function FriendsPage({
               {outgoing.map((r) => (
                 <PersonRow
                   key={r.id}
-                  avatar={r.user.avatar}
+                  avatar={r.user.avatar} photo={r.user.photo}
                   name={r.user.displayName}
                   username={r.user.username}
                   detail={`enviado ${since(r.createdAt)}`}

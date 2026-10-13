@@ -6,6 +6,7 @@ import {
   type Avatar as AvatarKind,
   type Friend,
   type FriendRequest,
+  type Photo,
   type Profile,
   type RoomInfo,
 } from "./api";
@@ -18,6 +19,7 @@ export interface Person {
   name: string;
   username: string;
   avatar: AvatarKind;
+  photo?: Photo | null;
 }
 
 export type Relation =
@@ -52,12 +54,12 @@ export function usePeople(): People {
 /** Nome, @ e bichinho de alguém pelo id (você, amigos, pedidos e membros das salas) */
 export function findPerson(people: People, id: string): Person | null {
   const { me, friends, incoming, outgoing, rooms } = people;
-  if (id === me.id) return { id, name: me.displayName, username: me.username, avatar: me.avatar };
+  if (id === me.id) return { id, name: me.displayName, username: me.username, avatar: me.avatar, photo: me.photo };
   const user =
     friends.find((f) => f.id === id) ??
     rooms.flatMap((r) => r.members).find((m) => m.id === id) ??
     [...incoming, ...outgoing].map((r) => r.user).find((u) => u.id === id);
-  return user ? { id, name: user.displayName, username: user.username, avatar: user.avatar } : null;
+  return user ? { id, name: user.displayName, username: user.username, avatar: user.avatar, photo: user.photo } : null;
 }
 
 export function relationOf(people: People, id: string): Relation {

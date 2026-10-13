@@ -282,7 +282,7 @@
 .tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
 .tabs button { height: 32px; padding: 0 14px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .tabs button:hover { color: var(--text); }
-.tabs button[aria-selected="true"] { background: var(--card-3); color: var(--text); }
+.tabs button[aria-selected="true"], .tabs button[aria-checked="true"] { background: var(--card-3); color: var(--text); }
 
 /* miniaturas do seletor de tela */
 .thumbs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -404,6 +404,7 @@
 .cfg-nav button { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: var(--r-md); color: var(--muted); font-weight: 600; text-align: left; }
 .cfg-nav button:hover { background: var(--card); color: var(--text); }
 .cfg-nav button[aria-current="page"] { background: var(--card-2); color: var(--text); }
+.cfg-nav .cfg-new { margin-left: auto; height: 18px; padding: 0 6px; font-size: 11px; }
 .cfg-nav .danger { color: var(--danger); }
 .cfg-nav .danger:hover { background: var(--danger-soft); color: var(--danger); }
 .cfg-b { overflow: auto; padding: 28px 36px; display: flex; flex-direction: column; gap: 28px; max-width: 920px; }
@@ -444,6 +445,12 @@
 .theme-sw.light i:nth-child(1) { background: #eeece6; flex: .7; } .theme-sw.light i:nth-child(2) { background: #f6f5f1; } .theme-sw.light i:nth-child(3) { background: #ffc83a; flex: .25; }
 .theme-sw.system { background: linear-gradient(135deg, #08090b 50%, #f6f5f1 50%); }
 .theme-sw.system i { display: none; }
+.palette-pick { display: grid; grid-template-columns: repeat(6, minmax(0, 120px)); gap: 10px; }
+.palette-pick button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-radius: var(--r-lg); border: 2px solid var(--line); background: var(--card); }
+.palette-pick button:hover { border-color: var(--line-2); }
+.palette-pick button[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.palette-sw { position: relative; width: 52px; height: 52px; border-radius: 999px; border: 1px solid var(--line-2); display: grid; place-items: center; }
+.palette-sw i { width: 22px; height: 22px; border-radius: 999px; box-shadow: 0 0 0 3px rgba(0, 0, 0, .15); }
 
 /* ---------- avisos (Toasts.tsx) e faixa de versão ---------- */
 .toasts { position: fixed; right: 20px; bottom: 20px; z-index: 150; display: flex; flex-direction: column; gap: 10px; width: 360px; max-width: calc(100vw - 40px); }
@@ -541,6 +548,11 @@
 .msg-del { position: absolute; top: 4px; right: 6px; opacity: 0; background: var(--card-2); }
 .msg:hover .msg-del, .msg-del:focus-visible { opacity: 1; }
 .msg-del:hover { color: var(--danger); }
+/* aviso no chat: "Fulano entrou na toca" */
+.msg-system { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 2px; padding: 4px 40px; font-size: 13px; color: var(--muted); text-align: center; }
+.msg-system > svg { flex: none; color: var(--ok); }
+.msg-system .msg-author { font-size: 13px; }
+.msg-system:hover .msg-del, .msg-system .msg-del:focus-visible { opacity: 1; }
 
 .chat-compose { padding: 0 20px 16px; display: flex; flex-direction: column; gap: 6px; }
 .chat-input { display: flex; align-items: flex-end; gap: 6px; padding: 6px; border-radius: var(--r-lg); border: 1px solid var(--line-2); background: var(--card); }
@@ -584,6 +596,8 @@
 .room-tools { position: absolute; top: 8px; right: 6px; display: flex; gap: 2px; }
 .room-tools .room-gear { position: static; }
 .room-tools .ib { opacity: 0; }
+/* A engrenagem (configurar a sala) fica sempre à vista, mais apagada; acende com o mouse */
+.room-tools .room-gear { opacity: .45; }
 .room:hover .room-tools .ib, .room-tools .ib:focus-visible, .room-tools.has-unread .room-chat, .room-tools .room-chat.solid { opacity: 1; }
 .room-tools.has-unread .room-chat { color: var(--text); }
 .side-sub { display: flex; align-items: center; justify-content: space-between; padding: 16px 4px 4px 8px; }
@@ -609,3 +623,24 @@
 .spin { animation: tk-spin 1s linear infinite; }
 @keyframes tk-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+/* link de convite (InviteLink.tsx, JoinInviteModal.tsx) */
+.invite-link { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--bg); color: var(--muted); }
+.invite-link input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--text); font-size: 13px; font-family: inherit; text-overflow: ellipsis; }
+.invite-actions .tabs button { height: 26px; padding: 0 10px; font-size: 12px; }
+.invite-room { padding: 12px; border-radius: var(--r-md); background: var(--card); border: 1px solid var(--line); }
+.invite-room .room-ico.big { width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-text); }
+
+/* novidades (Configurações → Novidades) */
+.news { display: flex; flex-direction: column; gap: 14px; }
+.news-rel { padding: 16px 18px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); }
+.news-rel header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.news-rel header time { margin-left: auto; }
+.news-rel ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.5; color: var(--text); }
+.news-rel li::marker { color: var(--accent-text); }
+
+/* foto de perfil no lugar do bichinho (Avatar.tsx) */
+.avatar-photo { background: var(--card-2); }
+.avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 999px; object-fit: cover; pointer-events: none; user-select: none; }
+.profile-photo { flex: none; width: 120px; }
+

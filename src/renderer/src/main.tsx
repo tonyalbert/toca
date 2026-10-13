@@ -9,6 +9,7 @@ import { TooltipLayer } from "./components/Tooltip";
 import { ToastProvider } from "./components/Toasts";
 import { initTheme } from "./theme";
 import "./styles/tokens.css";
+import "./styles/palettes.css";
 import "./styles/components.css";
 
 initTheme();

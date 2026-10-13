@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import type { Avatar as AvatarKind } from "../api";
+import type { Avatar as AvatarKind, Photo } from "../api";
 import { Avatar, type Presence } from "./Avatar";
 
 /** Linha de uma pessoa: bichinho, nome, @ e um detalhe, com ações à direita */
 export function PersonRow({
   avatar,
+  photo,
   name,
   username,
   detail,
@@ -15,6 +16,7 @@ export function PersonRow({
   children,
 }: {
   avatar: AvatarKind;
+  photo?: Photo | null;
   name: string;
   username: string;
   /** Depois do @ (ex.: "Online", "quer ser seu amigo") */
@@ -47,7 +49,7 @@ export function PersonRow({
         : {})}
     >
       {lead}
-      <Avatar kind={avatar} size={small ? 32 : 42} presence={presence} />
+      <Avatar kind={avatar} photo={photo} size={small ? 32 : 42} presence={presence} />
       <div className="li-text">
         <strong>{name}</strong>
         <span className="sub">

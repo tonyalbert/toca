@@ -1,18 +1,6 @@
 import { ConnectionState } from "livekit-client";
-import {
-  Headphones,
-  HeadphoneOff,
-  MessageSquare,
-  Mic,
-  MicOff,
-  PhoneOff,
-  Plus,
-  Settings,
-  SlidersHorizontal,
-  SquarePen,
-  Users,
-} from "lucide-react";
-import { messagePreview, type Avatar as AvatarKind, type DmSummary, type Friend, type Profile, type RoomInfo } from "./api";
+import { HeadphoneOff, Headphones, Link2, MessageSquare, Mic, MicOff, PhoneOff, Plus, Settings, SlidersHorizontal, SquarePen, Users } from "lucide-react";
+import { messagePreview, type Avatar as AvatarKind, type DmSummary, type Photo, type Friend, type Profile, type RoomInfo } from "./api";
 import type { UpdateState } from "../../shared/update";
 import type { VoiceRoom } from "./useVoiceRoom";
 import { useMicLevel } from "./useMicLevel";
@@ -27,6 +15,7 @@ interface RoomPerson {
   id: string;
   name: string;
   avatar: AvatarKind;
+  photo?: Photo | null;
   talking: boolean;
   muted: boolean;
   deafened: boolean;
@@ -46,6 +35,7 @@ export function Sidebar({
   onOpenRoom,
   onRoomSettings,
   onCreateRoom,
+  onJoinInvite,
   onFriends,
   onSettings,
   onProfile,
@@ -69,6 +59,7 @@ export function Sidebar({
   onOpenRoom: (room: RoomInfo) => void;
   onRoomSettings: (roomId: string) => void;
   onCreateRoom: () => void;
+  onJoinInvite: () => void;
   onFriends: () => void;
   onSettings: () => void;
   onProfile: () => void;
@@ -93,7 +84,7 @@ export function Sidebar({
       return voice.participants.map((p) => ({
         id: p.identity,
         name: p.name,
-        avatar: avatars.get(p.identity) ?? "rabbit",
+        ...(avatars.get(p.identity) ?? { avatar: "rabbit" }),
         talking: p.isSpeaking,
         muted: p.isMuted,
         deafened: p.isLocal ? voice.deafened : p.isDeafened,
@@ -106,7 +97,7 @@ export function Sidebar({
       .map((p) => ({
         id: p.id,
         name: p.name,
-        avatar: avatars.get(p.id) ?? "rabbit",
+        ...(avatars.get(p.id) ?? { avatar: "rabbit" }),
         talking: false,
         muted: false,
         deafened: false,
@@ -126,18 +117,26 @@ export function Sidebar({
     <aside className="side" aria-label="Suas tocas">
       <div className="side-h">
         <h2>Suas tocas</h2>
-        <IconButton label="Criar sala" size="sm" solid onClick={onCreateRoom}>
-          <Plus size={15} aria-hidden="true" />
-        </IconButton>
+        <div className="row" style={{ gap: 4 }}>
+          <IconButton label="Entrar com link de convite" size="sm" onClick={onJoinInvite}>
+            <Link2 size={15} aria-hidden="true" />
+          </IconButton>
+          <IconButton label="Criar sala" size="sm" solid onClick={onCreateRoom}>
+            <Plus size={15} aria-hidden="true" />
+          </IconButton>
+        </div>
       </div>
 
       <div className="side-scroll">
         {rooms.length === 0 && (
           <div className="panel side-empty">
             <strong className="sm">Nenhuma toca ainda</strong>
-            <p className="xs muted">Crie uma sala e chame a turma, ou peça para um amigo te adicionar.</p>
+            <p className="xs muted">Crie uma sala e chame a turma, ou entre com um link de convite.</p>
             <Button size="sm" icon={<Plus size={15} aria-hidden="true" />} onClick={onCreateRoom}>
               Criar sala
+            </Button>
+            <Button size="sm" variant="ghost" icon={<Link2 size={15} aria-hidden="true" />} onClick={onJoinInvite}>
+              Entrar com link
             </Button>
           </div>
         )}
@@ -178,7 +177,7 @@ export function Sidebar({
                       aria-label={`${p.name}${p.id === me.id ? " (você)" : ": volume e amizade"}`}
                       onClick={(e) => openPerson(p.id, e.currentTarget)}
                     >
-                        <Avatar kind={p.avatar} size={20} talking={p.talking} mine={p.id === me.id} />
+                        <Avatar kind={p.avatar} photo={p.photo} size={24} talking={p.talking} mine={p.id === me.id} />
                         <span className="rp-name">{p.name}</span>
                         <span className="flags">
                           {p.talking && (
@@ -214,7 +213,7 @@ export function Sidebar({
                 <IconButton
                   size="sm"
                   className="room-gear"
-                  label={room.role === "owner" ? `Configurações de ${room.name}` : `Membros de ${room.name}`}
+                  label={room.role !== "member" ? `Configurações de ${room.name}` : `Membros de ${room.name}`}
                   onClick={() => onRoomSettings(room.id)}
                 >
                   <Settings size={15} aria-hidden="true" />
@@ -247,7 +246,7 @@ export function Sidebar({
                 aria-label={`Conversa com ${d.user.displayName}${d.unread > 0 ? `, ${d.unread} não ${d.unread === 1 ? "lida" : "lidas"}` : ""}`}
                 onClick={() => onOpenChat({ kind: "dm", userId: d.user.id })}
               >
-                <Avatar kind={d.user.avatar} size={30} presence={friend ? (friend.online ? "online" : "offline") : undefined} />
+                <Avatar kind={d.user.avatar} photo={d.user.photo} size={30} presence={friend ? (friend.online ? "online" : "offline") : undefined} />
                 <span className="dm-text">
                   <strong>{d.user.displayName}</strong>
                   <span>{preview}</span>
@@ -299,7 +298,7 @@ export function Sidebar({
       <div className="side-foot">
         <div className="me">
           <button className="me-id" onClick={onProfile} data-tip="Minha conta">
-            <Avatar kind={me.avatar} size={38} mine presence={voice.room ? "call" : online ? "online" : "offline"} />
+            <Avatar kind={me.avatar} photo={me.photo} size={38} mine presence={voice.room ? "call" : online ? "online" : "offline"} />
             <span className="grow">
               <strong>{me.displayName}</strong>
               <span>@{me.username}</span>

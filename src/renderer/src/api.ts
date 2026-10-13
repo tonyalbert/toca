@@ -8,11 +8,18 @@ export const ROOM_ICONS = ["sofa", "game", "film", "music", "book", "moon"] as c
 export type RoomIcon = (typeof ROOM_ICONS)[number];
 
 /** Outra pessoa (amigo, membro de sala): sempre com @ e nome */
+/** Foto de perfil no lugar do bichinho; animated: GIF que se mexe quando a pessoa fala */
+export interface Photo {
+  id: string;
+  animated: boolean;
+}
+
 export interface User {
   id: string;
   username: string;
   displayName: string;
   avatar: Avatar;
+  photo?: Photo | null;
 }
 
 /** A própria conta: o @ e o nome ficam vazios entre o cadastro e a escolha */
@@ -22,6 +29,7 @@ export interface Account {
   username: string | null;
   displayName: string | null;
   avatar: Avatar;
+  photo?: Photo | null;
 }
 
 /** Conta com @ e nome já escolhidos */
@@ -42,7 +50,11 @@ export interface FriendRequest {
   createdAt: string;
 }
 
-export type RoomRole = "owner" | "member";
+/** owner: dono; admin: cuida da sala junto com o dono */
+export type RoomRole = "owner" | "admin" | "member";
+
+/** Dono e adms mexem nos membros, no nome/ícone e no chat da sala */
+export const canManageRoom = (role: RoomRole) => role === "owner" || role === "admin";
 
 export interface RoomMember extends User {
   role: RoomRole;
@@ -255,7 +267,7 @@ export const fetchRooms = async () => (await authed<{ rooms: RoomInfo[] }>("/roo
 export const createRoom = async (name: string, icon?: RoomIcon) =>
   (await authed<{ room: RoomInfo }>("/rooms", json("POST", { name, icon }))).room;
 
-/** Renomeia e/ou troca o ícone (só o dono) */
+/** Renomeia e/ou troca o ícone (dono ou adm) */
 export const updateRoom = (id: string, changes: { name?: string; icon?: RoomIcon }) =>
   authed(`/rooms/${id}`, json("PATCH", changes));
 
@@ -266,11 +278,57 @@ export const deleteRoom = (id: string) => authed<void>(`/rooms/${id}`, { method:
 export const addRoomMember = (id: string, userId: string) =>
   authed(`/rooms/${id}/members`, json("POST", { userId }));
 
-/** O dono remove alguém; com o próprio id, sai da sala */
+/** Dono ou adm remove alguém; com o próprio id, sai da sala */
 export const removeRoomMember = (id: string, userId: string) =>
   authed<void>(`/rooms/${id}/members/${userId}`, { method: "DELETE" });
 
+/** Torna adm ou volta a membro comum */
+export const setRoomMemberRole = (id: string, userId: string, role: "admin" | "member") =>
+  authed(`/rooms/${id}/members/${userId}`, json("PATCH", { role }));
+
+/** O dono passa a sala para outra pessoa e vira adm */
+export const transferRoom = (id: string, userId: string) => authed(`/rooms/${id}/transfer`, json("POST", { userId }));
+
 export const fetchRoomToken = (id: string) => authed<TokenResponse>(`/rooms/${id}/token`, { method: "POST" });
+
+// ---------- link de convite ----------
+
+export const INVITE_URL = "https://toca.rabbitapps.com.br/convite/";
+
+export interface RoomInvite {
+  token: string;
+  /** null: não expira */
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export type InviteExpiry = "1h" | "never";
+
+export interface InvitePreview {
+  room: { id: string; name: string; icon: RoomIcon; memberCount: number };
+  expiresAt: string | null;
+  alreadyMember: boolean;
+}
+
+export const inviteLink = (token: string) => INVITE_URL + token;
+
+/** Aceita o link do site, o toca://convite/... ou só o código */
+export function parseInvite(text: string): string | null {
+  const m = /^(?:(?:https?:\/\/[^/\s]+|toca:\/)\/convite\/)?([A-Za-z0-9_-]{16,64})\/?$/i.exec(text.trim());
+  return m ? m[1] : null;
+}
+
+export const fetchRoomInvite = async (roomId: string) => (await authed<{ invite: RoomInvite | null }>(`/rooms/${roomId}/invite`)).invite;
+
+/** Gera um link novo; o anterior para de valer */
+export const createRoomInvite = async (roomId: string, expires: InviteExpiry) =>
+  (await authed<{ invite: RoomInvite }>(`/rooms/${roomId}/invite`, json("POST", { expires }))).invite;
+
+export const deleteRoomInvite = (roomId: string) => authed<void>(`/rooms/${roomId}/invite`, { method: "DELETE" });
+
+export const fetchInvite = (token: string) => authed<InvitePreview>(`/invites/${token}`);
+
+export const joinInvite = async (token: string) => (await authed<{ room: RoomInfo }>(`/invites/${token}/join`, { method: "POST" })).room;
 
 // ---------- chat ----------
 
@@ -281,6 +339,8 @@ export interface ChatMessage {
   id: string;
   conversation: Conversation;
   author: User;
+  /** text: escrita por alguém; joined: aviso de que o autor entrou na sala */
+  kind?: "text" | "joined";
   /** Vazio quando a mensagem é só uma imagem */
   body: string;
   /** Imagem anexada (os bytes vêm de fetchMessageImage) */
@@ -352,4 +412,16 @@ export async function fetchMessageImage(messageId: string): Promise<Blob> {
 
 /** Texto curto da mensagem para listas e avisos */
 export const messagePreview = (m: ChatMessage) =>
-  m.image ? (m.body ? `📷 ${m.body}` : "📷 Imagem") : m.body;
+  m.kind === "joined" ? "entrou na toca" : m.image ? (m.body ? `📷 ${m.body}` : "📷 Imagem") : m.body;
+
+// ---------- foto de perfil ----------
+
+/** Endereço da foto (parada) ou do GIF original; abre sem login (o id é aleatório) */
+export const photoUrl = (photo: Photo, gif = false) => `${API_URL}/photos/${photo.id}${gif ? "/gif" : ""}`;
+
+/** Troca a foto: image é o quadro parado (base64); gif, o original quando a foto é animada */
+export const uploadPhoto = async (image: string, gif?: string) =>
+  (await authed<{ user: Account }>("/me/photo", json("PUT", { image: { data: image }, ...(gif ? { gif: { data: gif } } : {}) }))).user;
+
+/** Tira a foto (volta o bichinho) */
+export const removePhoto = async () => (await authed<{ user: Account }>("/me/photo", { method: "DELETE" })).user;

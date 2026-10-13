@@ -1,0 +1,76 @@
+/* =========================================================
+   Cores do app (Configurações → Aparência → Cor). Cada cor troca o destaque
+   e dá um tom aos fundos, no escuro e no claro. Meia-noite (âmbar) é o padrão
+   de tokens.css e não tem atributo; as outras entram com data-palette no <html>
+   (ver theme.ts). O texto e os avisos (ok, perigo) não mudam.
+   ========================================================= */
+
+/* ---------- Oceano (azul) ---------- */
+:root:not([data-theme="light"])[data-palette="ocean"] {
+  --bg: #070a10; --surface: #0c1119; --card: #111824; --card-2: #172030; --card-3: #1e293b;
+  --line: #222d3d; --line-2: #2d3a4d;
+  --accent: #5aa9ff; --accent-hover: #7dbcff; --accent-ink: #04101f; --accent-text: #7dbcff;
+  --accent-soft: rgba(90, 169, 255, .14); --accent-ring: rgba(90, 169, 255, .4);
+}
+:root[data-theme="light"][data-palette="ocean"] {
+  --bg: #f2f5f9; --surface: #e8edf4; --card: #ffffff; --card-2: #eef2f7; --card-3: #e1e8f1;
+  --line: #d9e1eb; --line-2: #c6d1de;
+  --accent: #5aa9ff; --accent-hover: #3d95f5; --accent-ink: #04101f; --accent-text: #1d5fb8;
+  --accent-soft: rgba(90, 169, 255, .2); --accent-ring: rgba(29, 95, 184, .4);
+}
+
+/* ---------- Floresta (verde) ---------- */
+:root:not([data-theme="light"])[data-palette="forest"] {
+  --bg: #070b09; --surface: #0c120f; --card: #111915; --card-2: #17211c; --card-3: #1e2a24;
+  --line: #223029; --line-2: #2c3c34;
+  --accent: #4fd68f; --accent-hover: #74e2a8; --accent-ink: #03140b; --accent-text: #5fdc9b;
+  --accent-soft: rgba(79, 214, 143, .13); --accent-ring: rgba(79, 214, 143, .38);
+}
+:root[data-theme="light"][data-palette="forest"] {
+  --bg: #f2f6f3; --surface: #e7eee9; --card: #ffffff; --card-2: #edf3ef; --card-3: #dfe9e2;
+  --line: #d6e1da; --line-2: #c2d1c7;
+  --accent: #4fd68f; --accent-hover: #36c47a; --accent-ink: #03140b; --accent-text: #11713f;
+  --accent-soft: rgba(79, 214, 143, .22); --accent-ring: rgba(17, 113, 63, .4);
+}
+
+/* ---------- Lavanda (roxo) ---------- */
+:root:not([data-theme="light"])[data-palette="lavender"] {
+  --bg: #0a0910; --surface: #100e18; --card: #161322; --card-2: #1d192c; --card-3: #252037;
+  --line: #2a2540; --line-2: #363050;
+  --accent: #b18cff; --accent-hover: #c4a6ff; --accent-ink: #150b2b; --accent-text: #c0a2ff;
+  --accent-soft: rgba(177, 140, 255, .15); --accent-ring: rgba(177, 140, 255, .4);
+}
+:root[data-theme="light"][data-palette="lavender"] {
+  --bg: #f5f3fa; --surface: #ebe7f4; --card: #ffffff; --card-2: #f1eef8; --card-3: #e5e0f0;
+  --line: #ddd7ea; --line-2: #cbc3de;
+  --accent: #b18cff; --accent-hover: #9f74fb; --accent-ink: #150b2b; --accent-text: #6236c4;
+  --accent-soft: rgba(177, 140, 255, .22); --accent-ring: rgba(98, 54, 196, .4);
+}
+
+/* ---------- Morango (rosa) ---------- */
+:root:not([data-theme="light"])[data-palette="rose"] {
+  --bg: #0f080a; --surface: #160c10; --card: #1d1116; --card-2: #26161d; --card-3: #301c25;
+  --line: #35202a; --line-2: #442a36;
+  --accent: #ff7aa2; --accent-hover: #ff98b8; --accent-ink: #2a0613; --accent-text: #ff8fb0;
+  --accent-soft: rgba(255, 122, 162, .14); --accent-ring: rgba(255, 122, 162, .4);
+}
+:root[data-theme="light"][data-palette="rose"] {
+  --bg: #fbf3f5; --surface: #f4e8ec; --card: #ffffff; --card-2: #f8eef1; --card-3: #efe0e5;
+  --line: #ead8df; --line-2: #dcc4cd;
+  --accent: #ff7aa2; --accent-hover: #f75f8e; --accent-ink: #2a0613; --accent-text: #b02358;
+  --accent-soft: rgba(255, 122, 162, .22); --accent-ring: rgba(176, 35, 88, .4);
+}
+
+/* ---------- Pôr do sol (laranja) ---------- */
+:root:not([data-theme="light"])[data-palette="sunset"] {
+  --bg: #0e0907; --surface: #150e0a; --card: #1c130e; --card-2: #241913; --card-3: #2e2019;
+  --line: #33241b; --line-2: #412f24;
+  --accent: #ff9a4a; --accent-hover: #ffb071; --accent-ink: #1f0c02; --accent-text: #ffa660;
+  --accent-soft: rgba(255, 154, 74, .14); --accent-ring: rgba(255, 154, 74, .4);
+}
+:root[data-theme="light"][data-palette="sunset"] {
+  --bg: #fbf5f0; --surface: #f4ebe3; --card: #ffffff; --card-2: #f8f0e9; --card-3: #efe3d8;
+  --line: #eadbcd; --line-2: #dcc7b6;
+  --accent: #ff9a4a; --accent-hover: #f6832a; --accent-ink: #1f0c02; --accent-text: #a24a05;
+  --accent-soft: rgba(255, 154, 74, .22); --accent-ring: rgba(162, 74, 5, .4);
+}

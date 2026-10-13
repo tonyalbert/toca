@@ -1,32 +1,55 @@
-import type { CSSProperties } from 'react';
-import type { Avatar as AvatarKind, Friend, Profile, RoomInfo } from '../api';
+import { useState, type CSSProperties } from 'react';
+import { photoUrl, type Avatar as AvatarKind, type Friend, type Photo, type Profile, type RoomInfo } from '../api';
 import { decodeAvatar, type Species } from '../avatar';
 
 export const AVATAR_LABELS: Record<Species, string> = { rabbit: 'Coelho', cat: 'Gato', bear: 'Urso' };
 export const FUR_COLORS = { cream: '#f4e7cf', honey: '#eab969', cocoa: '#ac7759', rose: '#efabb8', lavender: '#b6a5e7', mint: '#97d6ba', sky: '#9ecbe9', charcoal: '#627084' };
 export const TONE_COLORS = { amber: '#ffc83a', coral: '#ed7880', violet: '#9984df', teal: '#53bfa7', blue: '#689de0', ink: '#344052' };
 export const BG_COLORS = { plain: 'var(--card-2)', sand: '#e4d5b9', rose: '#eed0d8', lilac: '#d6cceb', mint: '#bdded0', ocean: '#245978', night: '#22263e', sunset: '#bd6779' };
-export function avatarMap(me: Profile, friends: Friend[], rooms: RoomInfo[]): Map<string, AvatarKind> {
-  const map = new Map<string, AvatarKind>([[me.id, me.avatar]]);
-  for (const f of friends) map.set(f.id, f.avatar);
-  for (const r of rooms) for (const m of r.members) map.set(m.id, m.avatar);
+/** Como alguém aparece: o bichinho e, se tiver, a foto */
+export interface Look {
+  avatar: AvatarKind;
+  photo?: Photo | null;
+}
+export const lookOf = (u: Look): Look => ({ avatar: u.avatar, photo: u.photo ?? null });
+export function avatarMap(me: Profile, friends: Friend[], rooms: RoomInfo[]): Map<string, Look> {
+  const map = new Map<string, Look>([[me.id, lookOf(me)]]);
+  for (const f of friends) map.set(f.id, lookOf(f));
+  for (const r of rooms) for (const m of r.members) map.set(m.id, lookOf(m));
   return map;
 }
 export type Presence = 'online' | 'call' | 'offline';
-export function Avatar({ kind = 'rabbit', size, mine, presence, talking }: {
-  kind?: AvatarKind; size: number; mine?: boolean; presence?: Presence; talking?: boolean;
+export function Avatar({ kind = 'rabbit', photo, size, mine, presence, talking }: {
+  kind?: AvatarKind; photo?: Photo | null; size: number; mine?: boolean; presence?: Presence; talking?: boolean;
 }) {
+  // Foto que não carregou (sem rede, apagada): volta o bichinho
+  const [failed, setFailed] = useState<string | null>(null);
+  const pres = presence && <span className={`pres ${presence === 'online' ? 'on' : presence === 'call' ? 'call' : ''}`} />;
+  if (photo && failed !== photo.id) {
+    return (
+      <span className={`avw avatar-photo ${talking ? 'talk' : ''}`} style={{ width: size, height: size }}>
+        <img className="avatar-img" src={photoUrl(photo)} alt="" draggable={false} onError={() => setFailed(photo.id)} />
+        {/* GIF: parado (o quadro acima); só se mexe enquanto a pessoa fala, começando do início */}
+        {photo.animated && talking && <img className="avatar-img" src={photoUrl(photo, true)} alt="" draggable={false} />}
+        {pres}
+      </span>
+    );
+  }
   const config = decodeAvatar(kind);
   return (
     <span className={`avw avatar-custom ${talking ? 'talk' : ''}`} style={{ width: size, height: size, background: BG_COLORS[config.background] }}>
-      <AvatarShape kind={kind} size={Math.round(size * .94)} mine={mine} face={size >= 28} mouth={size >= 38} />
-      {presence && <span className={`pres ${presence === 'online' ? 'on' : presence === 'call' ? 'call' : ''}`} />}
+      <AvatarShape kind={kind} size={Math.round(size * .94)} mine={mine} small={size < 38} />
+      {pres}
     </span>
   );
 }
 
-export function AvatarShape({ kind, size, mine, face = true, mouth = true }: {
-  kind: AvatarKind; size: number; mine?: boolean; face?: boolean; mouth?: boolean;
+/**
+ * O bichinho. small: carinha simplificada, com olhos e boca maiores, para
+ * continuar dando para ver o rosto nas listas (bochecha e nariz somem).
+ */
+export function AvatarShape({ kind, size, mine, small = false }: {
+  kind: AvatarKind; size: number; mine?: boolean; small?: boolean;
 }) {
   const c = decodeAvatar(kind);
   const fur = FUR_COLORS[c.fur];
@@ -35,6 +58,9 @@ export function AvatarShape({ kind, size, mine, face = true, mouth = true }: {
   const stroke = { stroke: dark, strokeWidth: 2.3, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const };
   const legacyMine = mine && !kind.startsWith('v1:');
   const skin = legacyMine ? FUR_COLORS.honey : fur;
+  // Olhos e traços maiores quando o bichinho é pequeno
+  const k = small ? 1.7 : 1;
+  const line = 3 * k;
   return (
     <svg className="avatar-art" width={size} height={size} viewBox={size < 48 ? '0 0 100 88' : '0 0 100 104'} aria-hidden="true" style={{ '--avatar-fur': skin } as CSSProperties}>
       <g {...stroke}>
@@ -57,19 +83,21 @@ export function AvatarShape({ kind, size, mine, face = true, mouth = true }: {
         {c.outfit === 'overalls' && <g><path d="M34 79 L34 90 L66 90 L66 79 M34 90 L34 101 L66 101 L66 90" fill="#497697" /><circle cx="37" cy="90" r="2" fill="#f7d87b" /><circle cx="63" cy="90" r="2" fill="#f7d87b" /></g>}
         {c.outfit === 'space' && <g><path d="M32 83 L38 98 L62 98 L68 83" fill="#e0e6ee" /><rect x="43" y="87" width="14" height="9" rx="2" fill={tone} /><circle cx="47" cy="91" r="1" fill={dark} stroke="none" /></g>}
         <path d="M20 54 Q20 30 50 30 Q80 30 80 54 L78 65 Q75 82 50 82 Q25 82 22 65 Z" fill={skin} />
-        {face && <g fill={dark} stroke="none">
-          {(c.face === 'smile' || c.face === 'serious') && <><ellipse cx="38" cy="54" rx="3" ry="4" /><ellipse cx="62" cy="54" rx="3" ry="4" /></>}
-          {c.face === 'wink' && <><ellipse cx="38" cy="54" rx="3" ry="4" /><path d="M58 55 Q62 50 66 55" fill="none" stroke={dark} strokeWidth="3" /></>}
-          {c.face === 'happy' && <path d="M34 54 Q38 48 42 54 M58 54 Q62 48 66 54" fill="none" stroke={dark} strokeWidth="3" />}
-          {c.face === 'sleepy' && <path d="M34 53 Q38 57 42 53 M58 53 Q62 57 66 53" fill="none" stroke={dark} strokeWidth="3" />}
+        <g fill={dark} stroke="none">
+          {(c.face === 'smile' || c.face === 'serious') && <><ellipse cx="38" cy="54" rx={3 * k} ry={4 * k} /><ellipse cx="62" cy="54" rx={3 * k} ry={4 * k} /></>}
+          {c.face === 'wink' && <><ellipse cx="38" cy="54" rx={3 * k} ry={4 * k} /><path d="M58 55 Q62 50 66 55" fill="none" stroke={dark} strokeWidth={line} /></>}
+          {c.face === 'happy' && <path d="M34 54 Q38 48 42 54 M58 54 Q62 48 66 54" fill="none" stroke={dark} strokeWidth={line} />}
+          {c.face === 'sleepy' && <path d="M34 53 Q38 57 42 53 M58 53 Q62 57 66 53" fill="none" stroke={dark} strokeWidth={line} />}
           {c.face === 'star' && <><path d="M38 48 L40 52 L45 53 L41 56 L42 61 L38 58 L34 61 L35 56 L31 53 L36 52 Z" /><path d="M62 48 L64 52 L69 53 L65 56 L66 61 L62 58 L58 61 L59 56 L55 53 L60 52 Z" /></>}
-          {mouth && <>
+          {!small && <>
             <ellipse cx="29" cy="64" rx="5" ry="2.5" fill="#df91a2" opacity=".55" /><ellipse cx="71" cy="64" rx="5" ry="2.5" fill="#df91a2" opacity=".55" />
             <path d="M47 62 Q50 65 53 62" fill="none" stroke={dark} strokeWidth="2" />
-            {c.face === 'happy' ? <path d="M43 68 Q50 79 57 68 Z" /> : <path d={c.face === 'serious' ? 'M45 70 L55 70' : 'M44 68 Q50 73 56 68'} fill="none" stroke={dark} strokeWidth="2.5" />}
           </>}
-        </g>}
-        {c.species === 'cat' && size >= 38 && <path d="M26 60 L17 58 M26 65 L17 67 M74 60 L83 58 M74 65 L83 67" opacity=".5" />}
+          {c.face === 'happy'
+            ? <path d={small ? 'M41 66 Q50 81 59 66 Z' : 'M43 68 Q50 79 57 68 Z'} />
+            : <path d={c.face === 'serious' ? (small ? 'M43 69 L57 69' : 'M45 70 L55 70') : small ? 'M42 66 Q50 74 58 66' : 'M44 68 Q50 73 56 68'} fill="none" stroke={dark} strokeWidth={small ? 4.5 : 2.5} />}
+        </g>
+        {c.species === 'cat' && !small && <path d="M26 60 L17 58 M26 65 L17 67 M74 60 L83 58 M74 65 L83 67" opacity=".5" />}
         {c.glasses === 'round' && <g fill="none"><circle cx="37" cy="54" r="9" /><circle cx="63" cy="54" r="9" /><path d="M46 54 Q50 50 54 54 M28 51 L23 49 M72 51 L77 49" /></g>}
         {c.glasses === 'square' && <g fill="none"><rect x="27" y="46" width="20" height="16" rx="3" /><rect x="53" y="46" width="20" height="16" rx="3" /><path d="M47 52 L53 52" /></g>}
         {c.glasses === 'sun' && <g fill={dark}><path d="M26 47 L47 47 L45 60 L29 60 Z M53 47 L74 47 L71 60 L55 60 Z" /><path d="M47 51 L53 51" /><path d="M31 50 L36 56 M59 50 L64 56" stroke="#c9e2ed" strokeWidth="2" /></g>}
