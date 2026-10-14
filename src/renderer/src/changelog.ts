@@ -12,6 +12,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.0.0",
+    date: "2026-10-14",
+    items: [
+      "O Toca agora também abre no navegador, sem instalar nada: app-toca.rabbitapps.com.br. Mande o link para quem ainda não baixou.",
+      "Links de convite podem ser abertos direto no navegador.",
+      "O app de Windows passa a receber as novidades da interface na hora, sem precisar baixar uma versão nova a cada mudança.",
+      "Sem internet, o app mostra um aviso e tenta abrir de novo sozinho.",
+    ],
+  },
+  {
     version: "1.8.0",
     date: "2026-10-14",
     items: [
