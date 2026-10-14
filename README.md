@@ -38,11 +38,45 @@ Outros comandos:
 npm run typecheck   # confere os tipos (processo principal e interface)
 npm run build       # compila para out/
 npm run dist        # gera o instalador em dist/ (sem publicar)
+npm run build:web   # app web em dist-web/ (ver "App web" abaixo)
 ```
 
 Para apontar para outra API, copie `.env.example` para `.env` e troque `VITE_API_URL`.
 Endereços `localhost` já são liberados pela política de segurança da página
 (`src/renderer/index.html`); outro domínio precisa ser acrescentado lá.
+
+## App web (navegador)
+
+A mesma interface roda no navegador, em **https://app-toca.rabbitapps.com.br**. O código descobre
+onde está rodando em `src/renderer/src/platform/`: no Electron usa `window.toca` (preload); no
+navegador usa as versões web (sessão em cookie httpOnly da API, seletor de tela do navegador,
+apertar para falar só com a aba em foco). Atalhos globais, bandeja e atualização automática só
+existem no app para Windows.
+
+```bash
+npm run dev:web     # http://localhost:5173 (a API precisa liberar essa origem, ver abaixo)
+npm run build:web   # gera dist-web/ (site estático + version.json)
+```
+
+Quando sai um build novo, quem está com o app aberto vê o botão "Atualizar" (recarrega a página,
+esperando a chamada acabar).
+
+### Publicar no Coolify
+
+1. **DNS**: um registro `A` (ou `CNAME`) de `app-toca.rabbitapps.com.br` para o servidor do Coolify
+   (pule se já existir um curinga `*.rabbitapps.com.br`).
+2. **Novo recurso** → *Public/Private Repository* → este repositório, branch `main`.
+3. **Build pack**: *Dockerfile*; **Dockerfile location**: `/Dockerfile.web`; **porta**: `80`.
+4. **Domínio**: `https://app-toca.rabbitapps.com.br` (o Coolify gera o certificado HTTPS).
+5. **Deploy**. O nginx (`nginx/`) serve o app com cache longo para `assets/`, sem cache para
+   `index.html` e `version.json`, e cabeçalhos de segurança; a CSP fica no `index.html`.
+6. **Na API** (variáveis de ambiente), e depois *Redeploy*:
+   - `APP_ORIGINS=https://app-toca.rabbitapps.com.br`: origens que podem guardar a sessão em
+     cookie httpOnly e receber `credentials` no CORS.
+   - `CORS_ORIGINS`: se não for `*`, acrescente `https://app-toca.rabbitapps.com.br`.
+
+Para desenvolver contra uma API local, use `APP_ORIGINS=http://localhost:5173` nela e
+`VITE_API_URL=http://localhost:3000` aqui (os dois em `localhost`, para o cookie valer).
 
 ## Organização
 
@@ -50,7 +84,8 @@ Endereços `localhost` já são liberados pela política de segurança da págin
 src/main/       processo principal do Electron: janela, bandeja, atalhos globais,
                 atualizações, protocolo toca:// (links de convite), captura de tela
 src/preload/    ponte segura entre o Electron e a interface
-src/renderer/   interface em React
+src/renderer/   interface em React (a mesma do app web)
+  src/platform/        o que muda entre o Electron e o navegador
   src/api.ts           chamadas à API do Toca
   src/realtime.ts      WebSocket de eventos (amigos, salas, mensagens)
   src/useVoiceRoom.ts  chamada de voz (LiveKit)

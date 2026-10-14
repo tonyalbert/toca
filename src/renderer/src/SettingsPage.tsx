@@ -19,16 +19,18 @@ import { Input } from "./components/Input";
 import { Select } from "./components/Select";
 import { Slider } from "./components/Slider";
 import { Switch } from "./components/Switch";
+import { features, native } from "./platform";
 
 export type SettingsSection = "profile" | "voice" | "keys" | "notify" | "look";
 
-const SECTIONS: { id: SettingsSection; label: string; icon: React.ReactNode }[] = [
+const SECTIONS = ([
   { id: "profile", label: "Perfil", icon: <User size={16} aria-hidden="true" /> },
   { id: "voice", label: "Voz e vídeo", icon: <Mic size={16} aria-hidden="true" /> },
   { id: "keys", label: "Atalhos", icon: <Keyboard size={16} aria-hidden="true" /> },
   { id: "notify", label: "Notificações", icon: <Bell size={16} aria-hidden="true" /> },
   { id: "look", label: "Aparência", icon: <Moon size={16} aria-hidden="true" /> },
-];
+  // Atalhos globais só existem no app para Windows
+] as { id: SettingsSection; label: string; icon: React.ReactNode }[]).filter((s) => s.id !== "keys" || features.globalShortcuts);
 
 /** Configurações: perfil, voz e vídeo, atalhos, notificações, aparência e sair */
 export function SettingsPage({
@@ -218,18 +220,24 @@ function MicModePicker() {
   const ptt = audio.micMode === "ptt";
 
   // Saiu da tela no meio da escolha: para de escutar o teclado
-  useEffect(() => () => void window.toca.cancelRecordPushToTalk(), []);
+  useEffect(() => () => void native.cancelRecordPushToTalk(), []);
 
   const record = async () => {
     setRecording(true);
-    const result = await window.toca.recordPushToTalk();
+    const result = await native.recordPushToTalk();
     setRecording(false);
     if (result) setAudio({ micMode: "ptt", pttBinding: result.binding, pttLabel: result.label });
   };
 
   const modes = [
     { id: "voice" as const, title: "Detecção de voz", hint: "O microfone abre sozinho quando você fala." },
-    { id: "ptt" as const, title: "Apertar para falar", hint: "Só abre enquanto você segura uma tecla, mesmo com o jogo em foco." },
+    {
+      id: "ptt" as const,
+      title: "Apertar para falar",
+      hint: features.globalShortcuts
+        ? "Só abre enquanto você segura uma tecla, mesmo com o jogo em foco."
+        : "Só abre enquanto você segura uma tecla, com esta aba em foco. Para funcionar com o jogo aberto, use o app para Windows.",
+    },
   ];
   return (
     <div className="field">
@@ -259,7 +267,7 @@ function MicModePicker() {
           <Button
             size="sm"
             variant={recording ? "primary" : "secondary"}
-            onClick={() => (recording ? void window.toca.cancelRecordPushToTalk() : void record())}
+            onClick={() => (recording ? void native.cancelRecordPushToTalk() : void record())}
           >
             {recording ? "Aperte uma tecla ou botão lateral do mouse… (Esc cancela)" : (audio.pttLabel ?? "Escolher tecla")}
           </Button>
@@ -663,7 +671,7 @@ function ShortcutsSection() {
   const [error, setError] = useState<{ id: ShortcutAction | "ptt"; text: string } | null>(null);
 
   // Saiu da tela no meio da escolha: para de escutar o teclado
-  useEffect(() => () => void window.toca.cancelRecordShortcut(), []);
+  useEffect(() => () => void native.cancelRecordShortcut(), []);
 
   /** Nome da outra ação que já usa este atalho */
   const usedBy = (b: ShortcutBinding, except: ShortcutAction | "ptt"): string | null => {
@@ -677,12 +685,12 @@ function ShortcutsSection() {
 
   const record = async (id: ShortcutAction | "ptt") => {
     if (recording) {
-      await window.toca.cancelRecordShortcut();
+      await native.cancelRecordShortcut();
       if (recording === id) return;
     }
     setError(null);
     setRecording(id);
-    const result: SavedShortcut | null = id === "ptt" ? await window.toca.recordPushToTalk() : await window.toca.recordShortcut();
+    const result: SavedShortcut | null = id === "ptt" ? await native.recordPushToTalk() : await native.recordShortcut();
     setRecording((r) => (r === id ? null : r));
     if (!result) return;
     if (id !== "ptt" && !safeForToggle(result)) {

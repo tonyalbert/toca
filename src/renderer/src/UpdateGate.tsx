@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { UpdateState } from "../../shared/update";
+import { native } from "./platform";
 
 /** De quanto em quanto tempo confere se dá para atualizar */
 const POLL_MS = 60 * 1000;
@@ -31,7 +32,7 @@ export function useQuietUpdate(update: UpdateState, inCall: boolean, install: ()
     const look = async () => {
       const left = leftCallAt.current;
       if (!left || Date.now() - left < OUT_OF_CALL_MS) return;
-      const [visible, idle] = await Promise.all([window.toca.isWindowVisible(), window.toca.getIdleSeconds()]);
+      const [visible, idle] = await Promise.all([native.isWindowVisible(), native.getIdleSeconds()]);
       if (active && !visible && idle >= IDLE_S && leftCallAt.current) installRef.current();
     };
     const id = setInterval(() => void look(), POLL_MS);

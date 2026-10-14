@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "npm run build:audio-helper && electron-vite dev",
     "build": "electron-vite build",
+    "dev:web": "vite --config vite.web.config.ts",
+    "build:web": "vite build --config vite.web.config.ts",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test:avatar": "node scripts/test-avatar-desktop.mjs",

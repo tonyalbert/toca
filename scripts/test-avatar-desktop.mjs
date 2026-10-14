@@ -34,6 +34,7 @@ const config = {
   auth: { jwtSecret: 'isolated-electron-avatar-test-secret-32', accessTokenTtlSeconds: 900, refreshTokenTtlDays: 30, rateLimitMax: 100 },
   admin: { user: null, password: null, sessionHours: 12 },
   mail: { resendApiKey: null, from: 'Toca <teste@example.test>' },
+  appOrigins: [],
 };
 const api = await buildApp({ config, logger: false, livekit: {}, prisma: {
   user: { findUnique: async () => user, update: async ({ data }) => { user = { ...user, ...data }; savedAvatar = data.avatar; return user; } },
@@ -74,7 +75,7 @@ try {
     }
     createRoot(document.getElementById('root')).render(<TestProfile />);
   `);
-  await writeFile(join(temporary, 'preload.cjs'), `const { contextBridge } = require('electron'); contextBridge.exposeInMainWorld('toca', { saveSession: async () => {}, cancelRecordPushToTalk: async () => {} });`);
+  await writeFile(join(temporary, 'preload.cjs'), `const { contextBridge } = require('electron'); contextBridge.exposeInMainWorld('toca', { loadSession: async () => null, saveSession: async () => {}, cancelRecordPushToTalk: async () => {} });`);
   vite = await createServer({
     configFile: false, root: temporary, plugins: [react()],
     define: { 'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl) },

@@ -4,6 +4,7 @@ import type { ScreenSource } from "../../shared/screen";
 import { Button, IconButton } from "./components/Button";
 import { Modal } from "./components/Modal";
 import { Switch } from "./components/Switch";
+import { native } from "./platform";
 
 /** Seletor de tela inteira ou janela, com opção de incluir o áudio do computador */
 export function ScreenSharePicker({
@@ -22,7 +23,7 @@ export function ScreenSharePicker({
 
   const load = useCallback(async () => {
     try {
-      const list = await window.toca.getScreenSources();
+      const list = await native.getScreenSources();
       setSources(list);
       setError(null);
       // Com uma tela só, ela já vem escolhida

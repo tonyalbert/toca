@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { Copy, Download, Gift, Minus, Square, X } from "lucide-react";
+import { Copy, Download, Gift, Minus, MonitorDown, Square, X } from "lucide-react";
 import type { UpdateState } from "../../../shared/update";
 import { TocaMark } from "./TocaMark";
+import { DOWNLOAD_URL, features, native } from "../platform";
 
 /**
  * Barra de título própria (a janela não tem moldura). Arrastar por ela move a
  * janela; clique duplo maximiza (o Windows faz isso nas áreas de arrastar).
+ * No navegador: sem os botões da janela e sem "verificar atualizações"; no
+ * lugar, o link para baixar o app.
  */
 export function TitleBar({
   update,
@@ -22,12 +25,13 @@ export function TitleBar({
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    void window.toca.isWindowMaximized().then(setMaximized);
-    return window.toca.onWindowMaximized(setMaximized);
+    if (!features.windowControls) return;
+    void native.isWindowMaximized().then(setMaximized);
+    return native.onWindowMaximized(setMaximized);
   }, []);
 
   return (
-    <header className="titlebar">
+    <header className={features.windowControls ? "titlebar" : "titlebar web"}>
       <TocaMark size={20} />
       <span>Toca</span>
       <span className="spacer" />
@@ -40,10 +44,16 @@ export function TitleBar({
         Novidades
         {newsUnseen && <span className="news-dot" aria-label="(novo)" />}
       </button>
-      {(update.status === "idle" || update.status === "up-to-date" || update.status === "error") && (
+      {!features.autoUpdate && (
+        <a className="upd-pill subtle" href={DOWNLOAD_URL} target="_blank" rel="noreferrer" data-tip="Atalhos com o jogo aberto, som do PC na tela e mais">
+          <MonitorDown size={13} aria-hidden="true" />
+          Baixar app para Windows
+        </a>
+      )}
+      {features.autoUpdate && (update.status === "idle" || update.status === "up-to-date" || update.status === "error") && (
         <button
           className="upd-pill"
-          onClick={() => void window.toca.checkForUpdates()}
+          onClick={() => void native.checkForUpdates()}
           title={update.status === "error" ? update.message : undefined}
           data-tip={update.status === "error" ? "Falha ao atualizar. Clique para tentar novamente." : "Verificar atualizações"}
         >
@@ -68,15 +78,15 @@ export function TitleBar({
           Atualizar
         </button>
       )}
-      <div className="wc-group">
-        <button className="wc" aria-label="Minimizar" data-tip="Minimizar" onClick={() => void window.toca.minimizeWindow()}>
+      {features.windowControls && <div className="wc-group">
+        <button className="wc" aria-label="Minimizar" data-tip="Minimizar" onClick={() => void native.minimizeWindow()}>
           <Minus size={15} aria-hidden="true" />
         </button>
         <button
           className="wc"
           aria-label={maximized ? "Restaurar" : "Maximizar"}
           data-tip={maximized ? "Restaurar" : "Maximizar"}
-          onClick={() => void window.toca.toggleMaximizeWindow()}
+          onClick={() => void native.toggleMaximizeWindow()}
         >
           {maximized ? <Copy size={13} aria-hidden="true" /> : <Square size={13} aria-hidden="true" />}
         </button>
@@ -84,11 +94,11 @@ export function TitleBar({
           className="wc close"
           aria-label="Fechar"
           data-tip="Fechar (o Toca continua na bandeja)"
-          onClick={() => void window.toca.closeWindow()}
+          onClick={() => void native.closeWindow()}
         >
           <X size={16} aria-hidden="true" />
         </button>
-      </div>
+      </div>}
     </header>
   );
 }

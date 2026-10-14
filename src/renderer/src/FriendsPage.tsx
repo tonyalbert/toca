@@ -17,6 +17,7 @@ import { EmptyState } from "./components/EmptyState";
 import { Input } from "./components/Input";
 import { Menu } from "./components/Menu";
 import { PersonRow } from "./components/PersonRow";
+import { native } from "./platform";
 
 type Tab = "all" | "incoming" | "outgoing";
 
@@ -301,7 +302,7 @@ function CopyHandle({ username }: { username: string }) {
     <Button
       icon={copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
       onClick={() => {
-        void window.toca.copyText(`@${username}`).then(() => {
+        void native.copyText(`@${username}`).then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         });

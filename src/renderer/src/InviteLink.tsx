@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { Button } from "./components/Button";
 import { useConfirm } from "./components/ConfirmDialog";
+import { native } from "./platform";
 
 const timeFmt = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -89,7 +90,7 @@ export function InviteLink({ room }: { room: RoomInfo }) {
 
   const copy = () => {
     if (!active) return;
-    window.toca
+    native
       .copyText(inviteLink(active.token))
       .then(() => {
         setCopied(true);

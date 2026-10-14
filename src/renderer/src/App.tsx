@@ -41,6 +41,7 @@ import { conversationTarget, targetKey, useChat, type ChatTarget } from "./useCh
 import { PersonPopover } from "./components/PersonPopover";
 import { PeopleProvider, findPerson, type People } from "./people";
 import { MAX_VOLUME } from "./useVoiceRoom";
+import { features, isDesktop, native } from "./platform";
 
 const RESTORE_RETRY_MS = 5000;
 
@@ -180,6 +181,8 @@ export default function App() {
 /** Aviso do Windows (só com o Toca em segundo plano e se a pessoa quiser) */
 function windowsNotification(title: string, body: string) {
   if (!getNotifyPrefs().windowsWhenHidden) return;
+  // Navegador: só depois de a pessoa permitir (pedido no primeiro clique, ver MainApp)
+  if (!isDesktop && (typeof Notification === "undefined" || Notification.permission !== "granted")) return;
   try {
     new Notification(title, { body });
   } catch {
@@ -214,6 +217,8 @@ function MainApp({
   const [view, setView] = useState<View>("friends");
   const [section, setSection] = useState<SettingsSection>("profile");
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Desktop: o seletor do Toca (com o som do PC); navegador: o seletor do próprio navegador
+  const shareScreen = () => (features.nativeScreenShare ? setPickerOpen(true) : void voice.startScreenShare("", true));
   const [createOpen, setCreateOpen] = useState(false);
   // Entrar por link de convite: com o código (o link abriu o app) ou colando o link
   const [inviteJoin, setInviteJoin] = useState<{ token: string | null } | null>(null);
@@ -360,7 +365,7 @@ function MainApp({
   voiceRef.current = voice;
   useEffect(
     () =>
-      window.toca.onShortcut((action) => {
+      native.onShortcut((action) => {
         const v = voiceRef.current;
         if (!v.room) return;
         if (action === "toggleMute") void v.toggleMute();
@@ -368,17 +373,26 @@ function MainApp({
         else if (action === "toggleCamera") void v.toggleCamera();
         else if (action === "toggleScreen") {
           if (v.screenSharing) void v.stopScreenShare();
-          else setPickerOpen(true);
+          else shareScreen();
         } else if (action === "leaveCall") void v.leave();
       }),
     [],
   );
 
+  // Navegador: pede para mostrar avisos no primeiro clique (o navegador só
+  // deixa perguntar depois de a pessoa interagir com a página)
+  useEffect(() => {
+    if (isDesktop || typeof Notification === "undefined" || Notification.permission !== "default") return;
+    const ask = () => void Notification.requestPermission().catch(() => {});
+    window.addEventListener("pointerdown", ask, { once: true });
+    return () => window.removeEventListener("pointerdown", ask);
+  }, []);
+
   // Link de convite que abriu o app, ou que chegou com ele já aberto
   useEffect(() => {
-    const take = () => void window.toca.takeInvite().then((token) => token && setInviteJoin({ token }));
+    const take = () => void native.takeInvite().then((token) => token && setInviteJoin({ token }));
     take();
-    return window.toca.onInvitePending(take);
+    return native.onInvitePending(take);
   }, []);
   reloadFriendsRef.current = reloadFriends;
   friendsRef.current = new Map(data.friends.map((f) => [f.id, f.displayName]));
@@ -510,7 +524,7 @@ function MainApp({
                 voice={voice}
                 avatars={avatarMap(me, data.friends, data.rooms)}
                 onMembers={() => currentRoom && setRoomModal({ id: currentRoom.id, tab: "members" })}
-                onShareScreen={() => setPickerOpen(true)}
+                onShareScreen={shareScreen}
                 chatOpen={roomChatOpen}
                 chatUnread={currentRoom ? chat.roomUnread(currentRoom) : 0}
                 onToggleChat={() => setRoomChatOpen((o) => !o)}

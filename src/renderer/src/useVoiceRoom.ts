@@ -28,6 +28,7 @@ import {
   loadDeviceId,
   saveDeviceId,
 } from "./devices";
+import { features, native } from "./platform";
 
 export interface VoiceParticipant {
   identity: string;
@@ -476,9 +477,35 @@ export function useVoiceRoom() {
     const room = roomRef.current;
     if (!room || room.state !== ConnectionState.Connected) return;
     const lp = room.localParticipant;
+    if (!features.nativeScreenShare) {
+      // Navegador: ele mesmo mostra o seletor; o som vem junto quando dá
+      // (no Chrome, o de uma aba, ou o do PC ao compartilhar a tela inteira)
+      try {
+        if (lp.isScreenShareEnabled) await lp.setScreenShareEnabled(false);
+        await lp.setScreenShareEnabled(
+          true,
+          {
+            audio: withAudio ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false } : false,
+            systemAudio: "include",
+            selfBrowserSurface: "exclude",
+            surfaceSwitching: "include",
+            resolution: ScreenSharePresets.h1080fps30.resolution,
+            contentHint: "detail",
+          },
+          { screenShareEncoding: ScreenSharePresets.h1080fps30.encoding, audioPreset: AudioPresets.musicHighQualityStereo, dtx: false, red: false },
+        );
+      } catch (err) {
+        // Cancelou o seletor do navegador: não é erro
+        if ((err as Error).name !== "NotAllowedError") {
+          setState((s) => ({ ...s, error: `Não foi possível compartilhar a tela: ${(err as Error).message}` }));
+        }
+      }
+      setState((s) => ({ ...s, screenSharing: lp.isScreenShareEnabled, participants: snapshot(room, volumesRef.current) }));
+      return;
+    }
     try {
       if (lp.isScreenShareEnabled) await lp.setScreenShareEnabled(false);
-      await window.toca.selectScreenSource(sourceId);
+      await native.selectScreenSource(sourceId);
       // Só o vídeo vem do getDisplayMedia; o áudio vem do startScreenAudio abaixo
       await lp.setScreenShareEnabled(
         true,
@@ -603,11 +630,11 @@ export function useVoiceRoom() {
   useEffect(() => {
     const syncBinding = () => {
       const s = getAudioSettings();
-      void window.toca.setPushToTalk(s.micMode === "ptt" ? s.pttBinding : null);
+      void native.setPushToTalk(s.micMode === "ptt" ? s.pttBinding : null);
     };
     syncBinding();
     const offSettings = onAudioSettings(syncBinding);
-    const offKey = window.toca.onPushToTalk((pressed) => {
+    const offKey = native.onPushToTalk((pressed) => {
       pttHeldRef.current = pressed;
       setPttHeld(pressed);
       processorRef.current?.setPushToTalk(pressed);
@@ -615,7 +642,7 @@ export function useVoiceRoom() {
     return () => {
       offSettings();
       offKey();
-      void window.toca.setPushToTalk(null);
+      void native.setPushToTalk(null);
     };
   }, []);
 

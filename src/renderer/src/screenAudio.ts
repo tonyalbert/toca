@@ -1,4 +1,5 @@
 import workletUrl from "./pcm-player.worklet.js?url";
+import { native } from "./platform";
 
 export interface ScreenAudio {
   track: MediaStreamTrack;
@@ -19,13 +20,13 @@ export async function startScreenAudio(): Promise<ScreenAudio> {
     const destination = ctx.createMediaStreamDestination();
     player.connect(destination);
 
-    unsubscribe = window.toca.onScreenAudioData((chunk) => {
+    unsubscribe = native.onScreenAudioData((chunk) => {
       // Copia para um ArrayBuffer próprio e transfere para o worklet
       const data = chunk.slice().buffer;
       player.port.postMessage(data, [data]);
     });
 
-    const result = await window.toca.startScreenAudio();
+    const result = await native.startScreenAudio();
     if (!result.ok) throw new Error(result.error);
 
     const track = destination.stream.getAudioTracks()[0];
@@ -33,7 +34,7 @@ export async function startScreenAudio(): Promise<ScreenAudio> {
       track,
       stop: () => {
         unsubscribe();
-        void window.toca.stopScreenAudio();
+        void native.stopScreenAudio();
         track.stop();
         player.disconnect();
         void ctx.close();
@@ -41,7 +42,7 @@ export async function startScreenAudio(): Promise<ScreenAudio> {
     };
   } catch (err) {
     unsubscribe();
-    void window.toca.stopScreenAudio();
+    void native.stopScreenAudio();
     void ctx.close();
     throw err;
   }

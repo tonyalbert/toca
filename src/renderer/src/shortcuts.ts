@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SHORTCUT_ACTIONS, type ShortcutAction, type ShortcutBinding } from "../../shared/pushToTalk";
+import { native } from "./platform";
 
 /** Atalhos globais (Configurações → Atalhos). Ficam salvos neste PC. */
 export interface SavedShortcut {
@@ -35,7 +36,7 @@ let current = load();
 
 /** Manda os atalhos para o processo principal (que escuta o teclado) */
 export function syncShortcuts(): void {
-  void window.toca.setShortcuts(
+  void native.setShortcuts(
     Object.entries(current).map(([id, s]) => [id as ShortcutAction, s!.binding] as [ShortcutAction, ShortcutBinding]),
   );
 }

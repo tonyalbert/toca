@@ -2,6 +2,7 @@ export const API_URL = (import.meta.env.VITE_API_URL ?? "https://api-toca.rabbit
 
 /** Espécie legada ou receita versionada de avatar personalizado. */
 import type { Avatar } from "./avatar";
+import { features, native } from "./platform";
 export type { Avatar } from "./avatar";
 
 export const ROOM_ICONS = ["sofa", "game", "film", "music", "book", "moon"] as const;
@@ -89,7 +90,8 @@ interface Session {
   user: Account;
   accessToken: string;
   accessTokenExpiresIn: number;
-  refreshToken: string;
+  /** Ausente no app web: fica no cookie httpOnly da API */
+  refreshToken?: string;
 }
 
 export class ApiError extends Error {
@@ -121,10 +123,19 @@ export function onSessionLost(callback: () => void): void {
   sessionLost = callback;
 }
 
+/**
+ * App web: as rotas de sessão (/auth/...) vão com o cookie httpOnly da API, que
+ * guarda o refresh token fora do alcance do JavaScript da página.
+ */
+function sessionInit(path: string, init: RequestInit): RequestInit {
+  if (!features.cookieSession || !path.startsWith("/auth/")) return init;
+  return { ...init, credentials: "include", headers: { ...init.headers, "x-toca-session": "cookie" } };
+}
+
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, init);
+    res = await fetch(`${API_URL}${path}`, sessionInit(path, init));
   } catch {
     throw new ApiError("Sem conexão com o servidor", 0);
   }
@@ -142,8 +153,9 @@ async function startSession(session: Session): Promise<Account> {
   accessToken = session.accessToken;
   // Renova um minuto antes de expirar
   accessExpiresAt = Date.now() + (session.accessTokenExpiresIn - 60) * 1000;
-  refreshToken = session.refreshToken;
-  await window.toca.saveSession(refreshToken);
+  // No app web o refresh token não vem no JSON: fica no cookie
+  refreshToken = session.refreshToken ?? null;
+  if (refreshToken) await native.saveSession(refreshToken);
   return session.user;
 }
 
@@ -151,7 +163,7 @@ async function clearSession(): Promise<void> {
   accessToken = null;
   accessExpiresAt = 0;
   refreshToken = null;
-  await window.toca.saveSession(null);
+  await native.saveSession(null);
 }
 
 /**
@@ -161,9 +173,9 @@ async function clearSession(): Promise<void> {
 function refresh(): Promise<void> {
   refreshing ??= (async () => {
     const token = refreshToken;
-    if (!token) throw new SessionExpiredError();
+    if (!token && !features.cookieSession) throw new SessionExpiredError();
     try {
-      await startSession(await call<Session>("/auth/refresh", json("POST", { refreshToken: token })));
+      await startSession(await call<Session>("/auth/refresh", json("POST", token ? { refreshToken: token } : {})));
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await clearSession();
@@ -201,8 +213,9 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 /** Retoma a sessão salva. null = precisa entrar. Lança ApiError se estiver sem rede. */
 export async function restoreSession(): Promise<Account | null> {
-  refreshToken = await window.toca.loadSession();
-  if (!refreshToken) return null;
+  refreshToken = await native.loadSession();
+  // Web: não dá para saber se o cookie existe (é httpOnly); o refresh responde
+  if (!refreshToken && !features.cookieSession) return null;
   try {
     await refresh();
   } catch (err) {
@@ -239,6 +252,7 @@ export async function logout(): Promise<void> {
   const token = refreshToken;
   await clearSession();
   if (token) await call("/auth/logout", json("POST", { refreshToken: token })).catch(() => {});
+  else if (features.cookieSession) await call("/auth/logout", json("POST", {})).catch(() => {});
 }
 
 // ---------- Amigos ----------
