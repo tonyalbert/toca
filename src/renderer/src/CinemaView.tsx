@@ -121,7 +121,8 @@ function FilePlayer({ url, onDriver, onError, onNoAudio }: { url: string; onDriv
     v.addEventListener("loadedmetadata", ready);
     const fail = () => onError("Este arquivo não abre no Toca (formato não suportado). MP4 ou MKV com H.264 funcionam sempre.");
     v.addEventListener("error", fail);
-    // Áudio AC3/DTS não toca no Chromium: o vídeo anda sem som
+    // Áudio AC3/DTS não toca no Chromium: o vídeo anda sem som. (Um vídeo sem
+    // áudio nenhum dá o mesmo resultado; o aviso fala dos dois casos.)
     const audioCheck = setInterval(() => {
       const decoded = (v as unknown as { webkitAudioDecodedByteCount?: number }).webkitAudioDecodedByteCount;
       if (!v.paused && v.currentTime > 3 && decoded === 0) {
@@ -297,7 +298,7 @@ export function CinemaView({ cinema, hostName, onChange }: { cinema: Cinema; hos
         <p className="cine-warn xs" role="status">
           <CircleAlert size={13} aria-hidden="true" />
           {noAudio
-            ? "Este arquivo está sem som aqui: o áudio dele (AC3/DTS) não toca no Toca. Uma versão com áudio AAC resolve."
+            ? "Este vídeo está tocando sem som. Se ele tem áudio, provavelmente é AC3 ou DTS, que não toca no Toca: uma versão com áudio AAC resolve."
             : "Seu arquivo tem tamanho diferente do da sala: pode ser outra versão e ficar fora de sincronia."}
         </p>
       )}

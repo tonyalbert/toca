@@ -5,7 +5,7 @@
   "private": true,
   "description": "Toca - chamadas de voz em grupo",
   "license": "GPL-3.0-or-later",
-  "repository": "github:tonyalbert/toca-desktop",
+  "repository": "github:tonyalbert/toca",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "npm run build:audio-helper && electron-vite dev",
