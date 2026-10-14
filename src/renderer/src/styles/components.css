@@ -693,3 +693,4 @@ kbd { display: inline-flex; align-items: center; height: 24px; min-width: 24px; 
 .cine-title { max-width: 180px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cine-end:hover { color: var(--danger); }
 
+.input.code-input { font-family: var(--font-display); font-size: 24px; font-weight: 600; letter-spacing: .35em; height: 56px; }

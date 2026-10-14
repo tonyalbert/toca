@@ -222,6 +222,15 @@ export async function register(email: string, password: string): Promise<Account
   return startSession(await call<Session>("/auth/register", json("POST", { email, password })));
 }
 
+/** "Esqueci a senha": manda um código de 6 dígitos para o e-mail (mesma resposta exista a conta ou não) */
+export const forgotPassword = (email: string) =>
+  call<{ ok: true; expiresInMinutes: number; resendAfterSeconds: number }>("/auth/forgot-password", json("POST", { email }));
+
+/** Código do e-mail + senha nova: troca a senha e já entra (as sessões dos outros PCs caem) */
+export async function resetPassword(email: string, code: string, password: string): Promise<Account> {
+  return startSession(await call<Session>("/auth/reset-password", json("POST", { email, code, password })));
+}
+
 /** Escolhe o @ (uma vez só); troca o nome de exibição e o bichinho quando quiser */
 export const updateProfile = async (changes: { username?: string; displayName?: string; avatar?: Avatar }) =>
   (await authed<{ user: Account }>("/me", json("PATCH", changes))).user;

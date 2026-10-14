@@ -12,6 +12,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.8.0",
+    date: "2026-10-14",
+    items: [
+      "Esqueceu a senha? Na tela de entrar, clique em \"Esqueci a senha\": chega um código no seu e-mail para você criar uma nova e já entrar.",
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-10-13",
     items: [

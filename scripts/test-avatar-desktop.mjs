@@ -33,6 +33,7 @@ const config = {
   livekit: { url: 'ws://localhost', httpUrl: 'http://localhost', apiKey: 'test', apiSecret: 'test' },
   auth: { jwtSecret: 'isolated-electron-avatar-test-secret-32', accessTokenTtlSeconds: 900, refreshTokenTtlDays: 30, rateLimitMax: 100 },
   admin: { user: null, password: null, sessionHours: 12 },
+  mail: { resendApiKey: null, from: 'Toca <teste@example.test>' },
 };
 const api = await buildApp({ config, logger: false, livekit: {}, prisma: {
   user: { findUnique: async () => user, update: async ({ data }) => { user = { ...user, ...data }; savedAvatar = data.avatar; return user; } },

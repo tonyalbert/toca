@@ -4,6 +4,7 @@ import { ApiError, login, register, type Account } from "./api";
 import { AuthHeading, AuthLayout } from "./components/AuthLayout";
 import { Button } from "./components/Button";
 import { Input } from "./components/Input";
+import { ForgotPassword } from "./ForgotPassword";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,7 +21,7 @@ export function AuthScreen({
   notice?: string | null;
   onAuthenticated: (account: Account) => void;
 }) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [loginValue, setLoginValue] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,6 +66,19 @@ export function AuthScreen({
     setErrors({});
   };
 
+  if (mode === "forgot") {
+    const value = loginValue.trim();
+    return (
+      <AuthLayout version={version}>
+        <ForgotPassword
+          initialEmail={EMAIL_PATTERN.test(value) ? value : ""}
+          onBack={() => setMode("login")}
+          onAuthenticated={onAuthenticated}
+        />
+      </AuthLayout>
+    );
+  }
+
   return (
     <AuthLayout version={version}>
       <form onSubmit={submit} noValidate key={mode}>
@@ -99,6 +113,20 @@ export function AuthScreen({
 
         <Input
           label="Senha"
+          labelAction={
+            isRegister ? undefined : (
+              <button
+                type="button"
+                className="link"
+                onClick={() => {
+                  setMode("forgot");
+                  setErrors({});
+                }}
+              >
+                Esqueci a senha
+              </button>
+            )
+          }
           type="password"
           maxLength={128}
           autoComplete={isRegister ? "new-password" : "current-password"}
