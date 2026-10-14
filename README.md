@@ -78,6 +78,23 @@ esperando a chamada acabar).
 Para desenvolver contra uma API local, use `APP_ORIGINS=http://localhost:5173` nela e
 `VITE_API_URL=http://localhost:3000` aqui (os dois em `localhost`, para o cookie valer).
 
+## App de Windows: casca do app web
+
+O app de Windows abre **https://app-toca.rabbitapps.com.br** (como o Discord) e só acrescenta o que
+é nativo: atalhos globais e apertar para falar com o jogo em foco, bandeja, seletor de tela com o
+som do PC, links `toca://` e a atualização da própria casca (electron-updater). Mudança só na
+interface vai pro ar com o deploy do app web, sem versão nova do desktop.
+
+- `src/main/shell.ts`: endereço do app, bloqueio de navegação (outros sites abrem no navegador),
+  conferência de quem chama o `ipcMain` e a tela "sem conexão".
+- O preload só entrega `window.toca` para o endereço do app.
+- Em desenvolvimento, `npm run dev` abre o Vite local; `TOCA_APP_URL=http://localhost:4173` aponta
+  para outro endereço (o app instalado sempre usa o oficial).
+
+**Regra:** função nativa nova (preload/main) precisa de versão nova da casca, e a interface deve
+funcionar sem ela: use `native.x()` e `features` de `src/renderer/src/platform/`, que caem na
+versão web quando a casca instalada ainda não tem a função.
+
 ## Organização
 
 ```

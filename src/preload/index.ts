@@ -3,8 +3,12 @@ import type { ScreenAudioStartResult, ScreenSource } from "../shared/screen";
 import type { UpdateState } from "../shared/update";
 import type { PushToTalkBinding, ShortcutAction, ShortcutBinding } from "../shared/pushToTalk";
 
-// Ponte mínima com o processo principal. Push-to-talk global vai entrar aqui.
-contextBridge.exposeInMainWorld("toca", {
+// Ponte com o processo principal: só para o endereço do app (ver main/shell.ts).
+// Outra página na janela (não deveria acontecer: a navegação é bloqueada) não ganha nada.
+const appOrigin = process.argv.find((a) => a.startsWith("--toca-app-origin="))?.split("=")[1];
+const isApp = !!appOrigin && location.origin === appOrigin;
+
+if (isApp) contextBridge.exposeInMainWorld("toca", {
   platform: process.platform,
   getVersion: (): Promise<string> => ipcRenderer.invoke("app:version"),
   getUpdateState: (): Promise<UpdateState> => ipcRenderer.invoke("update:state"),

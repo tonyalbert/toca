@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, ipcMain, session, shell } from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, session } from "electron";
 import { join } from "node:path";
 import { appIcon, hideOnClose, setupTray, showWindow } from "./tray";
 import { setupScreenShare } from "./screenShare";
@@ -6,7 +6,7 @@ import { setupSession } from "./session";
 import { setupPushToTalk } from "./pushToTalk";
 import { setupUpdater, takeRestartMode } from "./updater";
 import { setupInvites } from "./invite";
-import { setupYouTube } from "./youtube";
+import { APP_ORIGIN, guardIpc, isAppUrl, loadApp, lockNavigation } from "./shell";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -32,6 +32,8 @@ function createWindow(): void {
       autoplayPolicy: "no-user-gesture-required",
       // Continua a chamada a todo vapor mesmo com a janela escondida na bandeja
       backgroundThrottling: false,
+      // O preload só entrega window.toca para este endereço (ver shell.ts)
+      additionalArguments: [`--toca-app-origin=${APP_ORIGIN}`],
     },
   });
   mainWindow = win;
@@ -51,17 +53,9 @@ function createWindow(): void {
     if (mainWindow === win) mainWindow = null;
   });
 
-  // Links externos abrem no navegador, nunca dentro do app
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
-    return { action: "deny" };
-  });
-
-  if (process.env.ELECTRON_RENDERER_URL) {
-    void win.loadURL(process.env.ELECTRON_RENDERER_URL);
-  } else {
-    void win.loadFile(join(__dirname, "../renderer/index.html"));
-  }
+  // Só o app dentro da janela; links de outros sites abrem no navegador
+  lockNavigation(win);
+  loadApp(win);
 }
 
 /** Botões da barra de título. Fechar só esconde na bandeja (ver hideOnClose). */
@@ -95,10 +89,15 @@ if (!app.requestSingleInstanceLock()) {
     // Nome do app nas notificações do Windows (igual ao appId do electron-builder.yml)
     app.setAppUserModelId("br.com.rabbitapps.toca");
 
-    // Microfone/câmera (media), captura de tela e tela cheia são liberados; o resto é negado
-    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-      callback(permission === "media" || permission === "display-capture" || permission === "fullscreen");
+    // Microfone/câmera (media) e captura de tela só para o app; tela cheia também
+    // para o player do YouTube (iframe); o resto é negado
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+      if (permission === "fullscreen") return callback(true);
+      callback((permission === "media" || permission === "display-capture") && isAppUrl(details.requestingUrl));
     });
+
+    // Daqui em diante, todo ipcMain.handle confere se quem chamou é a página do app
+    guardIpc();
 
     setupWindowControls();
     // Copiar (link de convite, @): pelo clipboard do Electron. O navigator.clipboard
@@ -110,7 +109,6 @@ if (!app.requestSingleInstanceLock()) {
     setupScreenShare();
     setupSession();
     setupInvites(() => mainWindow, showWindow);
-    setupYouTube();
 
     setupUpdater();
     setupTray(() => mainWindow);
