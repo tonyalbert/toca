@@ -15,48 +15,35 @@ export const CHANGELOG: Release[] = [
     version: "1.7.0",
     date: "2026-10-13",
     items: [
-      "Sessão de cinema: na chamada, clique em Cinema e assistam juntos um vídeo do YouTube ou um arquivo do PC. Play, pausa e pulos valem para todo mundo, e quem entra no meio cai no ponto certo.",
-      "No arquivo do PC, cada um abre a própria cópia: nada passa pela internet e a qualidade fica máxima.",
+      "Sessão de cinema: na chamada, assistam juntos um vídeo do YouTube ou um arquivo do PC, tudo sincronizado.",
     ],
   },
   {
     version: "1.6.1",
     date: "2026-10-13",
-    items: [
-      "Aba Atalhos nas configurações: ligar/desligar microfone, fone e câmera, compartilhar a tela e sair da chamada com uma tecla, mesmo com o jogo em foco.",
-      "Quem está falando aparece na hora no card e na lista da sala, junto com o ícone do microfone.",
-      "O botão Copiar do link de convite (e do seu @) voltou a funcionar.",
-      "Quando alguém troca o nome ou a foto, a lista de mensagens e o chat aberto atualizam na hora.",
-      "Novidades agora ficam no botão lá em cima, ao lado de verificar atualizações.",
-    ],
+    items: ["Atalhos de teclado para microfone, fone, câmera, tela e sair da chamada, mesmo com o jogo em foco."],
   },
   {
     version: "1.6.0",
     date: "2026-10-13",
     items: [
-      "Cores novas para o app: Oceano, Floresta, Lavanda, Morango e Pôr do sol, além da Meia-noite. Funcionam no modo escuro e no claro (Configurações → Aparência).",
-      "Foto ou GIF de perfil no lugar do bichinho. O GIF fica parado e só se mexe quando você fala.",
-      "Adm da sala: o dono pode tornar outras pessoas adm. Adms adicionam e removem membros, mudam nome e ícone e apagam mensagens no chat da sala.",
-      "Passar a sala: o dono pode transferir a sala para outra pessoa e continua como adm.",
-      "Link de convite: gere um link que vale 1 hora ou para sempre. Quem abrir entra na sala, mesmo sem ser seu amigo. Vazou? Gere um novo e o antigo para de funcionar.",
-      "Aviso no chat quando alguém entra na sala.",
-      "Os bichinhos pequenos (na lista de salas, por exemplo) voltaram a ter olhos e boca.",
-      "Esta aba de novidades.",
+      "Temas de cores novos (Configurações → Aparência).",
+      "Foto ou GIF de perfil no lugar do bichinho.",
+      "Adms na sala e transferência de dono.",
+      "Link de convite para entrar na sala.",
     ],
   },
   {
     version: "1.5.0",
     date: "2026-10-13",
-    items: [
-      "Imagens no chat: anexe pelo botão, cole com Ctrl+V ou arraste para a conversa. Clique na imagem para ver em tela cheia e salvar.",
-    ],
+    items: ["Imagens no chat: anexe, cole com Ctrl+V ou arraste para a conversa."],
   },
   {
     version: "1.4.0",
     date: "2026-10-10",
     items: [
-      "Chat em cada sala e mensagens diretas entre amigos, com aviso de não lidas.",
-      "Atualizações: o Toca avisa quando há versão nova, espera a chamada acabar e instala sozinho.",
+      "Chat em cada sala e mensagens diretas entre amigos.",
+      "Atualizações automáticas, sem interromper a chamada.",
     ],
   },
   {
@@ -69,9 +56,7 @@ export const CHANGELOG: Release[] = [
     date: "2026-10-10",
     items: [
       "Tela de configurações: perfil, voz e vídeo, notificações e aparência.",
-      "Avisos de pedidos de amizade, de quem te chamou para uma sala e mais.",
-      "Cartão da pessoa: clique em alguém para ver o perfil.",
-      "Apertar para falar, com atalho que funciona mesmo com o Toca em segundo plano.",
+      "Apertar para falar, com atalho que funciona com o Toca em segundo plano.",
     ],
   },
 ];

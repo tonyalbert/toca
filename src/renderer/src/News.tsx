@@ -2,16 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { compareVersions, markSeen, releasesUpTo, seenVersion } from "./changelog";
 import { Button } from "./components/Button";
 import { Modal } from "./components/Modal";
-import { useToast } from "./components/Toasts";
 
 const newsDate = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", year: "numeric" });
 
 /**
- * Novidades (botão na barra de cima): depois de atualizar, avisa uma vez e
- * deixa o botão marcado até a pessoa abrir. Instalação nova não avisa.
+ * Novidades (botão na barra de cima): depois de atualizar, deixa o botão
+ * marcado até a pessoa abrir. Instalação nova não avisa.
  */
 export function useNews(version: string | null) {
-  const toast = useToast();
   const [unseen, setUnseen] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -35,13 +33,6 @@ export function useNews(version: string | null) {
       return;
     }
     setUnseen(true);
-    const n = fresh.reduce((sum, r) => sum + r.items.length, 0);
-    toast({
-      title: `O Toca foi atualizado para a ${version}`,
-      sub: n === 1 ? fresh[0].items[0] : `${n} novidades para ver.`,
-      kind: "ok",
-      actions: [{ label: "Ver novidades", primary: true, onClick: show }],
-    });
   }, [version]);
 
   return { unseen, open, show, close: () => setOpen(false) };
@@ -53,7 +44,7 @@ export function NewsModal({ version, onClose }: { version: string | null; onClos
   return (
     <Modal
       title="Novidades"
-      description={version ? `Você está na versão ${version}. O Toca se atualiza sozinho.` : undefined}
+      description={version ? `Você está na versão ${version} (beta). O Toca se atualiza sozinho.` : undefined}
       wide
       onClose={onClose}
       footer={

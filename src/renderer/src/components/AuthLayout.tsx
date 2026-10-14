@@ -23,7 +23,7 @@ export function AuthLayout({ version, children }: { version: string | null; chil
           Entra, a turma <em>já tá na toca.</em>
         </h2>
         <span className="xs muted" style={{ position: "relative" }}>
-          Toca é um app da Rabbit{version ? ` · v${version}` : ""}
+          Toca é um app da Rabbit{version ? ` · v${version} beta` : " · beta"}
         </span>
       </div>
       <div className="auth-form">{children}</div>

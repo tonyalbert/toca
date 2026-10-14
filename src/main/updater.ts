@@ -81,6 +81,8 @@ export function setupUpdater(): void {
     // isForceRunAfter=true: reabre o app no fim
     autoUpdater.quitAndInstall(mode !== "shown", true);
   });
+  // Segundos sem mexer no mouse ou no teclado (no PC todo, não só no Toca)
+  ipcMain.handle("system:idle-seconds", () => powerMonitor.getSystemIdleTime());
   // A janela está à vista? (escondida na bandeja ou minimizada: não)
   ipcMain.handle("window:is-visible", (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);

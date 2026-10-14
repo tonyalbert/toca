@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, LoaderCircle, WifiOff } from "lucide-react";
+import { LoaderCircle, WifiOff } from "lucide-react";
 import {
   acceptFriendRequest,
   isProfileComplete,
@@ -17,7 +17,7 @@ import { getNotifyPrefs } from "./notifyPrefs";
 import { useVoiceRoom } from "./useVoiceRoom";
 import { useTocaData } from "./useTocaData";
 import { useAppUpdate } from "./useAppUpdate";
-import { UpdateGate } from "./UpdateGate";
+import { useQuietUpdate } from "./UpdateGate";
 import { AuthScreen } from "./AuthScreen";
 import { AuthHeading, AuthLayout } from "./components/AuthLayout";
 import { Avatar, avatarMap } from "./components/Avatar";
@@ -78,18 +78,20 @@ type Auth =
 
 export default function App() {
   const [auth, setAuth] = useState<Auth>({ status: "loading" });
-  // Em chamada, a atualização espera ela acabar (UpdateGate)
+  // Em chamada, a atualização espera (useQuietUpdate)
   const [inCall, setInCall] = useState(false);
   const { version, update, install: installNow } = useAppUpdate();
   const news = useNews(version);
   // Fechando para atualizar: aviso na tela até o app sair
   const [installing, setInstalling] = useState(false);
   const install = () => {
+    if (installing) return;
     markRejoin();
     setInstalling(true);
     // Dá tempo do aviso aparecer antes de o app fechar
     setTimeout(installNow, 600);
   };
+  useQuietUpdate(update, inCall && auth.status === "signedIn", install);
 
   // Retoma a sessão salva; sem internet, tenta de novo sozinho
   useEffect(() => {
@@ -119,7 +121,6 @@ export default function App() {
     <div className="win">
       <TitleBar update={update} onInstall={install} newsUnseen={news.unseen} onNews={news.show} />
       {news.open && <NewsModal version={version} onClose={news.close} />}
-      {!installing && <UpdateGate update={update} inCall={inCall && auth.status === "signedIn"} onInstall={install} />}
       {installing && (
         <div className="update-ov" role="status">
           <div className="dialog update-gate">
@@ -387,7 +388,7 @@ function MainApp({
   const { roomsReloaded } = chat;
   useEffect(() => roomsReloaded(), [data.rooms, roomsReloaded]);
 
-  // Em chamada, a atualização espera (UpdateGate)
+  // Em chamada, a atualização espera (useQuietUpdate)
   const inCall = !!voice.room;
   useEffect(() => {
     onInCallChange(inCall);
@@ -501,19 +502,6 @@ function MainApp({
       />
 
       <main className="main">
-        {update.status === "downloaded" && inCall && (
-          <div className="banner" role="status">
-            <Download size={18} aria-hidden="true" className="banner-ico" />
-            <span className="grow">
-              <strong>Versão {update.version} pronta.</strong>{" "}
-              <span className="muted">O Toca atualiza quando você sair da chamada, ou agora: leva uns segundos e você volta para a mesma sala.</span>
-            </span>
-            <Button variant="primary" size="sm" onClick={onInstall}>
-              Atualizar agora
-            </Button>
-          </div>
-        )}
-
         {shown === "voice" ? (
           <div className="room-split">
             <div className="room-split-main">

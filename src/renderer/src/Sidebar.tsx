@@ -330,7 +330,7 @@ export function Sidebar({
           </IconButton>
         </div>
         <div className="ver">
-          <span>Toca{version ? ` v${version}` : ""}</span>
+          <span>Toca{version ? ` v${version} beta` : " beta"}</span>
           <span role="status">{versionNote}</span>
         </div>
       </div>

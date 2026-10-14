@@ -20,6 +20,8 @@ declare global {
       onInvitePending(callback: () => void): () => void;
       /** Janela à vista (nem na bandeja, nem minimizada) */
       isWindowVisible(): Promise<boolean>;
+      /** Segundos sem mexer no mouse ou no teclado, no PC todo */
+      getIdleSeconds(): Promise<number>;
       minimizeWindow(): Promise<void>;
       toggleMaximizeWindow(): Promise<void>;
       /** Esconde na bandeja (o app continua rodando) */

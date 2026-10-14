@@ -611,13 +611,11 @@
 .dm.unread .dm-text span { color: var(--text); font-weight: 600; }
 .dm .badge.count { flex: none; height: 18px; min-width: 18px; font-size: 11px; padding: 0 5px; }
 
-/* ---------- atualização quase obrigatória (UpdateGate.tsx) ---------- */
+/* ---------- tela de "Atualizando o Toca…" (App.tsx) ---------- */
 /* Abaixo da barra de título: dá para minimizar ou fechar (aí atualiza na bandeja) */
 .update-ov { position: fixed; inset: 36px 0 0 0; z-index: 150; display: grid; place-items: center; padding: 24px; background: var(--overlay); }
 .update-gate { gap: 12px; }
 .update-gate-ico { width: 44px; height: 44px; border-radius: 99px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); }
-.update-gate-bar { height: 4px; border-radius: 99px; background: var(--card-2); overflow: hidden; }
-.update-gate-bar span { display: block; height: 100%; background: var(--accent); transition: width 1s linear; }
 .update-gate .dialog-f { margin-top: 4px; }
 .spin { animation: tk-spin 1s linear infinite; }
 @keyframes tk-spin { to { transform: rotate(360deg); } }
