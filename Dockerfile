@@ -1,6 +1,6 @@
 # App web do Toca (app-toca.rabbitapps.com.br): a interface do desktop como
-# site estático, servido pelo nginx. No Coolify: build pack "Dockerfile",
-# arquivo Dockerfile.web, porta 80.
+# site estático, servido pelo nginx. No Coolify: build pack "Dockerfile"
+# (arquivo padrão, /Dockerfile), porta 80. O app de Windows não usa este arquivo.
 
 FROM node:22-alpine AS build
 WORKDIR /app

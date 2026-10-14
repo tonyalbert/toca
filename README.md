@@ -66,7 +66,7 @@ esperando a chamada acabar).
 1. **DNS**: um registro `A` (ou `CNAME`) de `app-toca.rabbitapps.com.br` para o servidor do Coolify
    (pule se já existir um curinga `*.rabbitapps.com.br`).
 2. **Novo recurso** → *Public/Private Repository* → este repositório, branch `main`.
-3. **Build pack**: *Dockerfile*; **Dockerfile location**: `/Dockerfile.web`; **porta**: `80`.
+3. **Build pack**: *Dockerfile*; **Dockerfile location**: `/Dockerfile` (o padrão); **porta**: `80`.
 4. **Domínio**: `https://app-toca.rabbitapps.com.br` (o Coolify gera o certificado HTTPS).
 5. **Deploy**. O nginx (`nginx/`) serve o app com cache longo para `assets/`, sem cache para
    `index.html` e `version.json`, e cabeçalhos de segurança; a CSP fica no `index.html`.
