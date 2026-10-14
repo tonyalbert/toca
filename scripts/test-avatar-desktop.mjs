@@ -1,6 +1,7 @@
 /** Real Electron renderer + real API routes/CORS, using an isolated in-memory account. */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -8,7 +9,15 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
-import { buildApp } from '../../api/dist/app.js';
+
+// O teste sobe as rotas reais da API, que fica em outro repositório (privado),
+// compilado na pasta ao lado (../api). Sem ela, não há o que testar.
+const apiApp = new URL('../../api/dist/app.js', import.meta.url);
+if (!existsSync(apiApp)) {
+  console.log('• test:avatar precisa da API compilada em ../api (repositório privado): pulando');
+  process.exit(0);
+}
+const { buildApp } = await import(apiApp.href);
 
 const desktop = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const require = createRequire(import.meta.url);
@@ -23,12 +32,14 @@ const config = {
   port: 0, databaseUrl: '', corsOrigins: ['*'], tokenTtlSeconds: 300,
   livekit: { url: 'ws://localhost', httpUrl: 'http://localhost', apiKey: 'test', apiSecret: 'test' },
   auth: { jwtSecret: 'isolated-electron-avatar-test-secret-32', accessTokenTtlSeconds: 900, refreshTokenTtlDays: 30, rateLimitMax: 100 },
+  admin: { user: null, password: null, sessionHours: 12 },
 };
 const api = await buildApp({ config, logger: false, livekit: {}, prisma: {
   user: { findUnique: async () => user, update: async ({ data }) => { user = { ...user, ...data }; savedAvatar = data.avatar; return user; } },
   refreshToken: { create: async () => ({}) },
   friendship: { findMany: async () => [] },
   roomMember: { findMany: async () => [] },
+  directThread: { findMany: async () => [] },
 } });
 api.addHook('onSend', async (req, reply, payload) => {
   requests.push({ method: req.method, url: req.url });
