@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import type { PushToTalkBinding } from "../../shared/pushToTalk";
+import type { NoiseLevel } from "./noise";
 
 /** Preferências de áudio deste PC (valem em todas as salas) */
 export interface AudioSettings {
   /** Volume do seu microfone para os outros (1 = 100%; vai até 2) */
   micGain: number;
-  /** Sem corte por sensibilidade: o microfone fica sempre aberto */
+  /** O Toca mede o barulho do ambiente e só abre o microfone quando você fala (ver AutoGate) */
   autoSensitivity: boolean;
   /** Abaixo deste nível (dBFS) o microfone fecha, quando autoSensitivity é false */
   gateDb: number;
   /** Volume geral de tudo o que você ouve (1 = 100%; vai até 2) */
   outputVolume: number;
-  /** Filtro de ruído do sistema (teclado, ventilador, rua) */
-  noiseSuppression: boolean;
+  /** Redução de ruído de fundo (ver noise.ts) */
+  noiseLevel: NoiseLevel;
   /** voice: microfone abre sozinho · ptt: só enquanto a tecla está segurada */
   micMode: "voice" | "ptt";
   pttBinding: PushToTalkBinding | null;
@@ -29,7 +30,7 @@ const DEFAULTS: AudioSettings = {
   autoSensitivity: true,
   gateDb: -50,
   outputVolume: 1,
-  noiseSuppression: true,
+  noiseLevel: "strong",
   micMode: "voice",
   pttBinding: null,
   pttLabel: null,
@@ -40,8 +41,13 @@ const listeners = new Set<(s: AudioSettings) => void>();
 
 function load(): AudioSettings {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Partial<AudioSettings>;
-    return { ...DEFAULTS, ...saved };
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Partial<AudioSettings> & { noiseSuppression?: boolean };
+    // Até a 2.0: só liga/desliga (o filtro leve do navegador). Ligado vira o forte.
+    if (!saved.noiseLevel && saved.noiseSuppression !== undefined) saved.noiseLevel = saved.noiseSuppression ? "strong" : "off";
+    delete saved.noiseSuppression;
+    const merged = { ...DEFAULTS, ...saved };
+    if (!["off", "light", "strong"].includes(merged.noiseLevel)) merged.noiseLevel = DEFAULTS.noiseLevel;
+    return merged;
   } catch {
     return { ...DEFAULTS };
   }

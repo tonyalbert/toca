@@ -12,6 +12,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.1.0",
+    date: "2026-10-15",
+    items: [
+      "Redução de ruído em três níveis (Configurações → Voz e vídeo). A nova, Forte, separa a sua voz do resto e corta teclado, ventilador, latido e barulho da rua.",
+      "Sensibilidade automática de verdade: o Toca aprende o barulho do seu ambiente e só abre o microfone quando você fala. Não precisa mais ajustar na mão.",
+      "Trocar a foto de perfil voltou a funcionar.",
+    ],
+  },
+  {
     version: "2.0.0",
     date: "2026-10-14",
     items: [

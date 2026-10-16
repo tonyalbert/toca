@@ -483,6 +483,8 @@
 .mode-pick button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border-radius: var(--r-md); border: 2px solid var(--line); background: var(--card); text-align: left; }
 .mode-pick button:hover { border-color: var(--line-2); }
 .mode-pick button[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.mode-pick.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mode-tag { margin-left: 6px; padding: 1px 6px; border-radius: var(--r-full); background: var(--accent-soft); color: var(--accent-text); font-size: 10px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; vertical-align: 1px; }
 .ptt-pill { display: inline-flex; align-items: center; height: 46px; padding: 0 14px; margin-right: 4px; border-radius: 12px; background: var(--card-2); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
 .ptt-pill.on { background: var(--accent); color: var(--accent-ink); }
 

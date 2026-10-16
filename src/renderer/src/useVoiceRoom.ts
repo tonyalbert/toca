@@ -16,6 +16,7 @@ import {
 import { fetchRoomToken } from "./api";
 import { getAudioSettings, onAudioSettings } from "./audioSettings";
 import { MicProcessor } from "./micProcessor";
+import { browserNoiseSuppression } from "./noise";
 import { getNotifyPrefs } from "./notifyPrefs";
 import { playCue } from "./sounds";
 import { useSpeaking } from "./useSpeaking";
@@ -276,7 +277,7 @@ export function useVoiceRoom() {
         audioCaptureDefaults: {
           deviceId: captureDeviceId(await availableDeviceId("audioinput", micDeviceRef.current)),
           echoCancellation: true,
-          noiseSuppression: getAudioSettings().noiseSuppression,
+          noiseSuppression: browserNoiseSuppression(getAudioSettings().noiseLevel),
           autoGainControl: true,
         },
         audioOutput: { deviceId: await availableDeviceId("audiooutput", outputDeviceRef.current) },
@@ -602,13 +603,16 @@ export function useVoiceRoom() {
 
   // Preferências de áudio mudaram (página de Configurações): valem na hora
   useEffect(() => {
-    let noise = getAudioSettings().noiseSuppression;
+    // O filtro do navegador vem na captura: mudar ele reinicia o microfone.
+    // O RNNoise (nível forte) é trocado no processador, sem reiniciar.
+    let noise = browserNoiseSuppression(getAudioSettings().noiseLevel);
     return onAudioSettings((settings) => {
       processorRef.current?.update(settings);
       const room = roomRef.current;
       applyVolumes(room);
-      if (settings.noiseSuppression !== noise && room) {
-        noise = settings.noiseSuppression;
+      const wanted = browserNoiseSuppression(settings.noiseLevel);
+      if (wanted !== noise && room) {
+        noise = wanted;
         const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
         if (track instanceof LocalAudioTrack) {
           void track
@@ -622,7 +626,7 @@ export function useVoiceRoom() {
             .catch((err: Error) => setState((s) => ({ ...s, error: `Não foi possível reiniciar o microfone: ${err.message}` })));
         }
       }
-      noise = settings.noiseSuppression;
+      noise = wanted;
     });
   }, []);
 

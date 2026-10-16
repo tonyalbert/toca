@@ -1,7 +1,7 @@
 {
   "name": "toca-desktop",
   "productName": "Toca",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Toca - chamadas de voz em grupo",
   "license": "GPL-3.0-or-later",
@@ -15,6 +15,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test:avatar": "node scripts/test-avatar-desktop.mjs",
+    "test:gate": "node --test scripts/test-auto-gate.ts",
     "dist": "npm run build:audio-helper && electron-vite build && electron-builder --win --publish never",
     "release": "npm run dist && node scripts/publish-github.mjs",
     "publish:github": "node scripts/publish-github.mjs",
@@ -45,6 +46,7 @@
     "electron-winstaller": false
   },
   "dependencies": {
+    "@sapphi-red/web-noise-suppressor": "^0.4.1",
     "electron-updater": "^6.8.9",
     "uiohook-napi": "^1.5.5"
   },

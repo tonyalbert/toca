@@ -20,6 +20,7 @@ import { Select } from "./components/Select";
 import { Slider } from "./components/Slider";
 import { Switch } from "./components/Switch";
 import { features, native } from "./platform";
+import { AutoGate, browserNoiseSuppression, denoisedTrack, type NoiseLevel } from "./noise";
 
 export type SettingsSection = "profile" | "voice" | "keys" | "notify" | "look";
 
@@ -349,9 +350,13 @@ function VoiceSection({ voice }: { voice: VoiceRoom }) {
   const mics = useDeviceList("audioinput", !!testTrack);
   const outputs = useDeviceList("audiooutput", !!testTrack);
 
-  // Captura de teste do microfone escolhido (mesmo tratamento de áudio da sala)
+  // Captura de teste do microfone escolhido, com a mesma redução de ruído da
+  // sala: a barra mostra o que sobra depois de tirar o ruído
+  const browserNoise = browserNoiseSuppression(audio.noiseLevel);
+  const strongNoise = audio.noiseLevel === "strong";
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let denoised: { close: () => void } | null = null;
     let cancelled = false;
     setTestError(null);
     navigator.mediaDevices
@@ -359,30 +364,48 @@ function VoiceSection({ voice }: { voice: VoiceRoom }) {
         audio: {
           deviceId: constraint(voice.micDeviceId),
           echoCancellation: true,
-          noiseSuppression: audio.noiseSuppression,
+          noiseSuppression: browserNoise,
           autoGainControl: true,
         },
       })
-      .then((s) => {
+      .then(async (s) => {
         if (cancelled) return s.getTracks().forEach((t) => t.stop());
         stream = s;
-        setTestTrack(s.getAudioTracks()[0] ?? null);
+        const raw = s.getAudioTracks()[0] ?? null;
+        if (raw && strongNoise) {
+          const d = await denoisedTrack(raw).catch(() => null);
+          if (cancelled) return d?.close();
+          if (d) {
+            denoised = d;
+            return setTestTrack(d.track);
+          }
+        }
+        setTestTrack(raw);
       })
       .catch((err: Error) => {
         if (!cancelled) setTestError(`Não foi possível abrir este microfone: ${err.message}`);
       });
     return () => {
       cancelled = true;
+      denoised?.close();
       stream?.getTracks().forEach((t) => t.stop());
       setTestTrack(null);
     };
-  }, [voice.micDeviceId, audio.noiseSuppression]);
+  }, [voice.micDeviceId, browserNoise, strongNoise]);
 
   // O que os outros ouvem: o nível depois do volume do microfone
   const rawDb = useMicDb(testTrack);
   const db = rawDb + 20 * Math.log10(Math.max(audio.micGain, 0.01));
   const ptt = audio.micMode === "ptt";
-  const passing = ptt ? voice.pttHeld : audio.autoSensitivity || db >= audio.gateDb;
+  // A sensibilidade automática, igual à da chamada: aprende o barulho do ambiente
+  const gate = useRef(new AutoGate());
+  const [auto, setAuto] = useState({ open: false, threshold: gate.current.threshold });
+  useEffect(() => {
+    const open = gate.current.update(db);
+    const threshold = gate.current.threshold;
+    setAuto((a) => (a.open === open && Math.abs(a.threshold - threshold) < 0.5 ? a : { open, threshold }));
+  }, [db]);
+  const passing = ptt ? voice.pttHeld : audio.autoSensitivity ? auto.open : db >= audio.gateDb;
 
   return (
     <>
@@ -419,7 +442,7 @@ function VoiceSection({ voice }: { voice: VoiceRoom }) {
             >
               <div className="meter" aria-hidden="true">
                 <i className={passing ? "" : "closed"} style={{ width: `${dbToPct(db)}%` }} />
-                {!ptt && !audio.autoSensitivity && <b className="gate-mark" style={{ left: `${dbToPct(audio.gateDb)}%` }} />}
+                {!ptt && <b className="gate-mark" style={{ left: `${dbToPct(audio.autoSensitivity ? auto.threshold : audio.gateDb)}%` }} />}
               </div>
             </Slider>
             <div className="col" style={{ gap: 6 }}>
@@ -452,7 +475,11 @@ function VoiceSection({ voice }: { voice: VoiceRoom }) {
             checked={audio.autoSensitivity}
             onChange={(v) => setAudio({ autoSensitivity: v })}
             label="Sensibilidade automática"
-            description="O microfone fica sempre aberto. Desligue para escolher a partir de que volume ele abre (bom para teclado barulhento)."
+            description={
+              audio.autoSensitivity
+                ? "O Toca aprende o barulho do seu ambiente e só abre o microfone quando você fala. A linha na barra mostra o limite agora."
+                : "Escolha você a partir de que volume o microfone abre. Abaixo da linha, ninguém te ouve."
+            }
           />
           {!audio.autoSensitivity && (
             <Slider
@@ -469,12 +496,7 @@ function VoiceSection({ voice }: { voice: VoiceRoom }) {
             </>
           )}
           <div className="sep-line" />
-          <Switch
-            checked={audio.noiseSuppression}
-            onChange={(v) => setAudio({ noiseSuppression: v })}
-            label="Reduzir ruído de fundo"
-            description="Corta teclado, ventilador e barulho da rua."
-          />
+          <NoisePicker value={audio.noiseLevel} onChange={(noiseLevel) => setAudio({ noiseLevel })} />
         </div>
       </section>
 
@@ -483,6 +505,35 @@ function VoiceSection({ voice }: { voice: VoiceRoom }) {
         <CameraPanel deviceId={voice.cameraDeviceId} onChange={(id) => void voice.setCameraDevice(id)} />
       </section>
     </>
+  );
+}
+
+const NOISE_LEVELS: { id: NoiseLevel; title: string; hint: string }[] = [
+  { id: "off", title: "Desligada", hint: "O som vai do jeito que sai do microfone." },
+  { id: "light", title: "Leve", hint: "O filtro do navegador: tira chiado e ruído baixo e constante." },
+  { id: "strong", title: "Forte", hint: "Separa a sua voz do resto: corta teclado, ventilador, latido e barulho da rua." },
+];
+
+/** Redução de ruído em três níveis (vale na hora, também no meio da chamada) */
+function NoisePicker({ value, onChange }: { value: NoiseLevel; onChange: (level: NoiseLevel) => void }) {
+  return (
+    <div className="field">
+      <span className="label" id="cfg-ruido">
+        Redução de ruído de fundo
+      </span>
+      <div className="mode-pick three" role="radiogroup" aria-labelledby="cfg-ruido">
+        {NOISE_LEVELS.map((n) => (
+          <button key={n.id} type="button" role="radio" aria-checked={value === n.id} onClick={() => onChange(n.id)}>
+            <strong className="sm">
+              {n.title}
+              {n.id === "strong" && <span className="mode-tag">recomendada</span>}
+            </strong>
+            <span className="xs muted">{n.hint}</span>
+          </button>
+        ))}
+      </div>
+      <span className="xs muted">Fale e faça barulho no teclado: a barra do microfone mostra o que os amigos ouvem.</span>
+    </div>
   );
 }
 
