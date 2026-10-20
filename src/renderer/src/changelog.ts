@@ -12,6 +12,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.3.0",
+    date: "2026-10-19",
+    items: [
+      "Três jogos novos para jogar a dois na chamada: Lig 4, Batalha Naval e Cara a Cara (com os bichinhos do Toca). Estão no botão Jogos da sala. Com mais gente na chamada, você escolhe contra quem joga e o resto assiste.",
+      "Desenha e Adivinha: o balde de tinta agora pinta igual na tela de todo mundo.",
+    ],
+  },
+  {
     version: "2.2.0",
     date: "2026-10-19",
     items: [

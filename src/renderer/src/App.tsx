@@ -35,6 +35,8 @@ import { SettingsPage, type SettingsSection } from "./SettingsPage";
 import { NewsModal, useNews } from "./News";
 import { useCinema } from "./cinema";
 import { useDrawGame } from "./drawGame";
+import { useDuel } from "./duel";
+import { DUEL_NAMES } from "./duelRules";
 import { VoiceRoomView } from "./VoiceRoomView";
 import { ChatView } from "./ChatView";
 import { NewDmModal } from "./NewDmModal";
@@ -215,6 +217,7 @@ function MainApp({
   const cinema = useCinema(voice);
   // Jogo da chamada: idem
   const draw = useDrawGame(voice);
+  const duel = useDuel(voice);
   const toast = useToast();
   // A tela inicial é a de amigos (também ao sair de uma sala)
   const [view, setView] = useState<View>("friends");
@@ -375,6 +378,18 @@ function MainApp({
       actions: [{ label: "Jogar", primary: true, onClick: () => setView("voice") }],
     });
   }, [gameId]);
+
+  // Alguém te chamou para um jogo de 2 e você está em outra tela
+  const duelId = duel.session?.id;
+  useEffect(() => {
+    const s = duel.session;
+    if (!s || duel.seat === null || view === "voice") return;
+    const other = s.names[1 - duel.seat];
+    toast({
+      title: `${other} te chamou para ${DUEL_NAMES[s.kind]}`,
+      actions: [{ label: "Jogar", primary: true, onClick: () => setView("voice") }],
+    });
+  }, [duelId]);
 
   // Atalhos globais (Configurações → Atalhos): só agem durante uma chamada
   const voiceRef = useRef(voice);
@@ -546,6 +561,7 @@ function MainApp({
                 onToggleChat={() => setRoomChatOpen((o) => !o)}
                 cinema={cinema}
                 draw={draw}
+                duel={duel}
               />
             </div>
             {roomChatOpen && currentRoom && (

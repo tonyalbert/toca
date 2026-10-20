@@ -5,8 +5,6 @@ import type { VoiceParticipant } from "./useVoiceRoom";
 import type { Look } from "./components/Avatar";
 import { Avatar } from "./components/Avatar";
 import { Button, IconButton } from "./components/Button";
-import { Modal } from "./components/Modal";
-import { Select } from "./components/Select";
 
 // ---------- pintura (igual em todos os PCs: o quadro tem tamanho fixo) ----------
 
@@ -124,7 +122,9 @@ function Board({ draw, turnKey, canDraw, tool, color, size }: { draw: DrawGame; 
     paintAll(ctx, draw.visibleOps());
     return draw.onBoard((e) => {
       const ops = draw.visibleOps();
-      if (e.kind === "reset") paintAll(ctx, ops);
+      // Balde: redesenha tudo antes, para pintar a mesma área em todos os PCs (o traço
+      // desenhado aos poucos tem bordas um pouco diferentes do desenhado de uma vez)
+      if (e.kind === "reset" || (e.kind === "op" && e.op.k === "fill")) paintAll(ctx, ops);
       else if (!ops.includes(e.op)) return;
       else if (e.kind === "op") paintOp(ctx, e.op);
       else drawLine(ctx, e.op, e.from);
@@ -429,7 +429,7 @@ export function DrawGameView({
             const look = avatars.get(p.id);
             const away = !present.has(p.id);
             return (
-              <li key={p.id} className={`${away ? "away" : ""} ${p.id === me ? "me" : ""}`}>
+              <li key={p.id} className={`${away ? "away" : ""} ${p.id === me ? "is-me" : ""}`}>
                 <Avatar kind={look?.avatar ?? "rabbit"} photo={look?.photo} size={30} talking={talking.has(p.id)} />
                 <span className="grow dg-name">
                   {p.id === me ? `${p.name} (você)` : p.name}
@@ -489,10 +489,8 @@ export function DrawGameView({
   );
 }
 
-// ---------- começar ----------
+// ---------- regras do último jogo ----------
 
-const ROUND_OPTIONS = ["2", "3", "4", "5"].map((v) => ({ value: v, label: `${v} rodadas` }));
-const TIME_OPTIONS = ["60", "80", "100", "120"].map((v) => ({ value: v, label: `${v} segundos` }));
 const SETTINGS_KEY = "toca.desenho.settings";
 
 const loadSettings = (): DrawSettings => {
@@ -507,62 +505,10 @@ const loadSettings = (): DrawSettings => {
 /** As regras do último jogo (para "Jogar de novo") */
 export const lastDrawSettings = loadSettings;
 
-/** Escolher o jogo e as regras */
-export function GamesModal({ players, onStart, onClose }: { players: number; onStart: (s: DrawSettings) => void; onClose: () => void }) {
-  const [settings, setSettings] = useState(loadSettings);
-  const alone = players < 2;
-
-  const start = () => {
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch {
-      // só nesta sessão
-    }
-    onStart(settings);
-  };
-
-  return (
-    <Modal
-      title="Jogos"
-      description="Todo mundo da chamada joga junto."
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button variant="primary" disabled={alone} onClick={start}>
-            Começar
-          </Button>
-        </>
-      }
-    >
-      <div className="dg-card">
-        <span className="dg-card-ico" aria-hidden="true">
-          <Pencil size={22} />
-        </span>
-        <div className="grow">
-          <strong>Desenha e Adivinha</strong>
-          <p className="sm muted">
-            Cada um desenha uma palavra na sua vez e o resto chuta digitando. Quanto mais rápido acertar, mais pontos. Quem
-            desenha também ganha quando acertam.
-          </p>
-        </div>
-      </div>
-      <div className="row" style={{ gap: 12 }}>
-        <div className="grow">
-          <Select label="Rodadas" value={String(settings.rounds)} options={ROUND_OPTIONS} onChange={(v) => setSettings((s) => ({ ...s, rounds: Number(v) }))} />
-        </div>
-        <div className="grow">
-          <Select label="Tempo para desenhar" value={String(settings.seconds)} options={TIME_OPTIONS} onChange={(v) => setSettings((s) => ({ ...s, seconds: Number(v) }))} />
-        </div>
-      </div>
-      {alone && (
-        <div className="notice info" role="status">
-          <CircleAlert size={16} aria-hidden="true" />
-          Precisa de pelo menos 2 pessoas na chamada.
-        </div>
-      )}
-    </Modal>
-  );
+export function saveDrawSettings(settings: DrawSettings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // só nesta sessão
+  }
 }

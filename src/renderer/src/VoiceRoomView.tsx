@@ -17,7 +17,10 @@ import { useAudioSettings } from "./audioSettings";
 import type { Cinema } from "./cinema";
 import { CinemaStartModal, CinemaView } from "./CinemaView";
 import type { DrawGame } from "./drawGame";
-import { DrawGameView, GamesModal, lastDrawSettings } from "./DrawGameView";
+import { DrawGameView, lastDrawSettings } from "./DrawGameView";
+import type { Duel } from "./duel";
+import { DuelView } from "./DuelView";
+import { GamesModal } from "./GamesModal";
 
 /** Um quadro da sala: a câmera (ou o bichinho) de alguém, ou uma tela compartilhada */
 interface Tile {
@@ -46,6 +49,7 @@ export function VoiceRoomView({
   onToggleChat,
   cinema,
   draw,
+  duel,
 }: {
   room: RoomInfo | undefined;
   voice: VoiceRoom;
@@ -62,10 +66,13 @@ export function VoiceRoomView({
   cinema: Cinema;
   /** Jogo da chamada (Desenha e Adivinha) */
   draw: DrawGame;
+  /** Jogo de 2 da chamada (Lig 4…) */
+  duel: Duel;
 }) {
   // Escolher o vídeo (começar ou trocar)
   const [cinemaPick, setCinemaPick] = useState(false);
   const [gamesOpen, setGamesOpen] = useState(false);
+  const playing = !!draw.game || !!duel.session;
   const { openPerson } = usePeople();
   const [audio] = useAudioSettings();
   const connected = voice.connection === ConnectionState.Connected;
@@ -222,12 +229,12 @@ export function VoiceRoomView({
         {connected && (
           <Button
             size="sm"
-            variant={draw.game ? "primary" : "secondary"}
-            aria-pressed={!!draw.game}
-            disabled={!!draw.game}
+            variant={playing ? "primary" : "secondary"}
+            aria-pressed={playing}
+            disabled={playing}
             icon={<Gamepad2 size={15} aria-hidden="true" />}
             onClick={() => setGamesOpen(true)}
-            data-tip={draw.game ? "Tem um jogo rolando" : "Jogar com a sala"}
+            data-tip={playing ? "Tem um jogo rolando" : "Jogar com a sala"}
           >
             Jogos
           </Button>
@@ -261,6 +268,10 @@ export function VoiceRoomView({
       ) : draw.game ? (
         <div className="game-layout">
           <DrawGameView draw={draw} people={people} avatars={avatars} onPlayAgain={() => draw.start(lastDrawSettings())} />
+        </div>
+      ) : duel.session ? (
+        <div className="game-layout">
+          <DuelView duel={duel} people={people} avatars={avatars} />
         </div>
       ) : cinema.session ? (
         <div className="focus-layout cinema-layout">
@@ -322,11 +333,15 @@ export function VoiceRoomView({
 
       {gamesOpen && (
         <GamesModal
-          players={people.length}
+          people={people}
           onClose={() => setGamesOpen(false)}
-          onStart={(settings) => {
+          onStartDraw={(settings) => {
             setGamesOpen(false);
             draw.start(settings);
+          }}
+          onStartDuel={(kind, players) => {
+            setGamesOpen(false);
+            duel.start(kind, players);
           }}
         />
       )}
