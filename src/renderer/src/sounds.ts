@@ -1,8 +1,8 @@
 import { getAudioSettings } from "./audioSettings";
 import { captureDeviceId, loadDeviceId } from "./devices";
 
-/** join: alguém entrou · leave: alguém saiu · self: você entrou · test: som de teste */
-export type Cue = "join" | "leave" | "self" | "test";
+/** join: alguém entrou · leave: alguém saiu · self: você entrou · test: som de teste · hit: acertou no jogo */
+export type Cue = "join" | "leave" | "self" | "test" | "hit";
 
 /** Notas (Hz) e o intervalo entre elas */
 const CUES: Record<Cue, { notes: number[]; step: number }> = {
@@ -10,6 +10,7 @@ const CUES: Record<Cue, { notes: number[]; step: number }> = {
   leave: { notes: [880, 587.33], step: 0.11 }, // lá → ré, descendo
   self: { notes: [523.25, 659.25, 783.99], step: 0.07 }, // dó maior
   test: { notes: [523.25, 659.25], step: 0.18 },
+  hit: { notes: [659.25, 987.77], step: 0.08 }, // mi → si, curtinho
 };
 
 let ctx: AudioContext | null = null;

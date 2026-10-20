@@ -12,6 +12,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.2.0",
+    date: "2026-10-19",
+    items: [
+      "Jogos na chamada! O primeiro é o Desenha e Adivinha: cada um desenha uma palavra na sua vez e o resto chuta digitando. Quem acerta mais rápido leva mais pontos. É só clicar em Jogos na sala.",
+    ],
+  },
+  {
     version: "2.1.0",
     date: "2026-10-15",
     items: [

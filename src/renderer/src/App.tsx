@@ -34,6 +34,7 @@ import { ScreenSharePicker } from "./ScreenSharePicker";
 import { SettingsPage, type SettingsSection } from "./SettingsPage";
 import { NewsModal, useNews } from "./News";
 import { useCinema } from "./cinema";
+import { useDrawGame } from "./drawGame";
 import { VoiceRoomView } from "./VoiceRoomView";
 import { ChatView } from "./ChatView";
 import { NewDmModal } from "./NewDmModal";
@@ -212,6 +213,8 @@ function MainApp({
   const voice = useVoiceRoom();
   // Sessão de cinema: fica aqui para seguir valendo fora da tela da chamada
   const cinema = useCinema(voice);
+  // Jogo da chamada: idem
+  const draw = useDrawGame(voice);
   const toast = useToast();
   // A tela inicial é a de amigos (também ao sair de uma sala)
   const [view, setView] = useState<View>("friends");
@@ -359,6 +362,19 @@ function MainApp({
       actions: [{ label: "Assistir", primary: true, onClick: () => setView("voice") }],
     });
   }, [cinemaId]);
+
+  // Alguém começou um jogo e você está em outra tela
+  const gameId = draw.game?.id;
+  useEffect(() => {
+    const g = draw.game;
+    if (!g || g.host === draw.me || view === "voice") return;
+    const who = g.players.find((p) => p.id === g.host)?.name ?? "Alguém";
+    toast({
+      title: `${who} começou um Desenha e Adivinha`,
+      sub: "Todo mundo da chamada joga junto",
+      actions: [{ label: "Jogar", primary: true, onClick: () => setView("voice") }],
+    });
+  }, [gameId]);
 
   // Atalhos globais (Configurações → Atalhos): só agem durante uma chamada
   const voiceRef = useRef(voice);
@@ -529,6 +545,7 @@ function MainApp({
                 chatUnread={currentRoom ? chat.roomUnread(currentRoom) : 0}
                 onToggleChat={() => setRoomChatOpen((o) => !o)}
                 cinema={cinema}
+                draw={draw}
               />
             </div>
             {roomChatOpen && currentRoom && (

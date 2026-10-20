@@ -677,12 +677,12 @@ export function useVoiceRoom() {
     };
   }, []);
 
-  /** Manda uma mensagem para todos da chamada (entrega garantida, na ordem) */
-  const sendData = useCallback((topic: string, data: unknown) => {
+  /** Manda uma mensagem para a chamada (entrega garantida, na ordem); com to, só para essas pessoas */
+  const sendData = useCallback((topic: string, data: unknown, to?: string[]) => {
     const room = roomRef.current;
     if (room?.state !== ConnectionState.Connected) return;
     void room.localParticipant
-      .publishData(new TextEncoder().encode(JSON.stringify(data)), { reliable: true, topic })
+      .publishData(new TextEncoder().encode(JSON.stringify(data)), { reliable: true, topic, destinationIdentities: to })
       .catch((err: Error) => console.warn("falha ao enviar dados para a sala:", err.message));
   }, []);
 

@@ -700,3 +700,68 @@ kbd { display: inline-flex; align-items: center; height: 24px; min-width: 24px; 
 .cine-end:hover { color: var(--danger); }
 
 .input.code-input { font-family: var(--font-display); font-size: 24px; font-weight: 600; letter-spacing: .35em; height: 56px; }
+
+/* jogo: Desenha e Adivinha (DrawGameView.tsx) */
+.game-layout { flex: 1; min-height: 0; display: flex; padding: 20px 24px 8px; }
+.dg { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; }
+.dg-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.dg-top { display: flex; align-items: center; gap: 12px; min-height: 40px; }
+.dg-center { flex: 1; min-width: 0; display: flex; justify-content: center; }
+.dg-status { font-size: 15px; color: var(--muted); }
+.dg-word { color: var(--text); font-family: var(--font-display); font-size: 18px; text-transform: uppercase; letter-spacing: .06em; }
+.dg-hint { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+.dg-hint > span { width: 20px; height: 28px; display: grid; place-items: end center; font-family: var(--font-display); font-weight: 700; font-size: 18px; text-transform: uppercase; color: var(--text); }
+.dg-hint > .blank, .dg-hint > .ch { border-bottom: 3px solid var(--line-2); }
+.dg-hint > .ch { border-color: var(--accent); }
+.dg-hint > .sp { width: 12px; }
+.dg-timer { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 64px; height: 32px; padding: 0 10px 2px; border-radius: var(--r-md); background: var(--card-2); font-weight: 700; overflow: hidden; }
+.dg-timer.low { color: var(--danger); }
+.dg-timebar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--accent); transform-origin: left; transform: scaleX(var(--t)); transition: transform .25s linear; }
+.dg-timer.low .dg-timebar { background: var(--danger); }
+.dg-stage { position: relative; flex: 1; min-height: 0; display: flex; }
+.dg-board { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.dg-board canvas { display: block; background: #fff; border-radius: var(--r-lg); box-shadow: var(--shadow-1); border: 1px solid var(--line); touch-action: none; }
+.dg-board canvas.can-draw { cursor: crosshair; }
+.dg-board canvas.can-draw.tool-fill { cursor: cell; }
+.dg-over { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; border-radius: var(--r-lg); background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(3px); }
+.dg-over > strong { font-size: 17px; }
+.dg-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.dg-options .btn { text-transform: capitalize; min-width: 130px; }
+.dg-reveal { font-family: var(--font-display); font-size: 30px !important; text-transform: uppercase; letter-spacing: .05em; }
+.dg-crown { color: var(--accent); }
+.dg-gained, .dg-podium { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
+.dg-gained li, .dg-podium li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; border-radius: var(--r-md); background: var(--card); font-size: 14px; }
+.dg-gained b { color: var(--ok); }
+.dg-podium .pos { width: 28px; text-align: left; color: var(--muted); font-weight: 700; }
+.dg-podium li:first-child { background: var(--accent-soft); }
+.dg-podium .grow { text-align: left; }
+.dg-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 10px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); align-self: center; max-width: 100%; }
+.dg-tools .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+.dg-tools .ib.on { background: var(--accent-soft); color: var(--accent-text); }
+.dg-colors { display: grid; grid-template-columns: repeat(8, 20px); gap: 4px; }
+.dg-color { width: 20px; height: 20px; border-radius: 6px; border: 1px solid rgba(0, 0, 0, .18); cursor: pointer; }
+.dg-color[aria-checked="true"] { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--accent); }
+.dg-sizes { display: flex; gap: 2px; }
+.dg-size { width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--r-md); background: transparent; cursor: pointer; }
+.dg-size > span { border-radius: 999px; background: var(--text); }
+.dg-size:hover { background: var(--card-2); }
+.dg-size[aria-checked="true"] { background: var(--accent-soft); }
+.dg-side { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.dg-players { list-style: none; margin: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); max-height: 45%; overflow: auto; flex: none; }
+.dg-players li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--r-md); font-size: 13px; }
+.dg-players li.me { background: var(--card-2); }
+.dg-players li.away { opacity: .5; }
+.dg-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-score { min-width: 28px; text-align: right; }
+.dg-mark { flex: none; }
+.dg-mark.draw { color: var(--accent); }
+.dg-mark.hit { color: var(--ok); }
+.dg-feed { list-style: none; margin: 0; padding: 8px 10px; flex: 1; min-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
+.dg-feed li.info { color: var(--muted); font-size: 12px; text-align: center; padding: 2px 0; }
+.dg-feed li.hit { color: var(--ok); font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.dg-feed li.close { color: var(--accent-text); display: flex; align-items: center; gap: 4px; }
+.dg-guess { display: flex; gap: 6px; }
+.dg-guess .input { height: 40px; }
+.dg-card { display: flex; gap: 12px; padding: 14px; border-radius: var(--r-md); background: var(--card); border: 1px solid var(--accent); }
+.dg-card-ico { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent-text); }
+.dg-card p { margin: 4px 0 0; }

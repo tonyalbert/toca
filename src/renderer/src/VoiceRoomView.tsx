@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ConnectionState } from "livekit-client";
-import { Clapperboard, LayoutGrid, Maximize, Minimize, ScreenShareOff, Users, MessageSquare } from "lucide-react";
+import { Clapperboard, Gamepad2, LayoutGrid, Maximize, Minimize, ScreenShareOff, Users, MessageSquare } from "lucide-react";
 import type { RoomInfo } from "./api";
 import type { Look } from "./components/Avatar";
 import { MAX_VOLUME, type VoiceParticipant, type VoiceRoom } from "./useVoiceRoom";
@@ -16,6 +16,8 @@ import { useFitGrid } from "./useFitGrid";
 import { useAudioSettings } from "./audioSettings";
 import type { Cinema } from "./cinema";
 import { CinemaStartModal, CinemaView } from "./CinemaView";
+import type { DrawGame } from "./drawGame";
+import { DrawGameView, GamesModal, lastDrawSettings } from "./DrawGameView";
 
 /** Um quadro da sala: a câmera (ou o bichinho) de alguém, ou uma tela compartilhada */
 interface Tile {
@@ -43,6 +45,7 @@ export function VoiceRoomView({
   chatUnread,
   onToggleChat,
   cinema,
+  draw,
 }: {
   room: RoomInfo | undefined;
   voice: VoiceRoom;
@@ -57,9 +60,12 @@ export function VoiceRoomView({
   onToggleChat: () => void;
   /** Sessão de cinema da chamada */
   cinema: Cinema;
+  /** Jogo da chamada (Desenha e Adivinha) */
+  draw: DrawGame;
 }) {
   // Escolher o vídeo (começar ou trocar)
   const [cinemaPick, setCinemaPick] = useState(false);
+  const [gamesOpen, setGamesOpen] = useState(false);
   const { openPerson } = usePeople();
   const [audio] = useAudioSettings();
   const connected = voice.connection === ConnectionState.Connected;
@@ -213,6 +219,19 @@ export function VoiceRoomView({
             Cinema
           </Button>
         )}
+        {connected && (
+          <Button
+            size="sm"
+            variant={draw.game ? "primary" : "secondary"}
+            aria-pressed={!!draw.game}
+            disabled={!!draw.game}
+            icon={<Gamepad2 size={15} aria-hidden="true" />}
+            onClick={() => setGamesOpen(true)}
+            data-tip={draw.game ? "Tem um jogo rolando" : "Jogar com a sala"}
+          >
+            Jogos
+          </Button>
+        )}
         {room && (
           <Button size="sm" icon={<Users size={15} aria-hidden="true" />} onClick={onMembers}>
             Membros · {room.members.length}
@@ -238,6 +257,10 @@ export function VoiceRoomView({
       {!connected ? (
         <div className="empty">
           <h2>{connectionLabel(voice.connection)}</h2>
+        </div>
+      ) : draw.game ? (
+        <div className="game-layout">
+          <DrawGameView draw={draw} people={people} avatars={avatars} onPlayAgain={() => draw.start(lastDrawSettings())} />
         </div>
       ) : cinema.session ? (
         <div className="focus-layout cinema-layout">
@@ -293,6 +316,17 @@ export function VoiceRoomView({
           onStart={(source, file) => {
             setCinemaPick(false);
             cinema.start(source, file);
+          }}
+        />
+      )}
+
+      {gamesOpen && (
+        <GamesModal
+          players={people.length}
+          onClose={() => setGamesOpen(false)}
+          onStart={(settings) => {
+            setGamesOpen(false);
+            draw.start(settings);
           }}
         />
       )}
