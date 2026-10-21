@@ -31,6 +31,7 @@ import { ProfileSetup } from "./ProfileSetup";
 import { CreateRoomModal, RoomModal, type RoomModalTab } from "./RoomModals";
 import { JoinInviteModal } from "./JoinInviteModal";
 import { ScreenSharePicker } from "./ScreenSharePicker";
+import { getScreenQuality } from "./screenQuality";
 import { SettingsPage, type SettingsSection } from "./SettingsPage";
 import { NewsModal, useNews } from "./News";
 import { useCinema } from "./cinema";
@@ -224,7 +225,7 @@ function MainApp({
   const [section, setSection] = useState<SettingsSection>("profile");
   const [pickerOpen, setPickerOpen] = useState(false);
   // Desktop: o seletor do Toca (com o som do PC); navegador: o seletor do próprio navegador
-  const shareScreen = () => (features.nativeScreenShare ? setPickerOpen(true) : void voice.startScreenShare("", true));
+  const shareScreen = () => (features.nativeScreenShare ? setPickerOpen(true) : void voice.startScreenShare("", true, getScreenQuality()));
   const [createOpen, setCreateOpen] = useState(false);
   // Entrar por link de convite: com o código (o link abriu o app) ou colando o link
   const [inviteJoin, setInviteJoin] = useState<{ token: string | null } | null>(null);
@@ -638,9 +639,9 @@ function MainApp({
 
         {pickerOpen && (
           <ScreenSharePicker
-            onShare={(sourceId, withAudio, sourceName) => {
+            onShare={(sourceId, withAudio, quality, sourceName) => {
               setPickerOpen(false);
-              void voice.startScreenShare(sourceId, withAudio, sourceName);
+              void voice.startScreenShare(sourceId, withAudio, quality, sourceName);
             }}
             onClose={() => setPickerOpen(false)}
           />

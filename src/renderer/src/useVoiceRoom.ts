@@ -8,7 +8,6 @@ import {
   Room,
   AudioPresets,
   RoomEvent,
-  ScreenSharePresets,
   Track,
   VideoPresets,
   type VideoTrack,
@@ -21,6 +20,7 @@ import { getNotifyPrefs } from "./notifyPrefs";
 import { playCue } from "./sounds";
 import { useSpeaking } from "./useSpeaking";
 import { startScreenAudio, type ScreenAudio } from "./screenAudio";
+import { screenShareOptions, type ScreenQuality } from "./screenQuality";
 import {
   DEFAULT_DEVICE,
   availableDeviceId,
@@ -474,10 +474,13 @@ export function useVoiceRoom() {
    * Compartilha a tela/janela escolhida no seletor. O processo principal entrega
    * essa fonte quando o LiveKit chama getDisplayMedia.
    */
-  const startScreenShare = useCallback(async (sourceId: string, withAudio: boolean, sourceName?: string) => {
+  const startScreenShare = useCallback(async (sourceId: string, withAudio: boolean, quality: ScreenQuality, sourceName?: string) => {
     const room = roomRef.current;
     if (!room || room.state !== ConnectionState.Connected) return;
     const lp = room.localParticipant;
+    const { capture, publish, limits } = screenShareOptions(quality);
+    const limitCapture = () =>
+      lp.getTrackPublication(Track.Source.ScreenShare)?.track?.mediaStreamTrack.applyConstraints(limits).catch(() => {});
     if (!features.nativeScreenShare) {
       // Navegador: ele mesmo mostra o seletor; o som vem junto quando dá
       // (no Chrome, o de uma aba, ou o do PC ao compartilhar a tela inteira)
@@ -490,11 +493,11 @@ export function useVoiceRoom() {
             systemAudio: "include",
             selfBrowserSurface: "exclude",
             surfaceSwitching: "include",
-            resolution: ScreenSharePresets.h1080fps30.resolution,
-            contentHint: "detail",
+            ...capture,
           },
-          { screenShareEncoding: ScreenSharePresets.h1080fps30.encoding, audioPreset: AudioPresets.musicHighQualityStereo, dtx: false, red: false },
+          { ...publish, audioPreset: AudioPresets.musicHighQualityStereo, dtx: false, red: false },
         );
+        await limitCapture();
       } catch (err) {
         // Cancelou o seletor do navegador: não é erro
         if ((err as Error).name !== "NotAllowedError") {
@@ -510,9 +513,10 @@ export function useVoiceRoom() {
       // Só o vídeo vem do getDisplayMedia; o áudio vem do startScreenAudio abaixo
       await lp.setScreenShareEnabled(
         true,
-        { audio: false, resolution: ScreenSharePresets.h1080fps30.resolution, contentHint: "detail" },
-        { screenShareEncoding: ScreenSharePresets.h1080fps30.encoding, name: sourceName?.slice(0, 80) },
+        { audio: false, ...capture },
+        { ...publish, name: sourceName?.slice(0, 80) },
       );
+      await limitCapture();
     } catch (err) {
       setState((s) => ({ ...s, error: `Não foi possível compartilhar a tela: ${(err as Error).message}` }));
     }

@@ -3,21 +3,24 @@ import { Monitor, RefreshCw, ScreenShare } from "lucide-react";
 import type { ScreenSource } from "../../shared/screen";
 import { Button, IconButton } from "./components/Button";
 import { Modal } from "./components/Modal";
+import { Select } from "./components/Select";
 import { Switch } from "./components/Switch";
 import { native } from "./platform";
+import { SCREEN_QUALITIES, getScreenQuality, setScreenQuality, type ScreenQuality } from "./screenQuality";
 
 /** Seletor de tela inteira ou janela, com opção de incluir o áudio do computador */
 export function ScreenSharePicker({
   onShare,
   onClose,
 }: {
-  onShare: (sourceId: string, withAudio: boolean, sourceName: string) => void;
+  onShare: (sourceId: string, withAudio: boolean, quality: ScreenQuality, sourceName: string) => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<ScreenSource["type"]>("screen");
   const [sources, setSources] = useState<ScreenSource[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [withAudio, setWithAudio] = useState(false);
+  const [quality, setQuality] = useState(getScreenQuality);
   const [error, setError] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +43,11 @@ export function ScreenSharePicker({
 
   const visible = sources?.filter((s) => s.type === tab) ?? [];
   const chosen = sources?.find((s) => s.id === selected);
-  const share = (source = chosen) => source && onShare(source.id, withAudio, sourceLabel(source));
+  const share = (source = chosen) => {
+    if (!source) return;
+    setScreenQuality(quality);
+    onShare(source.id, withAudio, quality, sourceLabel(source));
+  };
 
   // Setas andam entre as miniaturas (grupo de opções), Enter compartilha
   const onGridKey = (e: KeyboardEvent) => {
@@ -72,7 +79,7 @@ export function ScreenSharePicker({
       }
       footer={
         <>
-          <span className="xs muted grow">Qualidade automática · até 1080p, 30 fps</span>
+          <span className="grow" />
           <Button onClick={onClose}>Cancelar</Button>
           <Button
             variant="primary"
@@ -130,7 +137,14 @@ export function ScreenSharePicker({
         </div>
       )}
 
-      <div className="panel" style={{ padding: 14 }}>
+      <div className="panel" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+        <Select
+          label="Qualidade"
+          value={quality}
+          options={SCREEN_QUALITIES}
+          onChange={setQuality}
+          hint="Quanto menor, menos o compartilhamento pesa no seu PC e na sua internet."
+        />
         <Switch
           checked={withAudio}
           onChange={setWithAudio}

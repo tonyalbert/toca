@@ -12,6 +12,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.4.0",
+    date: "2026-10-20",
+    items: [
+      "Compartilhar tela pesa bem menos no PC: o vídeo passa a usar a placa de vídeo quando dá, e a tela é capturada já no tamanho certo.",
+      "Escolha a qualidade ao compartilhar a tela: Leve, Equilibrada, Nítida (boa para textos e código) ou Alta. O Toca lembra a última escolha.",
+    ],
+  },
+  {
     version: "2.3.0",
     date: "2026-10-19",
     items: [

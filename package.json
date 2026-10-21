@@ -1,7 +1,7 @@
 {
   "name": "toca-desktop",
   "productName": "Toca",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "description": "Toca - chamadas de voz em grupo",
   "license": "GPL-3.0-or-later",
