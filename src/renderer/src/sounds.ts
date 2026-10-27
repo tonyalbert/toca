@@ -2,10 +2,12 @@ import { getAudioSettings } from "./audioSettings";
 import { captureDeviceId, loadDeviceId } from "./devices";
 
 /** join: alguém entrou · leave: alguém saiu · self: você entrou · test: som de teste · hit: acertou no jogo */
-export type Cue = "join" | "leave" | "self" | "test" | "hit";
+export type Cue = "join" | "leave" | "self" | "test" | "hit" | "screenStart" | "screenStop";
 
 /** Notas (Hz) e o intervalo entre elas */
 const CUES: Record<Cue, { notes: number[]; step: number }> = {
+  screenStart: { notes: [523.25, 783.99, 1046.5], step: 0.09 },
+  screenStop: { notes: [1046.5, 783.99, 523.25], step: 0.09 },
   join: { notes: [587.33, 880], step: 0.11 }, // ré → lá, subindo
   leave: { notes: [880, 587.33], step: 0.11 }, // lá → ré, descendo
   self: { notes: [523.25, 659.25, 783.99], step: 0.07 }, // dó maior

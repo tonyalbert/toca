@@ -219,9 +219,9 @@ export function useVoiceRoom() {
   const connectedAt = useRef(0);
 
   /** Som da sala (respeita a preferência e o fone desligado) */
-  const cue = (room: Room, kind: "join" | "leave" | "self") => {
+  const cue = (room: Room, kind: "join" | "leave" | "self" | "screenStart" | "screenStop") => {
     if (roomRef.current !== room || deafenedRef.current || !getNotifyPrefs().roomSounds) return;
-    if (kind !== "self" && performance.now() - connectedAt.current < 1500) return;
+    if ((kind === "join" || kind === "leave") && performance.now() - connectedAt.current < 1500) return;
     void playCue(kind);
   };
 
@@ -336,6 +336,7 @@ export function useVoiceRoom() {
         .on(RoomEvent.TrackPublished, sync)
         .on(RoomEvent.TrackUnpublished, sync)
         .on(RoomEvent.LocalTrackPublished, (pub) => {
+          if (pub.source === Track.Source.ScreenShare) cue(room, "screenStart");
           if (pub.source === Track.Source.Microphone && pub.track instanceof LocalAudioTrack) {
             const processor = new MicProcessor(getAudioSettings());
             processor.setPushToTalk(pttHeldRef.current);
@@ -350,7 +351,10 @@ export function useVoiceRoom() {
         })
         .on(RoomEvent.LocalTrackUnpublished, (pub) => {
           // Tela parou (pelo botão ou pelo sistema): o áudio dela para junto
-          if (pub.source === Track.Source.ScreenShare) void stopScreenAudio(room);
+          if (pub.source === Track.Source.ScreenShare) {
+            cue(room, "screenStop");
+            void stopScreenAudio(room);
+          }
           sync();
         })
         .on(RoomEvent.ConnectionStateChanged, sync)
