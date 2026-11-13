@@ -1,9 +1,10 @@
-import type { VideoTrack } from "livekit-client";
+import type { ConnectionQuality, VideoTrack } from "livekit-client";
 import { HeadphoneOff, MicOff, MoreHorizontal, Volume1, VolumeX } from "lucide-react";
 import type { Avatar as AvatarKind, Photo } from "../api";
 import { Avatar } from "./Avatar";
 import { VideoView } from "./VideoView";
 import { IconButton } from "./Button";
+import { QUALITY, SignalBars } from "./SignalBars";
 
 /** grade: todos do mesmo tamanho · faixa: miniatura ao lado do destaque · destaque: grande */
 export type TileVariant = "grid" | "strip" | "main";
@@ -20,6 +21,8 @@ export interface ParticipantCardProps {
   video?: VideoTrack | null;
   /** Volume com que você ouve a pessoa (1 = 100%); fora de 100% aparece no canto */
   volume?: number;
+  /** Qualidade da conexão da pessoa (barrinhas no canto de baixo) */
+  quality?: ConnectionQuality;
   /** Abre o cartão da pessoa (volume e amizade) perto do elemento */
   onPerson?: (anchor: Element) => void;
   variant?: TileVariant;
@@ -45,6 +48,7 @@ export function ParticipantCard({
   deafened,
   video,
   volume = 1,
+  quality,
   onPerson,
   variant = "grid",
   avatarSize: avatarSizeProp,
@@ -53,7 +57,14 @@ export function ParticipantCard({
 }: ParticipantCardProps) {
   const state = deafened ? "Fone desligado" : muted ? "Microfone desligado" : talking ? "Falando agora" : "";
   const percent = Math.round(volume * 100);
-  const aria = [name, isLocal && "você", state.toLowerCase(), !isLocal && percent !== 100 && `volume ${percent}%`]
+  const q = quality ? QUALITY[quality] : null;
+  const aria = [
+    name,
+    isLocal && "você",
+    state.toLowerCase(),
+    !isLocal && percent !== 100 && `volume ${percent}%`,
+    q && q.tone !== "idle" && `conexão ${q.label.toLowerCase()}`,
+  ]
     .filter(Boolean)
     .join(", ");
   const avatarSize = avatarSizeProp ?? (variant === "strip" ? 44 : variant === "main" ? 128 : 104);
@@ -102,6 +113,11 @@ export function ParticipantCard({
         </span>
         {variant !== "strip" && <span className="state">{state}</span>}
       </span>
+      {q && q.tone !== "idle" && (
+        <span className="pc-net">
+          <SignalBars bars={q.bars} tone={q.tone} />
+        </span>
+      )}
       <span className="flags">
         {muted && !deafened && (
           <span className="flag">

@@ -9,6 +9,8 @@ import { Button, IconButton } from "./components/Button";
 import { CallControls } from "./components/CallControls";
 import { ParticipantCard, type TileVariant } from "./components/ParticipantCard";
 import { RoomIcon } from "./components/RoomIcon";
+import { SignalBars, scoreBars } from "./components/SignalBars";
+import { scoreLabel } from "./callStats";
 import { VideoView } from "./components/VideoView";
 import { VolumeControl } from "./components/VolumeControl";
 import { usePeople } from "./people";
@@ -178,6 +180,7 @@ export function VoiceRoomView({
         deafened={p.isLocal ? voice.deafened : p.isDeafened}
         video={p.cameraTrack}
         volume={p.volume}
+        quality={p.quality}
         onPerson={(anchor) => openPerson(p.identity, anchor)}
         onActivate={variant !== "main" && p.cameraTrack ? () => focus(t.key) : undefined}
         activateLabel={p.isLocal ? "Ampliar sua câmera" : `Ampliar a câmera de ${p.name}`}
@@ -204,6 +207,7 @@ export function VoiceRoomView({
           <h1>{room?.name ?? "…"}</h1>
           <span className="sub">{subtitle}</span>
         </div>
+        {connected && voice.stats && <CallQuality stats={voice.stats} />}
         {voice.screenSharing && (
           <Button
             variant="danger"
@@ -365,6 +369,25 @@ export function VoiceRoomView({
 }
 
 /** "Tela da Ana · Planilha" (o nome da janela vem de quem compartilha) */
+/** A sua conexão em %, com ping, perda e jitter na dica */
+function CallQuality({ stats }: { stats: NonNullable<VoiceRoom["stats"]> }) {
+  const { bars, tone } = scoreBars(stats.score);
+  const loss = stats.loss.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  const details = `Ping ${stats.rtt} ms · perda ${loss}% · variação ${stats.jitter} ms`;
+  return (
+    <span
+      className={`net ${tone}`}
+      tabIndex={0}
+      role="status"
+      aria-label={`Sua conexão: ${scoreLabel(stats.score).toLowerCase()}, ${stats.score}%. ${details}`}
+      data-tip={`Conexão ${scoreLabel(stats.score).toLowerCase()} · ${details}`}
+    >
+      <SignalBars bars={bars} tone={tone} />
+      <span className="num">{stats.score}%</span>
+    </span>
+  );
+}
+
 function screenTitle(p: VoiceParticipant): string {
   const who = p.isLocal ? "Sua tela" : `Tela de ${p.name}`;
   return p.screenName ? `${who} · ${p.screenName}` : who;

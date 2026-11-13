@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ConnectionQuality,
   ConnectionState,
   DisconnectReason,
   LocalAudioTrack,
@@ -13,6 +14,7 @@ import {
   type VideoTrack,
 } from "livekit-client";
 import { fetchRoomToken } from "./api";
+import { measureCall, type CallStats, type StatsCounters } from "./callStats";
 import { getAudioSettings, onAudioSettings } from "./audioSettings";
 import { MicProcessor } from "./micProcessor";
 import { browserNoiseSuppression } from "./noise";
@@ -55,6 +57,8 @@ export interface VoiceParticipant {
   audioTrack: MediaStreamTrack | null;
   /** Sessão de cinema que essa pessoa está conduzindo (JSON do cinema.ts), se houver */
   cinema: string | null;
+  /** Qualidade da conexão dessa pessoa com o servidor (calculada pelo LiveKit) */
+  quality: ConnectionQuality;
 }
 
 export interface VoiceState {
@@ -67,6 +71,8 @@ export interface VoiceState {
   screenSharing: boolean;
   /** Áudio do nosso microfone, para medir o volume localmente. Muda ao trocar de microfone. */
   micMediaTrack: MediaStreamTrack | null;
+  /** Qualidade da sua chamada (ping, perda, jitter), medida a cada poucos segundos */
+  stats: CallStats | null;
   error: string | null;
 }
 
@@ -78,6 +84,7 @@ const initialState: VoiceState = {
   cameraOn: false,
   screenSharing: false,
   micMediaTrack: null,
+  stats: null,
   error: null,
 };
 
@@ -134,6 +141,7 @@ function toVoiceParticipant(p: Participant, isLocal: boolean, volumes: Map<strin
     screenTrack: videoTrackOf(p, Track.Source.ScreenShare),
     audioTrack: audioTrackOf(p),
     cinema: p.attributes[CINEMA_ATTR] || null,
+    quality: p.connectionQuality,
   };
 }
 
@@ -358,6 +366,7 @@ export function useVoiceRoom() {
           sync();
         })
         .on(RoomEvent.ConnectionStateChanged, sync)
+        .on(RoomEvent.ConnectionQualityChanged, sync)
         .on(RoomEvent.ActiveDeviceChanged, sync)
         .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
           // Desconexão iniciada pelo servidor ou queda de rede definitiva
@@ -708,6 +717,26 @@ export function useVoiceRoom() {
       // Sem permissão no ingresso: quem entrar no meio só pega a sessão no próximo aviso
     });
   }, []);
+
+  // Qualidade da chamada: mede ping, perda e jitter a cada 2 s enquanto conectado
+  const connected = state.connection === ConnectionState.Connected;
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!connected || !room) return;
+    let counters: StatsCounters = new Map();
+    let alive = true;
+    const tick = async () => {
+      const { stats, counters: next } = await measureCall(room, counters);
+      counters = next;
+      if (alive && roomRef.current === room) setState((s) => ({ ...s, stats }));
+    };
+    void tick();
+    const id = window.setInterval(() => void tick(), 2000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [connected, state.room]);
 
   // "Falando" medido aqui (acende junto com o ícone do microfone); sem áudio
   // medido, fica o do servidor

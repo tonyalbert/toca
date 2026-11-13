@@ -12,6 +12,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.5.0",
+    date: "2026-11-12",
+    items: [
+      "Veja como está a sua ligação: no topo da sala aparece a qualidade da sua conexão em %. Pare o mouse em cima para ver o ping, a perda de pacotes e a variação.",
+      "Cada pessoa na chamada ganhou barrinhas de sinal no canto do cartão: verdes quando a conexão está boa, amarelas quando está instável e vermelhas quando caiu.",
+    ],
+  },
+  {
     version: "2.4.0",
     date: "2026-10-20",
     items: [
