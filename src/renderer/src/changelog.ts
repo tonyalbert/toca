@@ -12,6 +12,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.5.1",
+    date: "2026-11-12",
+    items: [
+      "Com a câmera ligada, as barrinhas de sinal ficam ao lado do nome em vez de ficar por cima dele.",
+    ],
+  },
+  {
     version: "2.5.0",
     date: "2026-11-12",
     items: [

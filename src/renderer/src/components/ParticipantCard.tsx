@@ -101,6 +101,7 @@ export function ParticipantCard({
       )}
       <span className="pc-text">
         <span className="name">
+          {q && q.tone !== "idle" && video && <SignalBars bars={q.bars} tone={q.tone} />}
           {name}
           {talking && (
             <span className="eq" aria-hidden="true">
@@ -113,7 +114,8 @@ export function ParticipantCard({
         </span>
         {variant !== "strip" && <span className="state">{state}</span>}
       </span>
-      {q && q.tone !== "idle" && (
+      {/* Sem câmera, no canto; com câmera, dentro da pílula do nome (que fica nesse canto) */}
+      {q && q.tone !== "idle" && !video && (
         <span className="pc-net">
           <SignalBars bars={q.bars} tone={q.tone} />
         </span>

@@ -229,7 +229,6 @@
 .sig i.on { opacity: 1; }
 .sig.ok { color: var(--ok); } .sig.warn { color: var(--warn); } .sig.bad, .sig.bad i { color: var(--danger); opacity: 1; }
 .pc-net { position: absolute; bottom: 14px; left: 14px; z-index: 1; display: flex; pointer-events: none; }
-.pc.has-video .pc-net { padding: 5px 7px; border-radius: 99px; background: rgba(8, 9, 11, .72); }
 .pc.strip .pc-net { bottom: 8px; left: 8px; }
 .net { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px; border-radius: var(--r-full); background: var(--card-2); font-size: 12px; font-weight: 700; color: var(--text); flex: none; cursor: default; }
 .net.warn { background: var(--warn-soft); } .net.bad { background: var(--danger-soft); color: var(--danger); }
