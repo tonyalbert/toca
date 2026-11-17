@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { CircleAlert, Clapperboard, FileVideo, Maximize, Minimize, Pause, Play, Repeat, Square, Volume2, VolumeX } from "lucide-react";
+import { CircleAlert, Clapperboard, FileVideo, ListPlus, Maximize, Minimize, Pause, Play, Repeat, SkipForward, Square, Volume2, VolumeX, X } from "lucide-react";
 import { expectedPos, parseYouTube, type Cinema, type CinemaSource } from "./cinema";
 import { Button, IconButton } from "./components/Button";
 import { Input } from "./components/Input";
@@ -13,6 +13,8 @@ interface Driver {
   duration(): number;
   /** Tocando ou carregando para tocar */
   playing(): boolean;
+  /** O vídeo chegou ao fim */
+  ended(): boolean;
   play(): void;
   pause(): void;
   seek(t: number): void;
@@ -85,6 +87,7 @@ function YouTubePlayer({ videoId, onDriver, onError }: { videoId: string; onDriv
                 time: () => safe(() => player.getCurrentTime?.() ?? 0, 0),
                 duration: () => safe(() => player.getDuration?.() ?? 0, 0),
                 playing: () => safe(() => [1, 3].includes(player.getPlayerState?.()), false),
+                ended: () => safe(() => player.getPlayerState?.() === 0, false),
                 play: () => safe(() => player.playVideo(), undefined),
                 pause: () => safe(() => player.pauseVideo(), undefined),
                 seek: (t) => safe(() => player.seekTo(t, true), undefined),
@@ -124,6 +127,7 @@ function FilePlayer({ url, onDriver, onError, onNoAudio }: { url: string; onDriv
         time: () => v.currentTime,
         duration: () => (Number.isFinite(v.duration) ? v.duration : 0),
         playing: () => !v.paused && !v.ended,
+        ended: () => v.ended,
         play: () => void v.play().catch(() => {}),
         pause: () => v.pause(),
         seek: (t) => {
@@ -241,8 +245,19 @@ export function CinemaView({ cinema, hostName, onChange }: { cinema: Cinema; hos
   // Comando novo (ou o player acabou de abrir): alinha na hora
   useEffect(() => align(0.6), [driver, session.id, session.rev, session.at, session.playing]);
   // De vez em quando confere se não ficou para trás (e atualiza o relógio na tela)
+  const advanced = useRef<string | null>(null);
+  const cinemaRef = useRef(cinema);
+  cinemaRef.current = cinema;
   useEffect(() => {
     const timer = setInterval(() => {
+      // Acabou o vídeo: quem conduz toca o próximo da fila (uma vez por vídeo)
+      const c = cinemaRef.current;
+      const s = sessionRef.current;
+      if (c.isHost && s && advanced.current !== s.id && driverRef.current?.ended() && (s.queue?.length ?? 0) > 0) {
+        advanced.current = s.id;
+        c.next();
+        return;
+      }
       align(1.5);
       setTick((t) => t + 1);
     }, 1000);
@@ -358,7 +373,19 @@ export function CinemaView({ cinema, hostName, onChange }: { cinema: Cinema; hos
         <span className="cine-title xs muted" title={title}>
           {title} · sessão de {hostName}
         </span>
-        <IconButton label="Trocar o vídeo" onClick={onChange}>
+        {cinema.queue.length > 0 && (
+          <Button
+            size="sm"
+            variant={cinema.skipped ? "primary" : "secondary"}
+            icon={<SkipForward size={15} aria-hidden="true" />}
+            aria-pressed={cinema.skipped}
+            data-tip={cinema.skipped ? "Tirar o seu voto" : `Pula com ${cinema.skipNeeded} ${cinema.skipNeeded === 1 ? "voto" : "votos"}`}
+            onClick={cinema.voteSkip}
+          >
+            Pular {cinema.skipCount}/{cinema.skipNeeded}
+          </Button>
+        )}
+        <IconButton label="Trocar o vídeo ou pôr na fila" onClick={onChange}>
           <Repeat size={18} aria-hidden="true" />
         </IconButton>
         <IconButton label={fullscreen ? "Sair da tela cheia" : "Tela cheia"} onClick={() => (document.fullscreenElement ? void document.exitFullscreen() : void boxRef.current?.requestFullscreen())}>
@@ -368,6 +395,58 @@ export function CinemaView({ cinema, hostName, onChange }: { cinema: Cinema; hos
           <Square size={16} aria-hidden="true" />
         </IconButton>
       </div>
+
+      <CinemaQueue cinema={cinema} />
+    </div>
+  );
+}
+
+/** Próximos vídeos, com o campo para pôr mais um */
+function CinemaQueue({ cinema }: { cinema: Cinema }) {
+  const [link, setLink] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const add = (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = parseYouTube(link);
+    if (!id) return setError("Isso não parece um link do YouTube.");
+    cinema.enqueue(id);
+    setLink("");
+    setError(null);
+  };
+  return (
+    <div className="cine-queue">
+      <form className="cine-queue-add" onSubmit={add}>
+        <ListPlus size={16} aria-hidden="true" className="muted" />
+        <input
+          className="input"
+          value={link}
+          spellCheck={false}
+          placeholder="Cole um link do YouTube para pôr na fila"
+          aria-label="Link do YouTube para a fila"
+          onChange={(e) => (setLink(e.target.value), setError(null))}
+        />
+        <Button size="sm" type="submit" disabled={!link.trim()}>
+          Pôr na fila
+        </Button>
+      </form>
+      {error && <p className="xs cine-queue-err">{error}</p>}
+      {cinema.queue.length > 0 && (
+        <ol className="cine-queue-list" aria-label="Próximos vídeos">
+          {cinema.queue.map((q, i) => (
+            <li key={q.id}>
+              <span className="num xs muted">{i + 1}</span>
+              <img src={`https://i.ytimg.com/vi/${q.videoId}/mqdefault.jpg`} alt="" loading="lazy" />
+              <span className="grow xs">
+                <b>Vídeo do YouTube</b>
+                <span className="muted"> · por {q.by === cinema.me ? "você" : q.byName}</span>
+              </span>
+              <IconButton size="sm" label="Tirar da fila" onClick={() => cinema.unqueue(q.id)}>
+                <X size={14} aria-hidden="true" />
+              </IconButton>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
@@ -401,7 +480,16 @@ export class CinemaBoundary extends Component<{ children: ReactNode; onEnd: () =
 }
 
 /** Escolher o que a sala vai assistir */
-export function CinemaStartModal({ onStart, onClose }: { onStart: (source: CinemaSource, file?: File) => void; onClose: () => void }) {
+export function CinemaStartModal({
+  onStart,
+  onQueue,
+  onClose,
+}: {
+  onStart: (source: CinemaSource, file?: File) => void;
+  /** Com uma sessão rolando: põe o vídeo do YouTube na fila em vez de trocar */
+  onQueue?: (videoId: string) => void;
+  onClose: () => void;
+}) {
   const [tab, setTab] = useState<"youtube" | "file">("youtube");
   const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -448,9 +536,21 @@ export function CinemaStartModal({ onStart, onClose }: { onStart: (source: Cinem
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
+          {tab === "youtube" && onQueue && (
+            <Button
+              disabled={!link.trim()}
+              onClick={() => {
+                const videoId = parseYouTube(link);
+                if (!videoId) return setError("Isso não parece um link do YouTube.");
+                onQueue(videoId);
+              }}
+            >
+              Pôr na fila
+            </Button>
+          )}
           {tab === "youtube" ? (
             <Button variant="primary" type="submit" form="cine-yt" disabled={!link.trim()}>
-              Começar
+              {onQueue ? "Tocar agora" : "Começar"}
             </Button>
           ) : (
             <Button variant="primary" icon={<FileVideo size={16} aria-hidden="true" />} disabled={busy} onClick={() => fileRef.current?.click()}>

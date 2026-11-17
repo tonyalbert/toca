@@ -1,14 +1,16 @@
 import { useState, type ReactNode } from "react";
-import { CircleAlert, CircleDot, Pencil, ScanFace, Ship } from "lucide-react";
+import { CircleAlert, CircleDot, Hand, Pencil, ScanFace, Ship } from "lucide-react";
 import type { DrawSettings } from "./drawGame";
 import { lastDrawSettings, saveDrawSettings } from "./DrawGameView";
 import type { DuelKind } from "./duelRules";
+import { DEFAULT_STOP, STOP_CATEGORIES, type StopSettings } from "./stopGame";
+import { lastStopSettings, saveStopSettings } from "./StopView";
 import type { VoiceParticipant } from "./useVoiceRoom";
 import { Button } from "./components/Button";
 import { Modal } from "./components/Modal";
 import { Select } from "./components/Select";
 
-type GameId = "draw" | DuelKind;
+type GameId = "draw" | "stop" | DuelKind;
 
 interface GameInfo {
   id: GameId;
@@ -47,7 +49,17 @@ const GAMES: GameInfo[] = [
     players: "2 ou mais",
     text: "Cada um desenha uma palavra na sua vez e o resto chuta digitando. Quanto mais rápido acertar, mais pontos.",
   },
+  {
+    id: "stop",
+    name: "Stop (Adedonha)",
+    icon: <Hand size={22} />,
+    players: "2 ou mais",
+    text: "Sai uma letra e todo mundo preenche as categorias. Quem terminar aperta STOP. Na correção, a turma vota para anular as respostas forçadas.",
+  },
 ];
+
+const STOP_ROUNDS = ["3", "5", "7", "10"].map((v) => ({ value: v, label: `${v} rodadas` }));
+const STOP_TIMES = ["60", "90", "120", "180"].map((v) => ({ value: v, label: `até ${v} segundos` }));
 
 const ROUND_OPTIONS = ["2", "3", "4", "5"].map((v) => ({ value: v, label: `${v} rodadas` }));
 const TIME_OPTIONS = ["60", "80", "100", "120"].map((v) => ({ value: v, label: `${v} segundos` }));
@@ -67,14 +79,25 @@ export function GamesModal({
   people,
   onStartDraw,
   onStartDuel,
+  onStartStop,
   onClose,
 }: {
   people: VoiceParticipant[];
   onStartDraw: (s: DrawSettings) => void;
   /** players[0] começa jogando */
   onStartDuel: (kind: DuelKind, players: [string, string]) => void;
+  onStartStop: (s: StopSettings) => void;
   onClose: () => void;
 }) {
+  const [stopSettings, setStopSettings] = useState<StopSettings>(() => lastStopSettings() ?? DEFAULT_STOP);
+  const toggleCategory = (c: string) =>
+    setStopSettings((s) => {
+      const on = s.categories.includes(c);
+      if (on && s.categories.length <= 3) return s;
+      if (!on && s.categories.length >= 12) return s;
+      // Mantém a ordem da lista
+      return { ...s, categories: STOP_CATEGORIES.filter((x) => (x === c ? !on : s.categories.includes(x))) };
+    });
   const [game, setGame] = useState<GameId>(loadGame);
   const [settings, setSettings] = useState(lastDrawSettings);
   const me = people.find((p) => p.isLocal);
@@ -92,6 +115,9 @@ export function GamesModal({
     if (game === "draw") {
       saveDrawSettings(settings);
       onStartDraw(settings);
+    } else if (game === "stop") {
+      saveStopSettings(stopSettings);
+      onStartStop(stopSettings);
     } else if (me && rival) {
       // Quem começa: no sorteio
       const pair: [string, string] = Math.random() < 0.5 ? [me.identity, rival.identity] : [rival.identity, me.identity];
@@ -139,6 +165,27 @@ export function GamesModal({
           </div>
           <div className="grow">
             <Select label="Tempo para desenhar" value={String(settings.seconds)} options={TIME_OPTIONS} onChange={(v) => setSettings((s) => ({ ...s, seconds: Number(v) }))} />
+          </div>
+        </div>
+      ) : game === "stop" ? (
+        <div className="col" style={{ gap: 12 }}>
+          <div className="row" style={{ gap: 12 }}>
+            <div className="grow">
+              <Select label="Rodadas" value={String(stopSettings.rounds)} options={STOP_ROUNDS} onChange={(v) => setStopSettings((s) => ({ ...s, rounds: Number(v) }))} />
+            </div>
+            <div className="grow">
+              <Select label="Tempo de cada rodada" value={String(stopSettings.seconds)} options={STOP_TIMES} onChange={(v) => setStopSettings((s) => ({ ...s, seconds: Number(v) }))} />
+            </div>
+          </div>
+          <div className="col" style={{ gap: 6 }}>
+            <span className="xs muted">Categorias ({stopSettings.categories.length}: de 3 a 12)</span>
+            <div className="ns-presets" role="group" aria-label="Categorias">
+              {STOP_CATEGORIES.map((c) => (
+                <button key={c} type="button" className="ns-chip" aria-pressed={stopSettings.categories.includes(c)} onClick={() => toggleCategory(c)}>
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : others.length > 1 ? (

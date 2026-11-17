@@ -29,6 +29,8 @@ export type RealtimeEvent =
   | { type: "chat_read"; conversation: Conversation }
   /** Alguém da sala está te chamando para a call */
   | { type: "room_ring"; ring: RoomRing }
+  /** Alguém subiu ou apagou um som do soundboard da sala */
+  | { type: "room_sounds_changed"; roomId: string }
   /** Alguém da sala está chamando uma pessoa (chega para os outros da sala) */
   | { type: "room_calling"; ring: RoomRing }
   /** A chamada acabou (chega para quem chamou e para todos os PCs de quem foi chamado) */

@@ -40,6 +40,8 @@ import { useRings, type RingOutcome } from "./rings";
 import { CallPeopleModal, IncomingRings } from "./CallRing";
 import { useDrawGame } from "./drawGame";
 import { useDuel } from "./duel";
+import { useStopGame } from "./stopGame";
+import { useFun } from "./fun";
 import { DUEL_NAMES } from "./duelRules";
 import { VoiceRoomView } from "./VoiceRoomView";
 import { ChatView } from "./ChatView";
@@ -227,6 +229,8 @@ function MainApp({
   // Jogo da chamada: idem
   const draw = useDrawGame(voice);
   const duel = useDuel(voice);
+  const stop = useStopGame(voice);
+  const fun = useFun(voice);
   const toast = useToast();
   // A tela inicial é a de amigos (também ao sair de uma sala)
   const [view, setView] = useState<View>("friends");
@@ -315,6 +319,7 @@ function MainApp({
       const prefs = getNotifyPrefs();
       chat.onEvent(event);
       rings.onEvent(event);
+      fun.onEvent(event);
       switch (event.type) {
         case "status_changed":
           onMeChange({ ...me, status: event.status, statusText: event.statusText });
@@ -405,7 +410,7 @@ function MainApp({
           break;
       }
     },
-    [alert, toast, goToRoom, currentRoomId, leave, showError, me, onMeChange, chat, openChat, rings.onEvent, rings.accept],
+    [alert, toast, goToRoom, currentRoomId, leave, showError, me, onMeChange, chat, openChat, rings.onEvent, rings.accept, fun.onEvent],
   );
 
   const data = useTocaData(handleEvent);
@@ -623,6 +628,8 @@ function MainApp({
                 cinema={cinema}
                 draw={draw}
                 duel={duel}
+                stop={stop}
+                fun={fun}
                 calls={voice.room ? rings.callsIn(voice.room) : []}
                 meId={me.id}
                 onCancelCall={(ring) => void rings.cancel(ring)}

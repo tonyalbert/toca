@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NameStyleEditor } from "./NameStyleEditor";
+import { CardStyleEditor } from "./CardStyleEditor";
 import { Bell, Check, CircleAlert, ImageOff, ImagePlus, Keyboard, LogOut, Mic, Moon, Play, User, Video, X } from "lucide-react";
 import { ApiError, removePhoto, updateProfile, uploadPhoto, type Account, type Avatar as AvatarKind, type Profile } from "./api";
 import { GATE_MAX_DB, GATE_MIN_DB, MAX_GAIN, rmsToDb, useAudioSettings } from "./audioSettings";
@@ -202,6 +203,7 @@ function ProfileSection({ me, onMeChange }: { me: Profile; onMeChange: (me: Prof
         </div>
       </div>
       <NameStyleEditor me={me} onSaved={applyAccount} />
+      <CardStyleEditor me={me} onSaved={applyAccount} />
       {me.photo ? (
         <p className="sm muted">
           {me.photo.animated

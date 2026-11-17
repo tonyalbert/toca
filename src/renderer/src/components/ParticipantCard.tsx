@@ -1,5 +1,6 @@
 import type { ConnectionQuality, VideoTrack } from "livekit-client";
-import { StyledName, type NameStyle } from "../nameStyle";
+import { cardBackground, StyledName, type CardStyle, type NameStyle } from "../nameStyle";
+import type { Float } from "../fun";
 import { HeadphoneOff, MicOff, MoreHorizontal, Volume1, VolumeX } from "lucide-react";
 import type { Avatar as AvatarKind, Photo } from "../api";
 import { Avatar } from "./Avatar";
@@ -13,6 +14,10 @@ export type TileVariant = "grid" | "strip" | "main";
 export interface ParticipantCardProps {
   name: string;
   nameStyle?: NameStyle | null;
+  /** Fundo do cartão sem câmera */
+  cardStyle?: CardStyle | null;
+  /** Reações e sons subindo no cartão */
+  floats?: Float[];
   avatar: AvatarKind;
   photo?: Photo | null;
   isLocal: boolean;
@@ -43,6 +48,8 @@ export interface ParticipantCardProps {
 export function ParticipantCard({
   name,
   nameStyle,
+  cardStyle,
+  floats,
   avatar,
   photo,
   isLocal,
@@ -71,10 +78,12 @@ export function ParticipantCard({
     .filter(Boolean)
     .join(", ");
   const avatarSize = avatarSizeProp ?? (variant === "strip" ? 44 : variant === "main" ? 128 : 104);
+  const bg = video ? null : cardBackground(cardStyle);
 
   return (
     <div
-      className={["pc", variant, talking && "talk", video && "has-video", onActivate && "zoomable"].filter(Boolean).join(" ")}
+      className={["pc", variant, talking && "talk", video && "has-video", bg && "has-bg", onActivate && "zoomable"].filter(Boolean).join(" ")}
+      style={bg ? ({ "--pc-bg": bg } as React.CSSProperties) : undefined}
       role="group"
       aria-label={aria}
       onContextMenu={
@@ -96,6 +105,15 @@ export function ParticipantCard({
         />
       )}
       {isLocal && variant !== "strip" && <span className="you">você</span>}
+      {floats && floats.length > 0 && (
+        <span className="pc-floats" aria-live="polite">
+          {floats.map((f) => (
+            <span key={f.key} className={`pc-float ${f.kind}`}>
+              {f.text}
+            </span>
+          ))}
+        </span>
+      )}
       {video ? (
         // A própria câmera aparece espelhada, como num espelho (os outros te veem normal)
         <VideoView track={video} mirror={isLocal} className="pc-video" />

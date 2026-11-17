@@ -16,6 +16,7 @@ export function CallControls({
   onShareScreen,
   onLeave,
   ptt,
+  extra,
 }: {
   connected: boolean;
   muted: boolean;
@@ -31,6 +32,8 @@ export function CallControls({
   onLeave: () => void;
   /** Apertar para falar: qual tecla e se está segurada */
   ptt?: { label: string; held: boolean } | null;
+  /** Botões a mais antes de sair (reações, soundboard) */
+  extra?: ReactNode;
 }) {
   return (
     <div className="ctrl-wrap">
@@ -67,6 +70,7 @@ export function CallControls({
         >
           {screenSharing ? <ScreenShareOff aria-hidden="true" /> : <ScreenShare aria-hidden="true" />}
         </ControlButton>
+        {extra}
         <span className="sep" aria-hidden="true" />
         <ControlButton label="Sair da sala" className="leave" onClick={onLeave}>
           <PhoneOff aria-hidden="true" />

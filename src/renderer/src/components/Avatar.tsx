@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import type { NameStyle } from '../nameStyle';
+import type { CardStyle, NameStyle } from '../nameStyle';
 import { photoUrl, type Avatar as AvatarKind, type Friend, type Photo, type Profile, type RoomInfo } from '../api';
 import { decodeAvatar, type Species } from '../avatar';
 
@@ -12,8 +12,9 @@ export interface Look {
   avatar: AvatarKind;
   photo?: Photo | null;
   nameStyle?: NameStyle | null;
+  cardStyle?: CardStyle | null;
 }
-export const lookOf = (u: Look): Look => ({ avatar: u.avatar, photo: u.photo ?? null, nameStyle: u.nameStyle ?? null });
+export const lookOf = (u: Look): Look => ({ avatar: u.avatar, photo: u.photo ?? null, nameStyle: u.nameStyle ?? null, cardStyle: u.cardStyle ?? null });
 export function avatarMap(me: Profile, friends: Friend[], rooms: RoomInfo[]): Map<string, Look> {
   const map = new Map<string, Look>([[me.id, lookOf(me)]]);
   for (const f of friends) map.set(f.id, lookOf(f));

@@ -1,5 +1,5 @@
 import type { UserStatus } from "./status";
-import type { NameStyle } from "./nameStyle";
+import type { CardStyle, NameStyle } from "./nameStyle";
 export const API_URL = (import.meta.env.VITE_API_URL ?? "https://api-toca.rabbitapps.com.br").replace(/\/$/, "");
 
 /** Espécie legada ou receita versionada de avatar personalizado. */
@@ -25,6 +25,8 @@ export interface User {
   photo?: Photo | null;
   /** Cor, degradê e efeito do nome (null ou ausente: cor padrão) */
   nameStyle?: NameStyle | null;
+  /** Fundo do cartão na call, sem câmera (null ou ausente: o padrão) */
+  cardStyle?: CardStyle | null;
 }
 
 /** A própria conta: o @ e o nome ficam vazios entre o cadastro e a escolha */
@@ -36,6 +38,7 @@ export interface Account {
   avatar: Avatar;
   photo?: Photo | null;
   nameStyle?: NameStyle | null;
+  cardStyle?: CardStyle | null;
   /** Status escolhido (servidores antigos não mandam: Disponível) */
   status?: UserStatus;
   statusText?: string | null;
@@ -259,7 +262,7 @@ export async function resetPassword(email: string, code: string, password: strin
 export const setMyStatus = async (changes: { status?: UserStatus; statusText?: string | null }) =>
   (await authed<{ user: Account }>("/me/status", json("PATCH", changes))).user;
 
-export const updateProfile = async (changes: { username?: string; displayName?: string; avatar?: Avatar; nameStyle?: NameStyle | null }) =>
+export const updateProfile = async (changes: { username?: string; displayName?: string; avatar?: Avatar; nameStyle?: NameStyle | null; cardStyle?: CardStyle | null }) =>
   (await authed<{ user: Account }>("/me", json("PATCH", changes))).user;
 
 export async function logout(): Promise<void> {
@@ -473,6 +476,42 @@ export async function fetchMessageImage(messageId: string): Promise<Blob> {
     throw new ApiError("Sem conexão com o servidor", 0);
   }
   if (!res.ok) throw new ApiError(res.status === 404 ? "Imagem não encontrada" : `Erro ${res.status}`, res.status);
+  return res.blob();
+}
+
+// ---------- soundboard da sala ----------
+
+export interface RoomSound {
+  id: string;
+  name: string;
+  emoji: string | null;
+  size: number;
+  createdAt: string;
+  createdBy: User | null;
+}
+
+export const fetchRoomSounds = async (roomId: string) => (await authed<{ sounds: RoomSound[] }>(`/rooms/${roomId}/sounds`)).sounds;
+
+/** Sobe um som (base64, até 500 KB) */
+export const uploadRoomSound = async (roomId: string, sound: { name: string; emoji?: string; data: string }) =>
+  (await authed<{ sound: RoomSound }>(`/rooms/${roomId}/sounds`, json("POST", sound))).sound;
+
+export const deleteRoomSound = (roomId: string, soundId: string) => authed<void>(`/rooms/${roomId}/sounds/${soundId}`, { method: "DELETE" });
+
+/** Os bytes do som (com o login, como as imagens do chat) */
+export async function fetchSound(soundId: string): Promise<Blob> {
+  const get = async () => fetch(`${API_URL}/sounds/${soundId}`, { headers: { authorization: `Bearer ${await getAccessToken()}` } });
+  let res: Response;
+  try {
+    res = await get();
+    if (res.status === 401) {
+      accessExpiresAt = 0;
+      res = await get();
+    }
+  } catch {
+    throw new ApiError("Sem conexão com o servidor", 0);
+  }
+  if (!res.ok) throw new ApiError(res.status === 404 ? "Som não encontrado" : `Erro ${res.status}`, res.status);
   return res.blob();
 }
 

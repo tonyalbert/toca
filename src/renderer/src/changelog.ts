@@ -12,6 +12,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.9.0",
+    date: "2026-11-18",
+    items: [
+      "Soundboard na call: no botão 🎵, toque buzina, aplausos, ba dum tss e outros sons para a sala inteira. Cada sala também pode subir os próprios sons (até 8 segundos).",
+      "Reações: no botão 😊, mande 😂 🔥 👏 💀 e companhia, que sobem flutuando no seu cartão para todo mundo ver.",
+      "Fila no cinema: cole links do YouTube para tocar em seguida. Quando um vídeo acaba, o próximo começa sozinho, e dá para votar para pular.",
+      "Fundo do cartão: em Configurações → Perfil, escolha as cores que aparecem atrás do seu bichinho na call quando a câmera está desligada.",
+      "Jogo novo: Stop (Adedonha)! Sai uma letra, todo mundo preenche as categorias e quem terminar aperta STOP. Na correção, a turma vota para anular as respostas forçadas.",
+    ],
+  },
+  {
     version: "2.8.0",
     date: "2026-11-17",
     items: [

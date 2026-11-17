@@ -24,6 +24,10 @@ import type { DrawGame } from "./drawGame";
 import { DrawGameView, lastDrawSettings } from "./DrawGameView";
 import type { Duel } from "./duel";
 import { DuelView } from "./DuelView";
+import type { StopGame } from "./stopGame";
+import { StopView } from "./StopView";
+import type { Fun } from "./fun";
+import { FunControls } from "./CallFun";
 import { GamesModal } from "./GamesModal";
 
 /** Um quadro da sala: a câmera (ou o bichinho) de alguém, ou uma tela compartilhada */
@@ -55,6 +59,8 @@ export function VoiceRoomView({
   cinema,
   draw,
   duel,
+  stop,
+  fun,
   calls,
   meId,
   onCancelCall,
@@ -78,6 +84,10 @@ export function VoiceRoomView({
   draw: DrawGame;
   /** Jogo de 2 da chamada (Lig 4…) */
   duel: Duel;
+  /** Stop (Adedonha) da chamada */
+  stop: StopGame;
+  /** Reações e soundboard */
+  fun: Fun;
   /** Quem está sendo chamado para esta call agora */
   calls: RoomRing[];
   meId: string;
@@ -87,7 +97,7 @@ export function VoiceRoomView({
   // Escolher o vídeo (começar ou trocar)
   const [cinemaPick, setCinemaPick] = useState(false);
   const [gamesOpen, setGamesOpen] = useState(false);
-  const playing = !!draw.game || !!duel.session;
+  const playing = !!draw.game || !!duel.session || !!stop.game;
   const { openPerson } = usePeople();
   const [audio] = useAudioSettings();
   const connected = voice.connection === ConnectionState.Connected;
@@ -190,6 +200,8 @@ export function VoiceRoomView({
         avatarSize={variant === "grid" && fit ? Math.round(Math.min(128, Math.max(40, fit.height * 0.42))) : undefined}
         name={p.name}
         nameStyle={avatars.get(p.identity)?.nameStyle}
+        cardStyle={avatars.get(p.identity)?.cardStyle}
+        floats={fun.floats[p.identity]}
         avatar={avatars.get(p.identity)?.avatar ?? "rabbit"}
         photo={avatars.get(p.identity)?.photo}
         isLocal={p.isLocal}
@@ -301,6 +313,10 @@ export function VoiceRoomView({
         <div className="game-layout">
           <DrawGameView draw={draw} people={people} avatars={avatars} onPlayAgain={() => draw.start(lastDrawSettings())} />
         </div>
+      ) : stop.game ? (
+        <div className="game-layout">
+          <StopView stop={stop} />
+        </div>
       ) : duel.session ? (
         <div className="game-layout">
           <DuelView duel={duel} people={people} avatars={avatars} />
@@ -361,6 +377,14 @@ export function VoiceRoomView({
       {cinemaPick && (
         <CinemaStartModal
           onClose={() => setCinemaPick(false)}
+          onQueue={
+            cinema.session
+              ? (videoId) => {
+                  setCinemaPick(false);
+                  cinema.enqueue(videoId);
+                }
+              : undefined
+          }
           onStart={(source, file) => {
             setCinemaPick(false);
             cinema.start(source, file);
@@ -380,6 +404,10 @@ export function VoiceRoomView({
             setGamesOpen(false);
             duel.start(kind, players);
           }}
+          onStartStop={(settings) => {
+            setGamesOpen(false);
+            stop.start(settings);
+          }}
         />
       )}
 
@@ -396,6 +424,7 @@ export function VoiceRoomView({
         onShareScreen={() => (voice.screenSharing ? void voice.stopScreenShare() : onShareScreen())}
         onLeave={() => void voice.leave()}
         ptt={audio.micMode === "ptt" && audio.pttLabel ? { label: audio.pttLabel, held: voice.pttHeld } : null}
+        extra={<FunControls fun={fun} disabled={!connected} canManage={!!room && room.role !== "member"} />}
       />
     </>
   );

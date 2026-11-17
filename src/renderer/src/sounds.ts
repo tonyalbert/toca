@@ -20,7 +20,7 @@ let ctx: AudioContext | null = null;
 let ctxSink = "";
 
 /** Um contexto de áudio só, na saída escolhida nas configurações */
-async function context(): Promise<AudioContext> {
+export async function context(): Promise<AudioContext> {
   const sink = captureDeviceId(loadDeviceId("audiooutput")) ?? "";
   if (!ctx || ctx.state === "closed") {
     ctx = new AudioContext();

@@ -13,6 +13,15 @@ export type CinemaSource =
   | { kind: "youtube"; videoId: string }
   | { kind: "file"; name: string; size: number; duration: number };
 
+/** Um vídeo esperando a vez na fila */
+export interface QueueItem {
+  id: string;
+  videoId: string;
+  /** Quem pôs na fila */
+  by: string;
+  byName: string;
+}
+
 export interface CinemaState {
   /** Muda a cada vídeo novo */
   id: string;
@@ -28,6 +37,10 @@ export interface CinemaState {
   wall: number;
   /** Quem deu o comando (desempate) */
   by: string;
+  /** Próximos vídeos (só YouTube); apps antigos não mandam */
+  queue?: QueueItem[];
+  /** Quem votou para pular este vídeo */
+  skip?: string[];
 }
 
 /** O estado como chegou aqui: at = performance.now() da chegada */
@@ -210,10 +223,10 @@ export function useCinema(voice: VoiceRoom) {
     }
   }, [session?.id]);
 
-  /** Começa (ou troca) o vídeo da sala */
-  const start = (source: CinemaSource, localFile?: File) => {
+  /** Começa (ou troca) o vídeo da sala; a fila continua */
+  const start = (source: CinemaSource, localFile?: File, queue = sessionRef.current?.queue ?? []) => {
     if (!me) return;
-    const s: CinemaState = { id: crypto.randomUUID(), host: me, source, playing: true, pos: 0, rev: 1, wall: Date.now(), by: me };
+    const s: CinemaState = { id: crypto.randomUUID(), host: me, source, playing: true, pos: 0, rev: 1, wall: Date.now(), by: me, queue, skip: [] };
     if (localFile) setFileState({ id: s.id, file: localFile, url: URL.createObjectURL(localFile) });
     const next = { ...s, at: performance.now() };
     sessionRef.current = next;
@@ -221,13 +234,15 @@ export function useCinema(voice: VoiceRoom) {
     send({ t: "state", s });
   };
 
-  /** Play, pausa ou pula, para todo mundo */
-  const control = (patch: { playing?: boolean; pos?: number }) => {
+  /** Play, pausa, pula ou mexe na fila, para todo mundo */
+  const control = (patch: { playing?: boolean; pos?: number; queue?: QueueItem[]; skip?: string[] }) => {
     const cur = sessionRef.current;
     if (!cur || !me) return;
     const { at: _at, ...state } = cur;
     const s: CinemaState = {
       ...state,
+      queue: patch.queue ?? cur.queue ?? [],
+      skip: patch.skip ?? cur.skip ?? [],
       playing: patch.playing ?? cur.playing,
       pos: Math.max(0, patch.pos ?? currentPos()),
       rev: cur.rev + 1,
@@ -239,6 +254,43 @@ export function useCinema(voice: VoiceRoom) {
     setSession(next);
     send({ t: "state", s });
   };
+
+  /** Põe um vídeo do YouTube na fila (sem sessão: já começa tocando) */
+  const enqueue = (videoId: string) => {
+    if (!me) return;
+    const cur = sessionRef.current;
+    if (!cur) return start({ kind: "youtube", videoId }, undefined, []);
+    const myName = voice.participants.find((p) => p.isLocal)?.name ?? "Alguém";
+    control({ queue: [...(cur.queue ?? []), { id: crypto.randomUUID(), videoId, by: me, byName: myName }] });
+  };
+
+  const unqueue = (itemId: string) => {
+    const cur = sessionRef.current;
+    if (cur) control({ queue: (cur.queue ?? []).filter((q) => q.id !== itemId) });
+  };
+
+  /** Toca o próximo da fila (o resto continua na fila) */
+  const next = () => {
+    const cur = sessionRef.current;
+    const [first, ...rest] = cur?.queue ?? [];
+    if (!first) return;
+    start({ kind: "youtube", videoId: first.videoId }, undefined, rest);
+  };
+
+  /** Votar para pular (de novo: tira o voto). Com metade da sala, pula */
+  const voteSkip = () => {
+    const cur = sessionRef.current;
+    if (!cur || !me) return;
+    const skip = cur.skip ?? [];
+    control({ skip: skip.includes(me) ? skip.filter((id) => id !== me) : [...skip, me] });
+  };
+
+  // Quem conduz pula quando a metade da sala votou
+  const skipCount = (session?.skip ?? []).filter((id) => voice.participants.some((p) => p.identity === id)).length;
+  const skipNeeded = Math.max(1, Math.ceil(voice.participants.length / 2));
+  useEffect(() => {
+    if (isHost && skipCount >= skipNeeded && (sessionRef.current?.queue?.length ?? 0) > 0) next();
+  }, [isHost, skipCount, skipNeeded]);
 
   /** Encerra para todo mundo */
   const end = () => {
@@ -269,6 +321,14 @@ export function useCinema(voice: VoiceRoom) {
     control,
     end,
     openFile,
+    queue: session?.queue ?? [],
+    enqueue,
+    unqueue,
+    next,
+    voteSkip,
+    skipCount,
+    skipNeeded,
+    skipped: !!me && (session?.skip ?? []).includes(me),
   };
 }
 
