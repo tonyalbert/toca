@@ -17,6 +17,7 @@ export const CHANGELOG: Release[] = [
     items: [
       "Compartilhar uma janela agora leva só o som daquele programa: a música e os outros programas abertos no PC ficam de fora. Compartilhando a tela inteira, continua indo o som do PC todo (menos a chamada).",
       "Quando alguém chama uma pessoa para a call, todo mundo na sala vê o cartão dela com \"chamando…\" até ela entrar. Quem chamou pode desistir por ali.",
+      "Ícone novo: o Toca agora é amarelo com a toca preta, mais fácil de achar na barra de tarefas.",
     ],
   },
   {

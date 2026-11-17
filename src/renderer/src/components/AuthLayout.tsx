@@ -7,7 +7,7 @@ export function AuthLayout({ version, children }: { version: string | null; chil
     <div className="auth">
       <div className="auth-art">
         <div className="row" style={{ gap: 12, position: "relative" }}>
-          <TocaMark size={36} bg="var(--card-2)" />
+          <TocaMark size={36} />
           <strong className="h-display" style={{ fontSize: 20 }}>
             toca
           </strong>

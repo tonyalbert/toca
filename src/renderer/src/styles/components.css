@@ -15,8 +15,8 @@
 
 /* ícone (arco) */
 .tmark { display: block; flex: none; }
-.tmark .bg { fill: var(--surface); }
-.tmark .fg { fill: var(--accent); }
+.tmark .bg { fill: var(--accent); }
+.tmark .fg { fill: #0e1013; }
 
 /* ---------- botões ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: var(--r-md); border: 1px solid transparent; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; transition: background .15s, border-color .15s; }

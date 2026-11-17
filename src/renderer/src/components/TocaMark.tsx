@@ -1,4 +1,4 @@
-/** O ícone do Toca (arco âmbar). O fundo usa --surface, a menos que bg seja passado. */
+/** O ícone do Toca (arco preto no quadrado âmbar). O fundo usa --accent, a menos que bg seja passado. */
 export function TocaMark({ size = 20, bg }: { size?: number; bg?: string }) {
   return (
     <svg className="tmark" width={size} height={size} viewBox="0 0 96 96" aria-hidden="true">
