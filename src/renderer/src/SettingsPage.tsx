@@ -638,6 +638,13 @@ function NotifySection() {
         />
         <div className="sep-line" />
         <Switch
+          checked={prefs.ringSound}
+          onChange={(v) => setPrefs({ ringSound: v })}
+          label="Toque de chamada"
+          description="Toca quando alguém da sala te chama para a call. Desligado, chega só o aviso."
+        />
+        <div className="sep-line" />
+        <Switch
           checked={prefs.windowsWhenHidden}
           onChange={(v) => setPrefs({ windowsWhenHidden: v })}
           label="Avisar com o Toca em segundo plano"

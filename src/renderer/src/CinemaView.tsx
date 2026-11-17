@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { CircleAlert, Clapperboard, FileVideo, Maximize, Minimize, Pause, Play, Repeat, Square, Volume2, VolumeX } from "lucide-react";
 import { expectedPos, parseYouTube, type Cinema, type CinemaSource } from "./cinema";
 import { Button, IconButton } from "./components/Button";
@@ -71,17 +71,28 @@ function YouTubePlayer({ videoId, onDriver, onError }: { videoId: string; onDriv
           events: {
             onReady: () => {
               if (cancelled) return;
+              // Player destruído (trocou o vídeo) não responde mais: chamar
+              // seekTo/playVideo nele dá erro e derrubava a tela inteira
+              const safe = <T,>(fn: () => T, fallback: T): T => {
+                if (cancelled) return fallback;
+                try {
+                  return fn();
+                } catch {
+                  return fallback;
+                }
+              };
               onDriver({
-                time: () => player.getCurrentTime?.() ?? 0,
-                duration: () => player.getDuration?.() ?? 0,
-                playing: () => [1, 3].includes(player.getPlayerState?.()),
-                play: () => player.playVideo(),
-                pause: () => player.pauseVideo(),
-                seek: (t) => player.seekTo(t, true),
-                setVolume: (v) => {
-                  player.setVolume(Math.round(v * 100));
-                  if (v > 0) player.unMute();
-                },
+                time: () => safe(() => player.getCurrentTime?.() ?? 0, 0),
+                duration: () => safe(() => player.getDuration?.() ?? 0, 0),
+                playing: () => safe(() => [1, 3].includes(player.getPlayerState?.()), false),
+                play: () => safe(() => player.playVideo(), undefined),
+                pause: () => safe(() => player.pauseVideo(), undefined),
+                seek: (t) => safe(() => player.seekTo(t, true), undefined),
+                setVolume: (v) =>
+                  safe(() => {
+                    player.setVolume(Math.round(v * 100));
+                    if (v > 0) player.unMute();
+                  }, undefined),
               });
             },
             onError: (e: { data: number }) => onError(YT_ERRORS[e.data] ?? `O YouTube deu erro (${e.data}).`),
@@ -92,7 +103,11 @@ function YouTubePlayer({ videoId, onDriver, onError }: { videoId: string; onDriv
     return () => {
       cancelled = true;
       onDriver(null);
-      player?.destroy?.();
+      try {
+        player?.destroy?.();
+      } catch {
+        // o iframe já saiu da tela
+      }
       el.remove();
     };
   }, [videoId]);
@@ -178,6 +193,11 @@ export function CinemaView({ cinema, hostName, onChange }: { cinema: Cinema; hos
   const fileRef = useRef<HTMLInputElement>(null);
   const driverRef = useRef(driver);
   driverRef.current = driver;
+  // O player que sai avisa na hora: os efeitos do vídeo novo já não usam o antigo
+  const onDriver = useCallback((d: Driver | null) => {
+    driverRef.current = d;
+    setDriver(d);
+  }, []);
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
@@ -252,9 +272,9 @@ export function CinemaView({ cinema, hostName, onChange }: { cinema: Cinema; hos
     <div className={`cine ${fullscreen ? "full" : ""}`} ref={boxRef}>
       <div className="cine-stage">
         {source.kind === "youtube" ? (
-          <YouTubePlayer key={session.id} videoId={source.videoId} onDriver={setDriver} onError={setError} />
+          <YouTubePlayer key={session.id} videoId={source.videoId} onDriver={onDriver} onError={setError} />
         ) : cinema.file ? (
-          <FilePlayer key={cinema.file.url} url={cinema.file.url} onDriver={setDriver} onError={setError} onNoAudio={() => setNoAudio(true)} />
+          <FilePlayer key={cinema.file.url} url={cinema.file.url} onDriver={onDriver} onError={setError} onNoAudio={() => setNoAudio(true)} />
         ) : null}
 
         {/* Clique no vídeo: play/pausa para todos (e não deixa mexer direto no player do YouTube) */}
@@ -350,6 +370,34 @@ export function CinemaView({ cinema, hostName, onChange }: { cinema: Cinema; hos
       </div>
     </div>
   );
+}
+
+/** Se o player quebrar, cai só o cinema, não o app inteiro */
+export class CinemaBoundary extends Component<{ children: ReactNode; onEnd: () => void }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(err: unknown) {
+    console.error("[cinema]", err);
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="cine">
+        <div className="cine-stage">
+          <div className="cine-msg">
+            <CircleAlert size={30} aria-hidden="true" />
+            <strong>O player do cinema deu um erro.</strong>
+            <Button onClick={() => this.setState({ failed: false })}>Tentar de novo</Button>
+            <Button variant="ghost" onClick={this.props.onEnd}>
+              Encerrar a sessão
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }
 
 /** Escolher o que a sala vai assistir */

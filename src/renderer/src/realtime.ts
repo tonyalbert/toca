@@ -1,4 +1,4 @@
-import { API_URL, getAccessToken, SessionExpiredError, type ChatMessage, type Conversation, type FriendRequest, type RoomIcon, type RoomRole, type User } from "./api";
+import { API_URL, getAccessToken, SessionExpiredError, type ChatMessage, type Conversation, type FriendRequest, type RingEndReason, type RoomIcon, type RoomRing, type RoomRole, type User } from "./api";
 
 /** Eventos que a API manda pelo /ws (veja API.md no toca-api) */
 export type RealtimeEvent =
@@ -24,6 +24,10 @@ export type RealtimeEvent =
   | { type: "message_deleted"; messageId: string; conversation: Conversation }
   /** Você leu a conversa em outro PC */
   | { type: "chat_read"; conversation: Conversation }
+  /** Alguém da sala está te chamando para a call */
+  | { type: "room_ring"; ring: RoomRing }
+  /** A chamada acabou (chega para quem chamou e para todos os PCs de quem foi chamado) */
+  | { type: "room_ring_ended"; ringId: string; roomId: string; userId: string; reason: RingEndReason }
   /** Gerado aqui: (re)conectou. Eventos perdidos enquanto estava fora: recarregue as listas. */
   | { type: "connected" }
   /** Gerado aqui: a conexão caiu (vai reconectar sozinha) */

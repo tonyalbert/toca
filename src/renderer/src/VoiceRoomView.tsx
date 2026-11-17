@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ConnectionState } from "livekit-client";
-import { Clapperboard, Gamepad2, LayoutGrid, Maximize, Minimize, ScreenShareOff, Users, MessageSquare } from "lucide-react";
+import { Clapperboard, Gamepad2, LayoutGrid, Maximize, Minimize, PhoneCall, ScreenShareOff, Users, MessageSquare } from "lucide-react";
 import type { RoomInfo } from "./api";
 import type { Look } from "./components/Avatar";
 import { MAX_VOLUME, type VoiceParticipant, type VoiceRoom } from "./useVoiceRoom";
@@ -17,7 +17,7 @@ import { usePeople } from "./people";
 import { useFitGrid } from "./useFitGrid";
 import { useAudioSettings } from "./audioSettings";
 import type { Cinema } from "./cinema";
-import { CinemaStartModal, CinemaView } from "./CinemaView";
+import { CinemaBoundary, CinemaStartModal, CinemaView } from "./CinemaView";
 import type { DrawGame } from "./drawGame";
 import { DrawGameView, lastDrawSettings } from "./DrawGameView";
 import type { Duel } from "./duel";
@@ -45,6 +45,7 @@ export function VoiceRoomView({
   voice,
   avatars,
   onMembers,
+  onCallPeople,
   onShareScreen,
   chatOpen,
   chatUnread,
@@ -58,6 +59,8 @@ export function VoiceRoomView({
   avatars: Map<string, Look>;
   /** Abre a janela de membros da sala */
   onMembers: () => void;
+  /** Abre a janela de chamar alguém da sala para a call */
+  onCallPeople: () => void;
   /** Abre o seletor de tela */
   onShareScreen: () => void;
   /** Chat da sala aberto ao lado */
@@ -218,6 +221,16 @@ export function VoiceRoomView({
             Parar de compartilhar
           </Button>
         )}
+        {connected && room && room.members.some((m) => !people.some((p) => p.identity === m.id)) && (
+          <Button
+            size="sm"
+            icon={<PhoneCall size={15} aria-hidden="true" />}
+            onClick={onCallPeople}
+            data-tip="Fazer o PC de alguém da sala tocar"
+          >
+            Chamar
+          </Button>
+        )}
         {connected && (
           <Button
             size="sm"
@@ -280,13 +293,15 @@ export function VoiceRoomView({
       ) : cinema.session ? (
         <div className="focus-layout cinema-layout">
           <div className="focus-main">
-            <CinemaView
-              cinema={cinema}
-              hostName={
-                cinema.session.host === cinema.me ? "você" : (people.find((p) => p.identity === cinema.session!.host)?.name ?? "alguém")
-              }
-              onChange={() => setCinemaPick(true)}
-            />
+            <CinemaBoundary key={cinema.session.id} onEnd={cinema.end}>
+              <CinemaView
+                cinema={cinema}
+                hostName={
+                  cinema.session.host === cinema.me ? "você" : (people.find((p) => p.identity === cinema.session!.host)?.name ?? "alguém")
+                }
+                onChange={() => setCinemaPick(true)}
+              />
+            </CinemaBoundary>
           </div>
           <div className="focus-strip" aria-label="Pessoas na sala">
             {tiles.map((t) => renderTile(t, "strip"))}

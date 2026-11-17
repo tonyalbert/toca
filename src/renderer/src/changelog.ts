@@ -12,6 +12,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.6.0",
+    date: "2026-11-17",
+    items: [
+      "Chame alguém para a call: na sala, clique em Chamar e escolha quem. O PC da pessoa toca e ela entra com um clique em Entrar (ou recusa). Você fica sabendo se ela atendeu, recusou ou não viu.",
+      "O toque de chamada pode ser desligado em Configurações → Notificações.",
+      "Trocar o vídeo do YouTube no modo cinema não deixa mais a tela preta para quem está na call.",
+    ],
+  },
+  {
     version: "2.5.1",
     date: "2026-11-12",
     items: [

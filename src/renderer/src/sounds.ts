@@ -1,8 +1,8 @@
 import { getAudioSettings } from "./audioSettings";
 import { captureDeviceId, loadDeviceId } from "./devices";
 
-/** join: alguém entrou · leave: alguém saiu · self: você entrou · test: som de teste · hit: acertou no jogo */
-export type Cue = "join" | "leave" | "self" | "test" | "hit" | "screenStart" | "screenStop";
+/** join: alguém entrou · leave: alguém saiu · self: você entrou · test: som de teste · hit: acertou no jogo · ring: alguém te chamando */
+export type Cue = "join" | "leave" | "self" | "test" | "hit" | "screenStart" | "screenStop" | "ring";
 
 /** Notas (Hz) e o intervalo entre elas */
 const CUES: Record<Cue, { notes: number[]; step: number }> = {
@@ -13,6 +13,7 @@ const CUES: Record<Cue, { notes: number[]; step: number }> = {
   self: { notes: [523.25, 659.25, 783.99], step: 0.07 }, // dó maior
   test: { notes: [523.25, 659.25], step: 0.18 },
   hit: { notes: [659.25, 987.77], step: 0.08 }, // mi → si, curtinho
+  ring: { notes: [659.25, 830.61, 987.77, 830.61, 659.25, 830.61, 987.77], step: 0.1 }, // trim-trim
 };
 
 let ctx: AudioContext | null = null;
@@ -39,7 +40,7 @@ export async function playCue(cue: Cue): Promise<void> {
   if (volume <= 0) return;
   const ac = await context();
   const out = ac.createGain();
-  out.gain.value = (cue === "test" ? 0.25 : 0.12) * volume;
+  out.gain.value = (cue === "test" || cue === "ring" ? 0.25 : 0.12) * volume;
   out.connect(ac.destination);
   const { notes, step } = CUES[cue];
   notes.forEach((freq, i) => {

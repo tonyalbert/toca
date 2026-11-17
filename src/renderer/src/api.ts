@@ -314,6 +314,31 @@ export const transferRoom = (id: string, userId: string) => authed(`/rooms/${id}
 
 export const fetchRoomToken = (id: string) => authed<TokenResponse>(`/rooms/${id}/token`, { method: "POST" });
 
+// ---------- chamar para a call ----------
+
+export interface RoomRing {
+  id: string;
+  room: { id: string; name: string; icon: RoomIcon };
+  /** Quem chamou */
+  from: User;
+  /** Quem foi chamado (id) */
+  to: string;
+  expiresAt: string;
+}
+
+export type RingEndReason = "accepted" | "declined" | "canceled" | "missed";
+
+/** Faz o PC de um membro da sala tocar (409 se a pessoa está offline ou já na call) */
+export const ringRoomMember = async (roomId: string, userId: string) =>
+  (await authed<{ ring: RoomRing }>(`/rooms/${roomId}/ring`, json("POST", { userId }))).ring;
+
+export const acceptRing = (id: string) => authed<void>(`/rings/${id}/accept`, { method: "POST" });
+
+export const declineRing = (id: string) => authed<void>(`/rings/${id}/decline`, { method: "POST" });
+
+/** Quem chamou desiste */
+export const cancelRing = (id: string) => authed<void>(`/rings/${id}`, { method: "DELETE" });
+
 // ---------- link de convite ----------
 
 export const INVITE_URL = "https://toca.rabbitapps.com.br/convite/";

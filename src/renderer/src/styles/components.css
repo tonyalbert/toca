@@ -867,3 +867,14 @@ kbd { display: inline-flex; align-items: center; height: 24px; min-width: 24px; 
 .cc-mine { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--accent); }
 .cc-mine .cc-art { width: 110px; }
 .cc-end { display: flex; flex-direction: column; gap: 6px; }
+
+/* ---------- alguém te chamando para a call (CallRing.tsx) ---------- */
+.rings { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 160; display: flex; flex-direction: column; gap: 10px; width: 460px; max-width: calc(100vw - 32px); }
+.ring-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--card-2); border: 1px solid var(--accent-ring); box-shadow: var(--shadow-3); animation: toast-in .18s ease-out; }
+.ring-card strong { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ring-card .sub { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); }
+.ring-card .grow { min-width: 0; }
+.ring-art { flex: none; border-radius: 50%; animation: ring-pulse 1.4s ease-out infinite; }
+@keyframes ring-pulse { 0% { box-shadow: 0 0 0 0 var(--accent-ring); } 100% { box-shadow: 0 0 0 12px transparent; } }
+@media (max-width: 520px) { .ring-card { flex-wrap: wrap; } .ring-card .grow { flex-basis: calc(100% - 60px); } }
+@media (prefers-reduced-motion: reduce) { .ring-card, .ring-art { animation: none; } }

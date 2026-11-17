@@ -12,9 +12,11 @@ export interface NotifyPrefs {
   windowsWhenHidden: boolean;
   /** Som quando alguém entra ou sai da sala em que você está */
   roomSounds: boolean;
+  /** Toque quando alguém te chama para a call (sem isso, só o aviso) */
+  ringSound: boolean;
 }
 
-const DEFAULTS: NotifyPrefs = { friendRequests: true, roomAdded: true, dmMessages: true, roomMessages: false, windowsWhenHidden: true, roomSounds: true };
+const DEFAULTS: NotifyPrefs = { friendRequests: true, roomAdded: true, dmMessages: true, roomMessages: false, windowsWhenHidden: true, roomSounds: true, ringSound: true };
 const STORAGE_KEY = "toca.notify";
 const listeners = new Set<(p: NotifyPrefs) => void>();
 

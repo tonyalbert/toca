@@ -35,6 +35,8 @@ import { getScreenQuality } from "./screenQuality";
 import { SettingsPage, type SettingsSection } from "./SettingsPage";
 import { NewsModal, useNews } from "./News";
 import { useCinema } from "./cinema";
+import { useRings, type RingOutcome } from "./rings";
+import { CallPeopleModal, IncomingRings } from "./CallRing";
 import { useDrawGame } from "./drawGame";
 import { useDuel } from "./duel";
 import { DUEL_NAMES } from "./duelRules";
@@ -183,12 +185,17 @@ export default function App() {
 }
 
 /** Aviso do Windows (só com o Toca em segundo plano e se a pessoa quiser) */
-function windowsNotification(title: string, body: string) {
+function windowsNotification(title: string, body: string, onClick?: () => void) {
   if (!getNotifyPrefs().windowsWhenHidden) return;
   // Navegador: só depois de a pessoa permitir (pedido no primeiro clique, ver MainApp)
   if (!isDesktop && (typeof Notification === "undefined" || Notification.permission !== "granted")) return;
   try {
-    new Notification(title, { body });
+    const n = new Notification(title, { body });
+    if (onClick)
+      n.onclick = () => {
+        window.focus();
+        onClick();
+      };
   } catch {
     // notificações indisponíveis
   }
@@ -241,6 +248,20 @@ function MainApp({
   const [roomChatOpen, setRoomChatOpen] = useState(false);
   const [newDmOpen, setNewDmOpen] = useState(false);
   const roomNamesRef = useRef(new Map<string, string>());
+  // Nome de quem está nas suas salas (para os avisos de chamada)
+  const memberNamesRef = useRef(new Map<string, string>());
+  // Chamar alguém da sala para a call
+  const rings = useRings(
+    useCallback(
+      ({ userId, reason }: RingOutcome) => {
+        const name = memberNamesRef.current.get(userId) ?? "A pessoa";
+        if (reason === "accepted") toast({ kind: "ok", title: `${name} atendeu`, sub: "Está entrando na call." });
+        else toast({ title: reason === "declined" ? `${name} recusou a chamada` : `${name} não atendeu`, sub: reason === "declined" ? "Fica para a próxima." : "Tente de novo daqui a pouco ou mande uma mensagem." });
+      },
+      [toast],
+    ),
+  );
+  const [callPeopleOpen, setCallPeopleOpen] = useState(false);
   const openChat = useCallback((target: ChatTarget) => {
     setChatTarget(target);
     setView("chat");
@@ -274,7 +295,23 @@ function MainApp({
     (event: RealtimeEvent) => {
       const prefs = getNotifyPrefs();
       chat.onEvent(event);
+      rings.onEvent(event);
       switch (event.type) {
+        case "room_ring": {
+          const { ring } = event;
+          // Já está na call dessa sala: nem toca
+          if (ring.room.id === currentRoomId) {
+            void rings.accept(ring);
+            break;
+          }
+          if (!document.hasFocus()) {
+            windowsNotification(`${ring.from.displayName} está te chamando`, `Para a call da ${ring.room.name}`, () => {
+              void rings.accept(ring);
+              goToRoom(ring.room.id);
+            });
+          }
+          break;
+        }
         case "message_created": {
           const m = event.message;
           if (m.author.id === me.id || m.kind === "joined" || chat.isShown(m)) break;
@@ -348,7 +385,7 @@ function MainApp({
           break;
       }
     },
-    [alert, toast, goToRoom, currentRoomId, leave, showError, me, onMeChange, chat, openChat],
+    [alert, toast, goToRoom, currentRoomId, leave, showError, me, onMeChange, chat, openChat, rings.onEvent, rings.accept],
   );
 
   const data = useTocaData(handleEvent);
@@ -429,6 +466,7 @@ function MainApp({
   reloadFriendsRef.current = reloadFriends;
   friendsRef.current = new Map(data.friends.map((f) => [f.id, f.displayName]));
   roomNamesRef.current = new Map(data.rooms.map((r) => [r.id, r.name]));
+  memberNamesRef.current = new Map(data.rooms.flatMap((r) => r.members.map((m) => [m.id, m.displayName] as const)));
 
   // Lista de salas recarregada: as não lidas do servidor já contam tudo
   const { roomsReloaded } = chat;
@@ -556,6 +594,7 @@ function MainApp({
                 voice={voice}
                 avatars={avatarMap(me, data.friends, data.rooms)}
                 onMembers={() => currentRoom && setRoomModal({ id: currentRoom.id, tab: "members" })}
+                onCallPeople={() => setCallPeopleOpen(true)}
                 onShareScreen={shareScreen}
                 chatOpen={roomChatOpen}
                 chatUnread={currentRoom ? chat.roomUnread(currentRoom) : 0}
@@ -636,6 +675,19 @@ function MainApp({
             onMessage={(userId) => openChat({ kind: "dm", userId })}
           />
         )}
+
+        {callPeopleOpen && currentRoom && (
+          <CallPeopleModal
+            room={currentRoom}
+            meId={me.id}
+            inCall={new Set(voice.participants.map((p) => p.identity))}
+            friends={data.friends}
+            rings={rings}
+            onClose={() => setCallPeopleOpen(false)}
+          />
+        )}
+
+        <IncomingRings rings={rings} onAccept={(ring) => goToRoom(ring.room.id)} />
 
         {pickerOpen && (
           <ScreenSharePicker
