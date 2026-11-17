@@ -112,6 +112,7 @@ export function CreateRoomModal({
                 small
                 avatar={f.avatar} photo={f.photo}
                 name={f.displayName}
+                nameStyle={f.nameStyle}
                 username={f.username}
                 onClick={() => toggle(f.id)}
                 lead={<Checkbox checked={invited.has(f.id)} onChange={() => toggle(f.id)} label={`Chamar ${f.displayName}`} />}
@@ -312,7 +313,7 @@ function MembersTab({
             ) : (
               <ul className="list">
                 {outside.map((f) => (
-                  <PersonRow key={f.id} small avatar={f.avatar} photo={f.photo} name={f.displayName} username={f.username}>
+                  <PersonRow key={f.id} small avatar={f.avatar} photo={f.photo} name={f.displayName} nameStyle={f.nameStyle} username={f.username}>
                     <Button
                       size="sm"
                       icon={<UserPlus size={15} aria-hidden="true" />}
@@ -338,6 +339,7 @@ function MembersTab({
               small
               avatar={m.avatar} photo={m.photo}
               name={m.displayName}
+              nameStyle={m.nameStyle}
               username={m.username}
               detail={m.id === me.id ? "você" : undefined}
             >

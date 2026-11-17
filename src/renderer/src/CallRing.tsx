@@ -94,7 +94,7 @@ export function CallPeopleModal({
     }
   };
 
-  const row = (p: { id: string; avatar: Friend["avatar"]; photo?: Friend["photo"]; displayName: string; username: string }) => {
+  const row = (p: { id: string; avatar: Friend["avatar"]; photo?: Friend["photo"]; nameStyle?: Friend["nameStyle"]; displayName: string; username: string }) => {
     const ringing = rings.callingTo(room.id, p.id);
     const f = friendById.get(p.id);
     const blocked = !!f && (!f.online || f.status === "dnd");
@@ -105,6 +105,7 @@ export function CallPeopleModal({
         avatar={p.avatar}
         photo={p.photo}
         name={p.displayName}
+        nameStyle={p.nameStyle}
         username={p.username}
         presence={f ? presenceOf(f) : undefined}
         detail={ringing ? "chamando…" : f ? presenceText(f) : undefined}

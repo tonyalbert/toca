@@ -12,6 +12,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.7.0",
+    date: "2026-11-17",
+    items: [
+      "Deixe seu nome com a sua cara: em Configurações → Perfil → Estilo do nome, escolha uma cor ou um degradê de até 3 cores e um efeito (brilho, reflexo ou degradê andando). Tem também combinações prontas, como Neon, Ouro e Pôr do sol.",
+      "O nome estilizado aparece para todo mundo: na chamada, no chat, na lista de amigos e no cartão da pessoa.",
+    ],
+  },
+  {
     version: "2.6.0",
     date: "2026-11-17",
     items: [

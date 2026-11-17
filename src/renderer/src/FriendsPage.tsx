@@ -138,6 +138,7 @@ export function FriendsPage({
                     key={f.id}
                     avatar={f.avatar} photo={f.photo}
                     name={f.displayName}
+                    nameStyle={f.nameStyle}
                     username={f.username}
                     presence={presence}
                     detail={room ? `Na ${room.name}${f.statusText ? ` · ${f.statusText}` : ""}` : presenceText(f)}
@@ -187,6 +188,7 @@ export function FriendsPage({
                   key={r.id}
                   avatar={r.user.avatar} photo={r.user.photo}
                   name={r.user.displayName}
+                  nameStyle={r.user.nameStyle}
                   username={r.user.username}
                   detail={`quer ser seu amigo · ${since(r.createdAt)}`}
                 >
@@ -217,6 +219,7 @@ export function FriendsPage({
                   key={r.id}
                   avatar={r.user.avatar} photo={r.user.photo}
                   name={r.user.displayName}
+                  nameStyle={r.user.nameStyle}
                   username={r.user.username}
                   detail={`enviado ${since(r.createdAt)}`}
                 >

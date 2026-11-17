@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { StyledName } from "./nameStyle";
 import { CircleAlert, ImagePlus, MessageSquare, SendHorizontal, Trash2, UserPlus, X } from "lucide-react";
 import {
   deleteMessage,
@@ -355,7 +356,7 @@ export function ChatView({
                   <UserPlus size={14} aria-hidden="true" />
                   <span>
                     <button type="button" className="msg-author" onClick={(e) => openPerson(m.author.id, e.currentTarget)}>
-                      {mine ? "Você" : m.author.displayName}
+                      {mine ? "Você" : <StyledName name={m.author.displayName} nameStyle={m.author.nameStyle} />}
                     </button>{" "}
                     entrou na toca
                   </span>
@@ -397,7 +398,7 @@ export function ChatView({
                   {!grouped && (
                     <div className="msg-head">
                       <button type="button" className="msg-author" onClick={(e) => openPerson(m.author.id, e.currentTarget)}>
-                        {mine ? "Você" : m.author.displayName}
+                        <StyledName name={mine ? "Você" : m.author.displayName} nameStyle={m.author.nameStyle} />
                       </button>
                       <time className="msg-time num" dateTime={m.createdAt}>
                         {timeFmt.format(at)}

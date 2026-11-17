@@ -47,6 +47,7 @@ export function NewDmModal({ onPick, onClose }: { onPick: (userId: string) => vo
               small
               avatar={p.avatar} photo={p.photo}
               name={p.name}
+              nameStyle={p.nameStyle}
               username={p.username}
               detail={p.detail}
               onClick={() => onPick(p.id)}

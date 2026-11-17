@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { StyledName } from "../nameStyle";
 import { createPortal } from "react-dom";
 import { MessageSquare, Pencil, Volume1, Volume2, VolumeX } from "lucide-react";
 import { FriendAction, type Person } from "../people";
@@ -90,7 +91,9 @@ export function PersonPopover({
       <div className="row" style={{ gap: 12 }}>
         <Avatar kind={person.avatar} photo={person.photo} size={52} mine={isMe} />
         <div className="grow">
-          <strong className="person-pop-name">{person.name}</strong>
+          <strong className="person-pop-name">
+            <StyledName name={person.name} nameStyle={person.nameStyle} />
+          </strong>
           <span className="xs muted">@{person.username}</span>
         </div>
       </div>

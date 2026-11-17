@@ -12,11 +12,13 @@ import { usePeople } from "./people";
 import type { ChatTarget } from "./useChat";
 import { StatusPicker } from "./StatusPicker";
 import { presenceOf, STATUS_LABELS } from "./status";
+import { StyledName, type NameStyle } from "./nameStyle";
 
 /** Alguém numa sala, como aparece na lista lateral */
 interface RoomPerson {
   id: string;
   name: string;
+  nameStyle?: NameStyle | null;
   avatar: AvatarKind;
   photo?: Photo | null;
   talking: boolean;
@@ -188,7 +190,7 @@ export function Sidebar({
                       onClick={(e) => openPerson(p.id, e.currentTarget)}
                     >
                         <Avatar kind={p.avatar} photo={p.photo} size={24} talking={p.talking} mine={p.id === me.id} />
-                        <span className="rp-name">{p.name}</span>
+                        <StyledName className="rp-name" name={p.name} nameStyle={p.nameStyle} />
                         <span className="flags">
                           {p.talking && (
                             <span className="eq" role="img" aria-label="falando">
@@ -258,7 +260,9 @@ export function Sidebar({
               >
                 <Avatar kind={d.user.avatar} photo={d.user.photo} size={30} presence={friend ? presenceOf(friend) : undefined} />
                 <span className="dm-text">
-                  <strong>{d.user.displayName}</strong>
+                  <strong>
+                    <StyledName name={d.user.displayName} nameStyle={d.user.nameStyle} />
+                  </strong>
                   <span>{preview}</span>
                 </span>
                 {d.unread > 0 && (
@@ -322,7 +326,9 @@ export function Sidebar({
               presence={!online || myStatus === "invisible" ? "offline" : voice.room ? "call" : presenceOf({ online: true, status: myStatus })}
             />
             <span className="grow">
-              <strong>{me.displayName}</strong>
+              <strong>
+                <StyledName name={me.displayName} nameStyle={me.nameStyle} />
+              </strong>
               <span>{mySub}</span>
             </span>
           </button>

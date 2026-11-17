@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { StyledName, type NameStyle } from "../nameStyle";
 import type { Avatar as AvatarKind, Photo } from "../api";
 import { Avatar, type Presence } from "./Avatar";
 
@@ -7,6 +8,7 @@ export function PersonRow({
   avatar,
   photo,
   name,
+  nameStyle,
   username,
   detail,
   presence,
@@ -18,6 +20,8 @@ export function PersonRow({
   avatar: AvatarKind;
   photo?: Photo | null;
   name: string;
+  /** Cor, degradê e efeito do nome */
+  nameStyle?: NameStyle | null;
   username: string;
   /** Depois do @ (ex.: "Online", "quer ser seu amigo") */
   detail?: string;
@@ -51,7 +55,9 @@ export function PersonRow({
       {lead}
       <Avatar kind={avatar} photo={photo} size={small ? 32 : 42} presence={presence} />
       <div className="li-text">
-        <strong>{name}</strong>
+        <strong>
+          <StyledName name={name} nameStyle={nameStyle} />
+        </strong>
         <span className="sub">
           @{username}
           {detail && ` · ${detail}`}

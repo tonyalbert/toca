@@ -1,4 +1,5 @@
 import type { ConnectionQuality, VideoTrack } from "livekit-client";
+import { StyledName, type NameStyle } from "../nameStyle";
 import { HeadphoneOff, MicOff, MoreHorizontal, Volume1, VolumeX } from "lucide-react";
 import type { Avatar as AvatarKind, Photo } from "../api";
 import { Avatar } from "./Avatar";
@@ -11,6 +12,7 @@ export type TileVariant = "grid" | "strip" | "main";
 
 export interface ParticipantCardProps {
   name: string;
+  nameStyle?: NameStyle | null;
   avatar: AvatarKind;
   photo?: Photo | null;
   isLocal: boolean;
@@ -40,6 +42,7 @@ export interface ParticipantCardProps {
  */
 export function ParticipantCard({
   name,
+  nameStyle,
   avatar,
   photo,
   isLocal,
@@ -102,7 +105,7 @@ export function ParticipantCard({
       <span className="pc-text">
         <span className="name">
           {q && q.tone !== "idle" && video && <SignalBars bars={q.bars} tone={q.tone} />}
-          {name}
+          <StyledName name={name} nameStyle={nameStyle} />
           {talking && (
             <span className="eq" aria-hidden="true">
               <i />

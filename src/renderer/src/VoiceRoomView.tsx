@@ -175,6 +175,7 @@ export function VoiceRoomView({
         variant={variant}
         avatarSize={variant === "grid" && fit ? Math.round(Math.min(128, Math.max(40, fit.height * 0.42))) : undefined}
         name={p.name}
+        nameStyle={avatars.get(p.identity)?.nameStyle}
         avatar={avatars.get(p.identity)?.avatar ?? "rabbit"}
         photo={avatars.get(p.identity)?.photo}
         isLocal={p.isLocal}

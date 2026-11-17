@@ -1,4 +1,5 @@
 import type { UserStatus } from "./status";
+import type { NameStyle } from "./nameStyle";
 export const API_URL = (import.meta.env.VITE_API_URL ?? "https://api-toca.rabbitapps.com.br").replace(/\/$/, "");
 
 /** Espécie legada ou receita versionada de avatar personalizado. */
@@ -22,6 +23,8 @@ export interface User {
   displayName: string;
   avatar: Avatar;
   photo?: Photo | null;
+  /** Cor, degradê e efeito do nome (null ou ausente: cor padrão) */
+  nameStyle?: NameStyle | null;
 }
 
 /** A própria conta: o @ e o nome ficam vazios entre o cadastro e a escolha */
@@ -32,6 +35,7 @@ export interface Account {
   displayName: string | null;
   avatar: Avatar;
   photo?: Photo | null;
+  nameStyle?: NameStyle | null;
   /** Status escolhido (servidores antigos não mandam: Disponível) */
   status?: UserStatus;
   statusText?: string | null;
@@ -255,7 +259,7 @@ export async function resetPassword(email: string, code: string, password: strin
 export const setMyStatus = async (changes: { status?: UserStatus; statusText?: string | null }) =>
   (await authed<{ user: Account }>("/me/status", json("PATCH", changes))).user;
 
-export const updateProfile = async (changes: { username?: string; displayName?: string; avatar?: Avatar }) =>
+export const updateProfile = async (changes: { username?: string; displayName?: string; avatar?: Avatar; nameStyle?: NameStyle | null }) =>
   (await authed<{ user: Account }>("/me", json("PATCH", changes))).user;
 
 export async function logout(): Promise<void> {
