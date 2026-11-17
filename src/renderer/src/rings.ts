@@ -80,10 +80,18 @@ export function useRings(onOutcome: (o: RingOutcome) => void) {
     await cancelRing(ring.id).catch(() => {});
   }, []);
 
-  /** Atende: o app entra na sala em seguida (mesmo se a chamada já tiver acabado) */
+  /**
+   * Atende: o app entra na sala em seguida. Membro entra mesmo se a chamada já
+   * tiver acabado; amigo de fora só entra se o servidor o colocou na sala.
+   */
   const accept = useCallback(async (ring: RoomRing) => {
     setIncoming((list) => list.filter((r) => r.id !== ring.id));
-    await acceptRing(ring.id).catch(() => {});
+    try {
+      await acceptRing(ring.id);
+    } catch (err) {
+      if (!ring.joins) return;
+      throw (err as Error).message.includes("acabou") ? new Error("Essa chamada já acabou. Peça para te chamarem de novo.") : err;
+    }
   }, []);
 
   const decline = useCallback(async (ring: RoomRing) => {

@@ -18,13 +18,13 @@ export function avatarMap(me: Profile, friends: Friend[], rooms: RoomInfo[]): Ma
   for (const r of rooms) for (const m of r.members) map.set(m.id, lookOf(m));
   return map;
 }
-export type Presence = 'online' | 'call' | 'offline';
+export type Presence = 'online' | 'away' | 'dnd' | 'call' | 'offline';
 export function Avatar({ kind = 'rabbit', photo, size, mine, presence, talking }: {
   kind?: AvatarKind; photo?: Photo | null; size: number; mine?: boolean; presence?: Presence; talking?: boolean;
 }) {
   // Foto que não carregou (sem rede, apagada): volta o bichinho
   const [failed, setFailed] = useState<string | null>(null);
-  const pres = presence && <span className={`pres ${presence === 'online' ? 'on' : presence === 'call' ? 'call' : ''}`} />;
+  const pres = presence && <span className={`pres ${presence === 'online' ? 'on' : presence === 'call' || presence === 'away' || presence === 'dnd' ? presence : ''}`} />;
   if (photo && failed !== photo.id) {
     return (
       <span className={`avw avatar-photo ${talking ? 'talk' : ''}`} style={{ width: size, height: size }}>

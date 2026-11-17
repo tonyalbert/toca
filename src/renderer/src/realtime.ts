@@ -1,3 +1,4 @@
+import type { UserStatus } from "./status";
 import { API_URL, getAccessToken, SessionExpiredError, type ChatMessage, type Conversation, type FriendRequest, type RingEndReason, type RoomIcon, type RoomRing, type RoomRole, type User } from "./api";
 
 /** Eventos que a API manda pelo /ws (veja API.md no toca-api) */
@@ -11,8 +12,10 @@ export type RealtimeEvent =
   | { type: "friends_changed" }
   /** Amigo, colega de sala ou você mesmo (em outro PC) trocou o nome */
   | { type: "user_updated"; user: User }
-  /** Amigo abriu ou fechou o app */
-  | { type: "presence"; userId: string; online: boolean }
+  /** Amigo abriu ou fechou o app ou trocou o status (invisível chega como offline) */
+  | { type: "presence"; userId: string; online: boolean; status?: Exclude<UserStatus, "invisible">; statusText?: string | null }
+  /** Você trocou o status em outro PC */
+  | { type: "status_changed"; status: UserStatus; statusText: string | null }
   | { type: "room_added"; room: { id: string; name: string; icon: RoomIcon; ownerId: string; role: RoomRole } }
   | { type: "room_removed"; roomId: string }
   | { type: "room_renamed"; roomId: string; name: string }

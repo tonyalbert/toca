@@ -10,6 +10,7 @@ import {
   type Account,
   type Profile,
   type RoomInfo,
+  type RoomRing,
 } from "./api";
 import type { RealtimeEvent } from "./realtime";
 import type { UpdateState } from "../../shared/update";
@@ -262,6 +263,8 @@ function MainApp({
     ),
   );
   const [callPeopleOpen, setCallPeopleOpen] = useState(false);
+  // Atendeu a chamada de uma sala que não era sua: o aviso "Você entrou na..." sobra
+  const answeredRooms = useRef(new Set<string>());
   const openChat = useCallback((target: ChatTarget) => {
     setChatTarget(target);
     setView("chat");
@@ -275,13 +278,19 @@ function MainApp({
   const friendsRef = useRef(new Map<string, string>());
 
   /** Aviso dentro do app com o Toca em foco; senão, pelo Windows */
+  // Não perturbe: os avisos ficam só dentro do app
+  const dnd = me.status === "dnd";
   const alert = useCallback(
     (options: ToastOptions) => {
       if (document.hasFocus()) toast(options);
-      else windowsNotification(options.title, options.sub ?? "");
+      else if (!dnd) windowsNotification(options.title, options.sub ?? "");
     },
-    [toast],
+    [toast, dnd],
   );
+
+  /** Atende uma chamada e entra na sala */
+  const answerRef = useRef<(ring: RoomRing) => void>(() => {});
+  const answer = (ring: RoomRing) => answerRef.current(ring);
 
   const goToRoom = useCallback(
     (roomId: string) => {
@@ -290,6 +299,16 @@ function MainApp({
     },
     [voice],
   );
+  answerRef.current = (ring: RoomRing) => {
+    if (ring.joins) answeredRooms.current.add(ring.room.id);
+    rings
+      .accept(ring)
+      .then(() => goToRoom(ring.room.id))
+      .catch((err: Error) => {
+        answeredRooms.current.delete(ring.room.id);
+        toast({ kind: "error", title: err.message });
+      });
+  };
 
   const handleEvent = useCallback(
     (event: RealtimeEvent) => {
@@ -297,18 +316,18 @@ function MainApp({
       chat.onEvent(event);
       rings.onEvent(event);
       switch (event.type) {
+        case "status_changed":
+          onMeChange({ ...me, status: event.status, statusText: event.statusText });
+          break;
         case "room_ring": {
           const { ring } = event;
           // Já está na call dessa sala: nem toca
           if (ring.room.id === currentRoomId) {
-            void rings.accept(ring);
+            void rings.accept(ring).catch(() => {});
             break;
           }
           if (!document.hasFocus()) {
-            windowsNotification(`${ring.from.displayName} está te chamando`, `Para a call da ${ring.room.name}`, () => {
-              void rings.accept(ring);
-              goToRoom(ring.room.id);
-            });
+            windowsNotification(`${ring.from.displayName} está te chamando`, `Para a call da ${ring.room.name}`, () => answerRef.current(ring));
           }
           break;
         }
@@ -358,6 +377,7 @@ function MainApp({
           }
           break;
         case "room_added":
+          if (answeredRooms.current.delete(event.room.id)) break;
           if (event.room.role === "member" && prefs.roomAdded) {
             const owner = friendsRef.current.get(event.room.ownerId);
             alert({
@@ -578,6 +598,7 @@ function MainApp({
         onFriends={() => setView("friends")}
         onSettings={() => openSettings("voice")}
         onProfile={() => openSettings("profile")}
+        onMeChange={(account) => isProfileComplete(account) && onMeChange(account)}
         dms={chat.dms}
         roomUnread={chat.roomUnread}
         activeChat={shown === "chat" ? chatTarget : null}
@@ -682,12 +703,13 @@ function MainApp({
             meId={me.id}
             inCall={new Set(voice.participants.map((p) => p.identity))}
             friends={data.friends}
+            canAddFriends={currentRoom.role !== "member"}
             rings={rings}
             onClose={() => setCallPeopleOpen(false)}
           />
         )}
 
-        <IncomingRings rings={rings} onAccept={(ring) => goToRoom(ring.room.id)} />
+        <IncomingRings rings={rings} onAccept={answer} />
 
         {pickerOpen && (
           <ScreenSharePicker

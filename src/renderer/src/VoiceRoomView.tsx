@@ -221,7 +221,7 @@ export function VoiceRoomView({
             Parar de compartilhar
           </Button>
         )}
-        {connected && room && room.members.some((m) => !people.some((p) => p.identity === m.id)) && (
+        {connected && room && (
           <Button
             size="sm"
             icon={<PhoneCall size={15} aria-hidden="true" />}

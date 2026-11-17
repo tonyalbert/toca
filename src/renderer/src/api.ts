@@ -1,3 +1,4 @@
+import type { UserStatus } from "./status";
 export const API_URL = (import.meta.env.VITE_API_URL ?? "https://api-toca.rabbitapps.com.br").replace(/\/$/, "");
 
 /** Espécie legada ou receita versionada de avatar personalizado. */
@@ -31,6 +32,9 @@ export interface Account {
   displayName: string | null;
   avatar: Avatar;
   photo?: Photo | null;
+  /** Status escolhido (servidores antigos não mandam: Disponível) */
+  status?: UserStatus;
+  statusText?: string | null;
 }
 
 /** Conta com @ e nome já escolhidos */
@@ -39,8 +43,10 @@ export type Profile = Account & { username: string; displayName: string };
 export const isProfileComplete = (a: Account): a is Profile => !!a.username && !!a.displayName;
 
 export interface Friend extends User {
-  /** Está com o app aberto agora */
+  /** Está com o app aberto agora (e não está invisível) */
   online: boolean;
+  status?: Exclude<UserStatus, "invisible">;
+  statusText?: string | null;
   since: string;
 }
 
@@ -245,6 +251,10 @@ export async function resetPassword(email: string, code: string, password: strin
 }
 
 /** Escolhe o @ (uma vez só); troca o nome de exibição e o bichinho quando quiser */
+/** Troca o status e/ou o recado (null ou "" tira o recado) */
+export const setMyStatus = async (changes: { status?: UserStatus; statusText?: string | null }) =>
+  (await authed<{ user: Account }>("/me/status", json("PATCH", changes))).user;
+
 export const updateProfile = async (changes: { username?: string; displayName?: string; avatar?: Avatar }) =>
   (await authed<{ user: Account }>("/me", json("PATCH", changes))).user;
 
@@ -323,12 +333,14 @@ export interface RoomRing {
   from: User;
   /** Quem foi chamado (id) */
   to: string;
+  /** Amigo de fora da sala: ao atender, vira membro (servidores antigos não mandam) */
+  joins?: boolean;
   expiresAt: string;
 }
 
 export type RingEndReason = "accepted" | "declined" | "canceled" | "missed";
 
-/** Faz o PC de um membro da sala tocar (409 se a pessoa está offline ou já na call) */
+/** Faz o PC de alguém da sala (ou, para dono e adm, de um amigo de fora) tocar. 409: offline, Não perturbe ou já na call */
 export const ringRoomMember = async (roomId: string, userId: string) =>
   (await authed<{ ring: RoomRing }>(`/rooms/${roomId}/ring`, json("POST", { userId }))).ring;
 

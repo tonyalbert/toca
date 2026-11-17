@@ -1,6 +1,7 @@
+import { useCallback, useState } from "react";
 import { ConnectionState } from "livekit-client";
 import { HeadphoneOff, Headphones, Link2, MessageSquare, Mic, MicOff, PhoneOff, Plus, Settings, SlidersHorizontal, SquarePen, Users } from "lucide-react";
-import { messagePreview, type Avatar as AvatarKind, type DmSummary, type Photo, type Friend, type Profile, type RoomInfo } from "./api";
+import { messagePreview, type Avatar as AvatarKind, type DmSummary, type Photo, type Account, type Friend, type Profile, type RoomInfo } from "./api";
 import type { UpdateState } from "../../shared/update";
 import type { VoiceRoom } from "./useVoiceRoom";
 import { useMicLevel } from "./useMicLevel";
@@ -9,6 +10,8 @@ import { Button, IconButton } from "./components/Button";
 import { RoomIcon } from "./components/RoomIcon";
 import { usePeople } from "./people";
 import type { ChatTarget } from "./useChat";
+import { StatusPicker } from "./StatusPicker";
+import { presenceOf, STATUS_LABELS } from "./status";
 
 /** Alguém numa sala, como aparece na lista lateral */
 interface RoomPerson {
@@ -39,6 +42,7 @@ export function Sidebar({
   onFriends,
   onSettings,
   onProfile,
+  onMeChange,
   dms,
   roomUnread,
   activeChat,
@@ -63,6 +67,8 @@ export function Sidebar({
   onFriends: () => void;
   onSettings: () => void;
   onProfile: () => void;
+  /** Trocou o status ou o recado */
+  onMeChange: (me: Account) => void;
   /** Conversas diretas (a mais recente primeiro) */
   dms: DmSummary[];
   /** Mensagens não lidas no chat da sala */
@@ -73,6 +79,10 @@ export function Sidebar({
   onNewDm: () => void;
 }) {
   const { openPerson } = usePeople();
+  const [statusOpen, setStatusOpen] = useState(false);
+  const closeStatus = useCallback(() => setStatusOpen(false), []);
+  const myStatus = me.status ?? "online";
+  const mySub = me.statusText || (myStatus === "online" ? `@${me.username}` : STATUS_LABELS[myStatus]);
   const connected = voice.connection === ConnectionState.Connected;
   const callRoom = rooms.find((r) => r.id === voice.room);
 
@@ -246,7 +256,7 @@ export function Sidebar({
                 aria-label={`Conversa com ${d.user.displayName}${d.unread > 0 ? `, ${d.unread} não ${d.unread === 1 ? "lida" : "lidas"}` : ""}`}
                 onClick={() => onOpenChat({ kind: "dm", userId: d.user.id })}
               >
-                <Avatar kind={d.user.avatar} photo={d.user.photo} size={30} presence={friend ? (friend.online ? "online" : "offline") : undefined} />
+                <Avatar kind={d.user.avatar} photo={d.user.photo} size={30} presence={friend ? presenceOf(friend) : undefined} />
                 <span className="dm-text">
                   <strong>{d.user.displayName}</strong>
                   <span>{preview}</span>
@@ -297,11 +307,23 @@ export function Sidebar({
 
       <div className="side-foot">
         <div className="me">
-          <button className="me-id" onClick={onProfile} data-tip="Minha conta">
-            <Avatar kind={me.avatar} photo={me.photo} size={38} mine presence={voice.room ? "call" : online ? "online" : "offline"} />
+          <button
+            className="me-id"
+            onClick={() => setStatusOpen((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={statusOpen}
+            data-tip={statusOpen ? undefined : "Status e conta"}
+          >
+            <Avatar
+              kind={me.avatar}
+              photo={me.photo}
+              size={38}
+              mine
+              presence={!online || myStatus === "invisible" ? "offline" : voice.room ? "call" : presenceOf({ online: true, status: myStatus })}
+            />
             <span className="grow">
               <strong>{me.displayName}</strong>
-              <span>@{me.username}</span>
+              <span>{mySub}</span>
             </span>
           </button>
           <IconButton
@@ -329,6 +351,7 @@ export function Sidebar({
             <SlidersHorizontal size={18} aria-hidden="true" />
           </IconButton>
         </div>
+        {statusOpen && <StatusPicker me={me} onChange={onMeChange} onProfile={onProfile} onClose={closeStatus} />}
         <div className="ver">
           <span>Toca{version ? ` v${version} beta` : " beta"}</span>
           <span role="status">{versionNote}</span>

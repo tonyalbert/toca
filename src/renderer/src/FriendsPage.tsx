@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { presenceOf as friendPresence, presenceText } from "./status";
 import { Check, CircleAlert, Copy, MoreHorizontal, UserMinus, UserPlus, MessageSquare } from "lucide-react";
 import {
   acceptFriendRequest,
@@ -74,8 +75,8 @@ export function FriendsPage({
 
   // Onde cada amigo está: numa sala sua (em chamada), online ou offline
   const roomOf = (id: string) => rooms.find((r) => r.participants.some((p) => p.id === id));
-  const presenceOf = (f: Friend): Presence => (roomOf(f.id) ? "call" : f.online ? "online" : "offline");
-  const order: Record<Presence, number> = { call: 0, online: 1, offline: 2 };
+  const presenceOf = (f: Friend): Presence => friendPresence(f, !!roomOf(f.id));
+  const order: Record<Presence, number> = { call: 0, online: 1, away: 2, dnd: 3, offline: 4 };
   const sorted = [...friends].sort((a, b) => order[presenceOf(a)] - order[presenceOf(b)]);
   const onlineCount = friends.filter((f) => presenceOf(f) !== "offline").length;
 
@@ -139,7 +140,7 @@ export function FriendsPage({
                     name={f.displayName}
                     username={f.username}
                     presence={presence}
-                    detail={room ? `Na ${room.name}` : f.online ? "Online" : "Offline"}
+                    detail={room ? `Na ${room.name}${f.statusText ? ` · ${f.statusText}` : ""}` : presenceText(f)}
                   >
                     {room && room.id !== currentRoomId && (
                       <Button size="sm" onClick={() => onJoinRoom(room)}>
