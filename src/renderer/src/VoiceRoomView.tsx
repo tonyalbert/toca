@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ConnectionState } from "livekit-client";
-import { Clapperboard, Gamepad2, LayoutGrid, Maximize, Minimize, PhoneCall, ScreenShareOff, Users, MessageSquare } from "lucide-react";
-import type { RoomInfo } from "./api";
+import { Clapperboard, Gamepad2, LayoutGrid, Maximize, Minimize, PhoneCall, PhoneOff, ScreenShareOff, Users, MessageSquare } from "lucide-react";
+import type { RoomInfo, RoomRing } from "./api";
+import { Avatar } from "./components/Avatar";
+import { StyledName } from "./nameStyle";
 import type { Look } from "./components/Avatar";
 import { MAX_VOLUME, type VoiceParticipant, type VoiceRoom } from "./useVoiceRoom";
 import { connectionLabel } from "./Sidebar";
@@ -53,6 +55,9 @@ export function VoiceRoomView({
   cinema,
   draw,
   duel,
+  calls,
+  meId,
+  onCancelCall,
 }: {
   room: RoomInfo | undefined;
   voice: VoiceRoom;
@@ -73,6 +78,11 @@ export function VoiceRoomView({
   draw: DrawGame;
   /** Jogo de 2 da chamada (Lig 4…) */
   duel: Duel;
+  /** Quem está sendo chamado para esta call agora */
+  calls: RoomRing[];
+  meId: string;
+  /** Desistir de uma chamada sua */
+  onCancelCall: (ring: RoomRing) => void;
 }) {
   // Escolher o vídeo (começar ou trocar)
   const [cinemaPick, setCinemaPick] = useState(false);
@@ -116,7 +126,11 @@ export function VoiceRoomView({
   const focused = tiles.find((t) => t.key === focusKey && zoomable(t));
   // Grade 16:9 que cabe na área (o elemento só existe quando ninguém está em destaque)
   const [gridEl, setGridEl] = useState<HTMLDivElement | null>(null);
-  const fit = useFitGrid(focused ? null : gridEl, tiles.length);
+  // Quem já entrou não aparece mais como "chamando"
+  const ringing = calls.filter((r) => !people.some((p) => p.identity === r.to));
+  const fit = useFitGrid(focused ? null : gridEl, tiles.length + ringing.length);
+  const ringTiles = (variant: TileVariant) =>
+    ringing.map((r) => <RingTile key={`ring:${r.id}`} ring={r} variant={variant} mine={r.from.id === meId} onCancel={() => onCancelCall(r)} />);
   // Câmera em destaque desligou (ou a pessoa saiu): volta para a grade
   useEffect(() => {
     if (focusKey && !focused) setFocusKey(null);
@@ -306,6 +320,7 @@ export function VoiceRoomView({
           </div>
           <div className="focus-strip" aria-label="Pessoas na sala">
             {tiles.map((t) => renderTile(t, "strip"))}
+            {ringTiles("strip")}
           </div>
         </div>
       ) : focused ? (
@@ -325,6 +340,7 @@ export function VoiceRoomView({
           </div>
           <div className="focus-strip" aria-label="Outros quadros">
             {tiles.filter((t) => t !== focused).map((t) => renderTile(t, "strip"))}
+            {ringTiles("strip")}
           </div>
         </div>
       ) : (
@@ -338,6 +354,7 @@ export function VoiceRoomView({
           }
         >
           {tiles.map((t) => renderTile(t, "grid"))}
+          {ringTiles("grid")}
         </div>
       )}
 
@@ -381,6 +398,30 @@ export function VoiceRoomView({
         ptt={audio.micMode === "ptt" && audio.pttLabel ? { label: audio.pttLabel, held: voice.pttHeld } : null}
       />
     </>
+  );
+}
+
+/** Quem está sendo chamado: aparece na sala até entrar, recusar ou não atender */
+function RingTile({ ring, variant, mine, onCancel }: { ring: RoomRing; variant: TileVariant; mine: boolean; onCancel: () => void }) {
+  const who = ring.callee;
+  const name = who?.displayName ?? "Alguém";
+  return (
+    <div className={`pc ringing ${variant}`} role="status" aria-label={`Chamando ${name}`}>
+      <span className="ring-art">
+        <Avatar kind={who?.avatar ?? "rabbit"} photo={who?.photo} size={variant === "strip" ? 44 : 72} />
+      </span>
+      <span className="pc-text">
+        <span className="name">
+          <StyledName name={name} nameStyle={who?.nameStyle} />
+        </span>
+        <span className="state">{mine ? "Chamando…" : `${ring.from.displayName} está chamando…`}</span>
+        {mine && variant !== "strip" && (
+          <Button size="sm" variant="ghost" icon={<PhoneOff size={14} aria-hidden="true" />} onClick={onCancel}>
+            Desistir
+          </Button>
+        )}
+      </span>
+    </div>
   );
 }
 

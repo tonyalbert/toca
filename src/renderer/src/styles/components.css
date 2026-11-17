@@ -923,3 +923,11 @@ kbd { display: inline-flex; align-items: center; height: 24px; min-width: 24px; 
 .ns-colors { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ns-color { position: relative; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line-2); overflow: hidden; cursor: pointer; }
 .ns-color input { position: absolute; inset: -8px; width: calc(100% + 16px); height: calc(100% + 16px); border: 0; padding: 0; cursor: pointer; }
+
+/* ---------- alguém sendo chamado para a call (RingTile em VoiceRoomView.tsx) ---------- */
+.pc.ringing { border-style: dashed; border-color: var(--accent-ring); background: color-mix(in srgb, var(--card) 70%, transparent); }
+.pc.ringing .avw { opacity: .75; }
+.pc.ringing .state { color: var(--accent-text); font-weight: 700; animation: ring-blink 1.4s ease-in-out infinite; }
+.pc.ringing .pc-text { gap: 8px; }
+@keyframes ring-blink { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .pc.ringing .state { animation: none; } }

@@ -337,6 +337,8 @@ export interface RoomRing {
   from: User;
   /** Quem foi chamado (id) */
   to: string;
+  /** Quem foi chamado: nome e bichinho (servidores antigos não mandam) */
+  callee?: User;
   /** Amigo de fora da sala: ao atender, vira membro (servidores antigos não mandam) */
   joins?: boolean;
   expiresAt: string;

@@ -623,6 +623,9 @@ function MainApp({
                 cinema={cinema}
                 draw={draw}
                 duel={duel}
+                calls={voice.room ? rings.callsIn(voice.room) : []}
+                meId={me.id}
+                onCancelCall={(ring) => void rings.cancel(ring)}
               />
             </div>
             {roomChatOpen && currentRoom && (

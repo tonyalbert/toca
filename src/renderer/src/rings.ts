@@ -21,6 +21,8 @@ export interface RingOutcome {
 export function useRings(onOutcome: (o: RingOutcome) => void) {
   const [incoming, setIncoming] = useState<RoomRing[]>([]);
   const [outgoing, setOutgoing] = useState<RoomRing[]>([]);
+  // Chamadas tocando nas suas salas, de qualquer um (a sala mostra "chamando")
+  const [roomCalls, setRoomCalls] = useState<RoomRing[]>([]);
   const outgoingRef = useRef(outgoing);
   outgoingRef.current = outgoing;
   const onOutcomeRef = useRef(onOutcome);
@@ -29,8 +31,11 @@ export function useRings(onOutcome: (o: RingOutcome) => void) {
   const onEvent = useCallback((event: RealtimeEvent) => {
     if (event.type === "room_ring") {
       setIncoming((list) => [...list.filter((r) => r.id !== event.ring.id), event.ring]);
+    } else if (event.type === "room_calling") {
+      setRoomCalls((list) => [...list.filter((r) => r.id !== event.ring.id), event.ring]);
     } else if (event.type === "room_ring_ended") {
       setIncoming((list) => list.filter((r) => r.id !== event.ringId));
+      setRoomCalls((list) => list.filter((r) => r.id !== event.ringId));
       const mine = outgoingRef.current.find((r) => r.id === event.ringId);
       if (mine) {
         setOutgoing((list) => list.filter((r) => r.id !== event.ringId));
@@ -41,12 +46,13 @@ export function useRings(onOutcome: (o: RingOutcome) => void) {
       // Ficou fora do ar: o fim das chamadas pode ter se perdido
       setIncoming([]);
       setOutgoing([]);
+      setRoomCalls([]);
     }
   }, []);
 
   // Some sozinha no prazo, mesmo se o aviso do servidor não chegar
   useEffect(() => {
-    const all = [...incoming, ...outgoing];
+    const all = [...incoming, ...outgoing, ...roomCalls];
     if (all.length === 0) return;
     const next = Math.min(...all.map((r) => Date.parse(r.expiresAt)));
     const timer = setTimeout(
@@ -54,11 +60,12 @@ export function useRings(onOutcome: (o: RingOutcome) => void) {
         const now = Date.now() + 500;
         setIncoming((list) => list.filter((r) => Date.parse(r.expiresAt) > now));
         setOutgoing((list) => list.filter((r) => Date.parse(r.expiresAt) > now));
+        setRoomCalls((list) => list.filter((r) => Date.parse(r.expiresAt) > now));
       },
       Math.max(0, next - Date.now()) + 1000,
     );
     return () => clearTimeout(timer);
-  }, [incoming, outgoing]);
+  }, [incoming, outgoing, roomCalls]);
 
   // O toque, enquanto alguém estiver chamando
   const ringing = incoming.length > 0;
@@ -72,11 +79,14 @@ export function useRings(onOutcome: (o: RingOutcome) => void) {
   /** Chama um membro da sala; o erro (offline, já na call) vem na promessa */
   const call = useCallback(async (roomId: string, userId: string) => {
     const ring = await ringRoomMember(roomId, userId);
-    setOutgoing((list) => [...list.filter((r) => !(r.room.id === roomId && r.to === userId)), ring]);
+    const same = (r: RoomRing) => r.room.id === roomId && r.to === userId;
+    setOutgoing((list) => [...list.filter((r) => !same(r)), ring]);
+    setRoomCalls((list) => [...list.filter((r) => !same(r)), ring]);
   }, []);
 
   const cancel = useCallback(async (ring: RoomRing) => {
     setOutgoing((list) => list.filter((r) => r.id !== ring.id));
+    setRoomCalls((list) => list.filter((r) => r.id !== ring.id));
     await cancelRing(ring.id).catch(() => {});
   }, []);
 
@@ -102,7 +112,10 @@ export function useRings(onOutcome: (o: RingOutcome) => void) {
   /** Você está chamando esta pessoa nesta sala? */
   const callingTo = (roomId: string, userId: string) => outgoing.find((r) => r.room.id === roomId && r.to === userId) ?? null;
 
-  return { incoming, outgoing, onEvent, call, cancel, accept, decline, callingTo };
+  /** Quem está sendo chamado para a call desta sala (por qualquer um) */
+  const callsIn = (roomId: string) => roomCalls.filter((r) => r.room.id === roomId);
+
+  return { incoming, outgoing, onEvent, call, cancel, accept, decline, callingTo, callsIn };
 }
 
 export type Rings = ReturnType<typeof useRings>;

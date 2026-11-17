@@ -12,6 +12,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.8.0",
+    date: "2026-11-17",
+    items: [
+      "Compartilhar uma janela agora leva só o som daquele programa: a música e os outros programas abertos no PC ficam de fora. Compartilhando a tela inteira, continua indo o som do PC todo (menos a chamada).",
+      "Quando alguém chama uma pessoa para a call, todo mundo na sala vê o cartão dela com \"chamando…\" até ela entrar. Quem chamou pode desistir por ali.",
+    ],
+  },
+  {
     version: "2.7.0",
     date: "2026-11-17",
     items: [

@@ -1,12 +1,15 @@
 // toca-audio-capture: captura o áudio do sistema EXCETO o de um processo (e
-// dos processos filhos dele), usando a API de process loopback do Windows.
+// dos processos filhos dele), ou SÓ o de uma janela (o processo dela e os
+// filhos), usando a API de process loopback do Windows.
 //
 // O Toca usa isso no compartilhamento de tela com áudio: o loopback comum do
 // Chromium pega tudo o que toca no PC, inclusive as vozes da chamada, e quem
 // está na sala ouviria o próprio eco. Excluindo a árvore de processos do Toca,
 // vão só o jogo, o vídeo, a música etc.
 //
-// Uso:  toca-audio-capture.exe <pid-a-excluir>
+// Uso:  toca-audio-capture.exe <pid-a-excluir> [--window <hwnd>]
+//       Com --window, vai só o som do programa daquela janela (compartilhar
+//       uma janela não leva junto a música, o jogo etc. que tocam no PC).
 // Saída (stdout): PCM 16 bits, 48000 Hz, estéreo, intercalado, little-endian.
 // Mensagens e erros vão para stderr. Encerra quando o stdout é fechado.
 //
@@ -26,6 +29,7 @@ static class Program
 
     const ushort VT_BLOB = 0x0041;
     const int AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK = 1;
+    const int PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE = 0;
     const int PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE = 1;
     const string VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK = "VAD\\Process_Loopback";
 
@@ -127,18 +131,50 @@ static class Program
         IActivateAudioInterfaceCompletionHandler completionHandler,
         out IActivateAudioInterfaceAsyncOperation activationOperation);
 
+    [DllImport("user32.dll")]
+    static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
+    delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    static extern bool EnumChildWindows(IntPtr hWndParent, EnumWindowsProc callback, IntPtr lParam);
+
+    /// Processo dono da janela. Apps da Microsoft Store moram dentro do
+    /// ApplicationFrameHost: o som sai do processo da janela filha, não do host.
+    static uint WindowProcess(IntPtr hwnd)
+    {
+        uint pid;
+        GetWindowThreadProcessId(hwnd, out pid);
+        string name = "";
+        try { name = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch (Exception) { }
+        if (!name.Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase)) return pid;
+
+        uint inner = 0;
+        EnumChildWindows(hwnd, (child, _) =>
+        {
+            uint childPid;
+            GetWindowThreadProcessId(child, out childPid);
+            if (childPid != 0 && childPid != pid) { inner = childPid; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return inner != 0 ? inner : pid;
+    }
+
     static void Check(int hr, string what)
     {
         if (hr < 0) throw new Exception(what + " falhou (HRESULT 0x" + hr.ToString("X8") + ")");
     }
 
-    static IAudioClient ActivateExcluding(uint processId)
+    static IAudioClient Activate(uint processId, int mode)
     {
         var activation = new AudioClientActivationParams
         {
             ActivationType = AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK,
             TargetProcessId = processId,
-            ProcessLoopbackMode = PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE,
+            ProcessLoopbackMode = mode,
         };
         int activationSize = Marshal.SizeOf(typeof(AudioClientActivationParams));
         IntPtr activationPtr = Marshal.AllocHGlobal(activationSize);
@@ -173,13 +209,26 @@ static class Program
         uint excludePid;
         if (args.Length < 1 || !uint.TryParse(args[0], out excludePid))
         {
-            Console.Error.WriteLine("uso: toca-audio-capture.exe <pid-a-excluir>");
+            Console.Error.WriteLine("uso: toca-audio-capture.exe <pid-a-excluir> [--window <hwnd>]");
             return 2;
+        }
+
+        // Janela compartilhada: só o som do programa dela
+        uint includePid = 0;
+        long hwnd;
+        if (args.Length >= 3 && args[1] == "--window" && long.TryParse(args[2], out hwnd) && IsWindow(new IntPtr(hwnd)))
+        {
+            includePid = WindowProcess(new IntPtr(hwnd));
+            // Janela do próprio Toca: incluir traria o eco da chamada
+            if (includePid == excludePid) includePid = 0;
         }
 
         try
         {
-            IAudioClient client = ActivateExcluding(excludePid);
+            IAudioClient client = includePid != 0
+                ? Activate(includePid, PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE)
+                : Activate(excludePid, PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE);
+            Console.Error.WriteLine(includePid != 0 ? "MODO: janela (pid " + includePid + ")" : "MODO: PC todo sem o Toca");
 
             var format = new WaveFormatEx
             {

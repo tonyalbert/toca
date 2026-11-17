@@ -5,6 +5,11 @@ import type { ScreenAudioStartResult, ScreenSource } from "../shared/screen";
 
 // Escolha feita no seletor do app, usada no próximo getDisplayMedia
 let pendingSourceId: string | null = null;
+// Janela escolhida (HWND): o áudio do compartilhamento vem só do programa dela
+let sharedWindow: string | null = null;
+
+/** "window:<hwnd>:0" → hwnd; telas inteiras → null */
+const windowHandle = (sourceId: string) => /^window:(\d+):/.exec(sourceId)?.[1] ?? null;
 
 // Captura do áudio do sistema sem o próprio Toca (native/audio-capture)
 let audioHelper: ChildProcessWithoutNullStreams | null = null;
@@ -21,8 +26,9 @@ function stopAudioHelper(): void {
 }
 
 /**
- * Inicia o toca-audio-capture excluindo a árvore de processos do Toca e
- * repassa o PCM (s16le, 48 kHz, estéreo) para a janela via "screen:audio-data".
+ * Inicia o toca-audio-capture e repassa o PCM (s16le, 48 kHz, estéreo) para a
+ * janela via "screen:audio-data". Tela inteira: tudo menos a árvore de
+ * processos do Toca. Uma janela: só o programa dela (e os processos filhos).
  */
 function startAudioHelper(target: WebContents): Promise<ScreenAudioStartResult> {
   stopAudioHelper();
@@ -30,7 +36,8 @@ function startAudioHelper(target: WebContents): Promise<ScreenAudioStartResult> 
     return Promise.resolve({ ok: false, error: "Áudio do computador só é suportado no Windows" });
   }
 
-  const helper = spawn(audioHelperPath(), [String(process.pid)], { windowsHide: true });
+  const args = [String(process.pid), ...(sharedWindow ? ["--window", sharedWindow] : [])];
+  const helper = spawn(audioHelperPath(), args, { windowsHide: true });
   audioHelper = helper;
 
   helper.stdout.on("data", (chunk: Buffer) => {
@@ -69,7 +76,8 @@ function startAudioHelper(target: WebContents): Promise<ScreenAudioStartResult> 
  *
  * O áudio NÃO vem do getDisplayMedia: o loopback do Chromium captura tudo,
  * inclusive as vozes da chamada (eco para quem está na sala). Ele vem do
- * toca-audio-capture, que exclui o próprio Toca.
+ * toca-audio-capture, que exclui o próprio Toca ou, numa janela, pega só o
+ * programa dela.
  */
 export function setupScreenShare(): void {
   ipcMain.handle("screen:sources", async (): Promise<ScreenSource[]> => {
@@ -89,6 +97,7 @@ export function setupScreenShare(): void {
 
   ipcMain.handle("screen:select", (_e, sourceId: string) => {
     pendingSourceId = sourceId;
+    sharedWindow = windowHandle(sourceId);
   });
 
   ipcMain.handle("screen:audio-start", (e) => {

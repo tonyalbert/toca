@@ -145,12 +145,21 @@ export function ScreenSharePicker({
           onChange={setQuality}
           hint="Quanto menor, menos o compartilhamento pesa no seu PC e na sua internet."
         />
-        <Switch
-          checked={withAudio}
-          onChange={setWithAudio}
-          label="Compartilhar o áudio do PC"
-          description="A turma ouve o som do vídeo ou do jogo junto com a tela. As vozes da chamada não vão junto, então ninguém ouve o próprio eco."
-        />
+        {chosen?.type === "window" ? (
+          <Switch
+            checked={withAudio}
+            onChange={setWithAudio}
+            label="Compartilhar o som da janela"
+            description="Vai só o som desse programa: a música e os outros programas abertos no PC ficam de fora."
+          />
+        ) : (
+          <Switch
+            checked={withAudio}
+            onChange={setWithAudio}
+            label="Compartilhar o áudio do PC"
+            description="A turma ouve o som do vídeo ou do jogo junto com a tela. As vozes da chamada não vão junto, então ninguém ouve o próprio eco."
+          />
+        )}
       </div>
     </Modal>
   );
