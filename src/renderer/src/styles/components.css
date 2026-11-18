@@ -963,13 +963,15 @@ kbd { display: inline-flex; align-items: center; height: 24px; min-width: 24px; 
 .st-cell { width: 100%; min-width: 110px; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .st-cell:disabled { cursor: default; }
 .st-cell:not(:disabled):hover { background: var(--card-2); }
-.st-cell[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--danger-soft); }
+.st-cell[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--ok); }
 .st-ans { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-pts { flex: none; min-width: 26px; text-align: center; padding: 1px 6px; border-radius: 99px; font-weight: 800; font-size: 12px; background: var(--card-3); color: var(--muted); }
 td.pts-10 .st-pts { background: var(--ok); color: #08130e; }
 td.pts-5 .st-pts { background: var(--accent); color: var(--accent-ink); }
 td.out .st-ans { text-decoration: line-through; color: var(--muted); }
-.st-votes { flex: none; color: var(--danger); font-weight: 800; }
+td.pending .st-ans { color: var(--muted); }
+.st-votes { flex: none; color: var(--muted); font-weight: 800; }
+td.ok .st-votes { color: var(--ok); }
 .st-total th, .st-total td { font-weight: 800; padding: 10px; border-bottom: 0; }
 .st-side { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .st-players { list-style: none; margin: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); }

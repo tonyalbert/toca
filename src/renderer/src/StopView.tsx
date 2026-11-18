@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Crown, Hand, Square, X } from "lucide-react";
-import { activePlayers, annulled, roundScores, startsWith, voteKey, type StopGame, type StopSettings } from "./stopGame";
+import { activePlayers, approved, roundScores, startsWith, voteKey, type StopGame, type StopSettings } from "./stopGame";
 import { normalize } from "./drawGame";
 import { Button } from "./components/Button";
 
@@ -57,7 +57,7 @@ export function StopView({ stop }: { stop: StopGame }) {
             <span className="sm muted">
               {g.phase === "writing" && "Preencha tudo com a letra e aperte STOP."}
               {g.phase === "stopping" && `STOP de ${g.stoppedBy ? (g.stoppedBy === stop.me ? "você" : name(g.stoppedBy)) : "tempo esgotado"}: as respostas travam já já.`}
-              {g.phase === "review" && "Correção: clique numa resposta para votar e anular."}
+              {g.phase === "review" && "Correção: marque as respostas dos outros que valem. Só conta ponto o que a turma validar."}
               {g.phase === "end" && "Fim de jogo!"}
             </span>
           </div>
@@ -109,7 +109,7 @@ export function StopView({ stop }: { stop: StopGame }) {
           ))}
         </ul>
         <p className="xs muted">
-          10 pontos se só você respondeu, 5 se alguém respondeu igual. Vazia, com outra letra ou anulada pela turma vale 0.
+          Só vale ponto a resposta que pelo menos metade dos outros jogadores marcar como válida: 10 se só você respondeu, 5 se alguém respondeu igual. Vazia ou com outra letra vale 0.
         </p>
         {!active.some((p) => p.id === stop.me) && g.phase !== "end" && (
           <p className="sm muted">Você chegou no meio: entra na próxima rodada.</p>
@@ -205,21 +205,22 @@ function Review({ stop, hostName }: { stop: StopGame; hostName: string }) {
                   const key = voteKey(p.id, ci);
                   const votes = g.votes[key] ?? [];
                   const mineVote = !!stop.me && votes.includes(stop.me);
-                  const out = annulled(g, p.id, ci);
-                  const canVote = stop.playing && p.id !== stop.me && normalize(answer) !== "";
+                  const usable = normalize(answer) !== "" && startsWith(answer, g.letter);
+                  const ok = usable && approved(g, p.id, ci);
+                  const canVote = stop.playing && p.id !== stop.me && usable;
                   return (
-                    <td key={p.id} className={`pts-${pts} ${out ? "out" : ""}`}>
+                    <td key={p.id} className={`pts-${pts} ${ok ? "ok" : usable ? "pending" : "out"}`}>
                       <button
                         type="button"
                         className="st-cell"
                         disabled={!canVote}
                         aria-pressed={mineVote}
-                        data-tip={canVote ? (mineVote ? "Tirar o seu voto" : "Votar para anular") : undefined}
+                        data-tip={canVote ? (mineVote ? "Tirar a sua marca" : "Marcar como válida") : undefined}
                         onClick={() => stop.vote(p.id, ci, !mineVote)}
                       >
                         <span className="st-ans">{answer || "—"}</span>
                         <span className="st-pts num">{pts}</span>
-                        {votes.length > 0 && <span className="st-votes xs">✕ {votes.length}</span>}
+                        {usable && <span className="st-votes xs">✓ {votes.length}/{Math.max(1, Math.ceil((active.length - 1) / 2))}</span>}
                       </button>
                     </td>
                   );

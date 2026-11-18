@@ -8,7 +8,7 @@ import { playCue } from "./sounds";
 /**
  * Stop (Adedonha): sorteia uma letra e cada um preenche as categorias. Quem
  * terminar aperta STOP e todo mundo para depois de 3 segundos. Na correção, a
- * turma vota para anular respostas. Quem começa conduz ("host"): sorteia,
+ * turma marca as respostas válidas: só elas valem ponto. Quem começa conduz ("host"): sorteia,
  * conta o tempo, junta as respostas, soma os pontos e manda o estado para
  * todos, pelo canal de dados da chamada (como o Desenha e Adivinha).
  */
@@ -80,7 +80,7 @@ export interface StopState {
   left: number;
   /** Respostas de cada um, na ordem das categorias (na correção e no fim) */
   answers: Record<string, string[]>;
-  /** "jogador:categoria" → quem votou para anular */
+  /** "jogador:categoria" → quem marcou a resposta como válida */
   votes: Record<string, string[]>;
   rev: number;
 }
@@ -108,18 +108,18 @@ export const startsWith = (answer: string, letter: string) => normalize(answer).
 /** Quem joga a rodada */
 export const activePlayers = (s: StopState) => s.players.filter((p) => p.active);
 
-/** Anulada pela turma: metade ou mais dos outros jogadores votou */
-export function annulled(s: StopState, player: string, category: number): boolean {
+/** Validada pela turma: metade ou mais dos outros jogadores marcou como válida */
+export function approved(s: StopState, player: string, category: number): boolean {
   const voters = Math.max(1, activePlayers(s).length - 1);
   return (s.votes[voteKey(player, category)]?.length ?? 0) >= Math.ceil(voters / 2);
 }
 
-/** Pontos de cada resposta: 10 só você, 5 repetida, 0 vazia, outra letra ou anulada */
+/** Pontos de cada resposta validada: 10 só você, 5 repetida; 0 vazia, outra letra ou sem validar */
 export function roundScores(s: StopState): Record<string, number[]> {
   const out: Record<string, number[]> = {};
   const valid = (id: string, c: number) => {
     const a = s.answers[id]?.[c] ?? "";
-    return normalize(a) !== "" && startsWith(a, s.letter) && !annulled(s, id, c);
+    return normalize(a) !== "" && startsWith(a, s.letter) && approved(s, id, c);
   };
   const active = activePlayers(s);
   for (const p of active) {
@@ -424,7 +424,7 @@ export function useStopGame(voice: VoiceRoom) {
     setMine((m) => (m.key === `${cur.id}:${cur.round}` ? { ...m, list: m.list.map((v, j) => (j === i ? value.slice(0, 60) : v)) } : m));
   };
 
-  /** Votar para anular a resposta de alguém (de novo: tira o voto) */
+  /** Marcar a resposta de alguém como válida (de novo: tira a marca) */
   const vote = (player: string, category: number, on: boolean) => {
     const cur = gameRef.current;
     const self = meRef.current;

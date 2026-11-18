@@ -54,7 +54,7 @@ const GAMES: GameInfo[] = [
     name: "Stop (Adedonha)",
     icon: <Hand size={22} />,
     players: "2 ou mais",
-    text: "Sai uma letra e todo mundo preenche as categorias. Quem terminar aperta STOP. Na correção, a turma vota para anular as respostas forçadas.",
+    text: "Sai uma letra e todo mundo preenche as categorias. Quem terminar aperta STOP. Na correção, a turma marca o que vale: só conta ponto a resposta validada.",
   },
 ];
 

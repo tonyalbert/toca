@@ -12,6 +12,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.9.1",
+    date: "2026-11-18",
+    items: [
+      "Stop: agora só conta ponto a resposta que a turma marcar como válida. Na correção, clique nas respostas dos outros para validar; com metade dos outros jogadores marcando, ela vale.",
+    ],
+  },
+  {
     version: "2.9.0",
     date: "2026-11-18",
     items: [
