@@ -972,6 +972,7 @@ td.out .st-ans { text-decoration: line-through; color: var(--muted); }
 td.pending .st-ans { color: var(--muted); }
 .st-votes { flex: none; color: var(--muted); font-weight: 800; }
 td.ok .st-votes { color: var(--ok); }
+.st-votes.out { color: var(--danger); }
 .st-total th, .st-total td { font-weight: 800; padding: 10px; border-bottom: 0; }
 .st-side { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .st-players { list-style: none; margin: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px; border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--line); }

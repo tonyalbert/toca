@@ -5,7 +5,7 @@ import { approved, roundScores, startsWith, voteKey, type StopState } from "../s
 
 const base = (answers: Record<string, string[]>, votes: Record<string, string[]> = {}, active = ["ana", "bia", "caio"]): StopState => ({
   id: "j", host: "ana", started: 0, rev: 1,
-  settings: { rounds: 3, seconds: 60, categories: ["Nome", "Animal"] },
+  settings: { rounds: 3, seconds: 60, categories: ["Nome", "Animal"], validate: true },
   players: ["ana", "bia", "caio", "duda"].map((id) => ({ id, name: id, score: 0, active: active.includes(id) })),
   round: 1, letter: "A", used: ["A"], phase: "review", stoppedBy: null, left: 0, answers, votes,
 });
@@ -46,4 +46,12 @@ test("quem saiu (inativo) não conta pontos nem faz a resposta repetir", () => {
   const r = roundScores(s);
   assert.equal(r.duda, undefined);
   assert.deepEqual(r.ana, [10, 5]);
+});
+
+test("partida de app antigo (sem validate): o voto anula, como antes", () => {
+  const s = base({ ana: ["Ana", "Arara"], bia: ["Abacaxi", "Anta"], caio: ["Aline", "Asno"] }, { [voteKey("bia", 0)]: ["ana"] });
+  delete s.settings.validate;
+  const r = roundScores(s);
+  assert.equal(r.bia[0], 0);
+  assert.equal(r.caio[0], 10);
 });

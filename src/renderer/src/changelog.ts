@@ -12,6 +12,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "2.9.2",
+    date: "2026-11-18",
+    items: [
+      "Stop: a regra da correção agora vai junto com a partida, então todo mundo conta os pontos do mesmo jeito. Se a partida vier de um Toca desatualizado, aparece um aviso para recarregar o app.",
+    ],
+  },
+  {
     version: "2.9.1",
     date: "2026-11-18",
     items: [

@@ -43,6 +43,12 @@ export interface StopSettings {
   /** Tempo máximo de cada rodada, em segundos */
   seconds: number;
   categories: string[];
+  /**
+   * Regra da correção: true = só vale o que a turma validar (2.9.1+); ausente =
+   * a regra antiga, em que o voto anula. Vai junto com a partida para todos os
+   * PCs lerem o mesmo voto do mesmo jeito, mesmo com versões diferentes do app.
+   */
+  validate?: boolean;
 }
 
 export const DEFAULT_STOP: StopSettings = {
@@ -114,12 +120,24 @@ export function approved(s: StopState, player: string, category: number): boolea
   return (s.votes[voteKey(player, category)]?.length ?? 0) >= Math.ceil(voters / 2);
 }
 
+/** Regra antiga (partida começada num app até a 2.9.0): o voto anula */
+function annulled(s: StopState, player: string, category: number): boolean {
+  return approved(s, player, category);
+}
+
+/** O voto conta como validação nesta partida? */
+export const validates = (s: StopState) => s.settings.validate === true;
+
+/** A resposta vale (pela regra da partida), sem olhar letra nem se está vazia */
+export const accepted = (s: StopState, player: string, category: number) =>
+  validates(s) ? approved(s, player, category) : !annulled(s, player, category);
+
 /** Pontos de cada resposta validada: 10 só você, 5 repetida; 0 vazia, outra letra ou sem validar */
 export function roundScores(s: StopState): Record<string, number[]> {
   const out: Record<string, number[]> = {};
   const valid = (id: string, c: number) => {
     const a = s.answers[id]?.[c] ?? "";
-    return normalize(a) !== "" && startsWith(a, s.letter) && approved(s, id, c);
+    return normalize(a) !== "" && startsWith(a, s.letter) && accepted(s, id, c);
   };
   const active = activePlayers(s);
   for (const p of active) {
@@ -384,9 +402,10 @@ export function useStopGame(voice: VoiceRoom) {
 
   // ---------- ações ----------
 
-  const start = (settings: StopSettings) => {
+  const start = (input: StopSettings) => {
     const self = meRef.current;
     if (!self) return;
+    const settings: StopSettings = { ...input, validate: true };
     const letter = drawLetter([]);
     const s: StopState = {
       id: crypto.randomUUID(),
